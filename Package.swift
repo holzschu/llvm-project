@@ -12,53 +12,53 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "ar",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/ar.xcframework.zip",
-            checksum: "c849d0a17cc96874d658626e7c630072914a4b49e721a5b4004e7ba7015a756a"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/ar.xcframework.zip",
+            checksum: "69727d7f851ad5b0a77732e7cff70112a0cf8ec12d8e8fc869f6470a1880c1c5"
         ),
         .binaryTarget(
             name: "lld",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/lld.xcframework.zip",
-            checksum: "3a2f0f13c281e17b2142e79b172837897fdc37ee21fda231af480b26dba1c869"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/lld.xcframework.zip",
+            checksum: "240c1cd5cfc7557dd859af9b9d20aa9623f935dc92746a8be21edba8dbd11f34"
         ),
         .binaryTarget(
             name: "llc",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/llc.xcframework.zip",
-            checksum: "41b60198fae46c6b9f37a9e6bf64d8a8fdd6d5e4b5bdf965fa7e85a7d109b5af"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/llc.xcframework.zip",
+            checksum: "bfd1cf1e42a5af03716bdd0d3d5404cde7d56f86c52cfebcc69a7ecbd2d5127b"
         ),
         .binaryTarget(
             name: "clang",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/clang.xcframework.zip",
-            checksum: "80bf2d12a6b92b3f2360f62264d13564f136ff3a6801e4b52a562168e6e6dba4"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/clang.xcframework.zip",
+            checksum: "9de9f72334c99f27d3ac5844b8d3feffcaed3086997e7c2538f887667e8ca179"
         ),
         .binaryTarget(
             name: "dis",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/dis.xcframework.zip",
-            checksum: "c722a48a49ea045c8a0d5349d8543f9211b16b5e11321411b289dcd32cf66c4e"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/dis.xcframework.zip",
+            checksum: "6613ee063331e39fdea044cc119511ef61df8eb247e6db2e376240af224623c7"
         ),
         .binaryTarget(
             name: "libLLVM",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/libLLVM.xcframework.zip",
-            checksum: "4d1d912b06381dc0ffcb5148e4263dcdab9db86f32aa1afbbb1028ac5959f9ca"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/libLLVM.xcframework.zip",
+            checksum: "bbae5b3a7952b2f1e89fb93b25b41931a53b6d8c99d24dfe6a893e615b177428"
         ),
         .binaryTarget(
             name: "link",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/link.xcframework.zip",
-            checksum: "f52cfd322267fa534136aac2637b5fa794762d61779361169d7afb9f9a22c0de"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/link.xcframework.zip",
+            checksum: "3bf79972c961f418c9964df04dec81794dd6beae88f07702e8b51e074ed2085f"
         ),
         .binaryTarget(
             name: "lli",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/lli.xcframework.zip",
-            checksum: "4b7fd68f7e1e92cf0a731e588da074a090d4d075270016d0578b527c6fa5a964"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/lli.xcframework.zip",
+            checksum: "a7976820f7349daf1c136ae513d506c954502ff10b92a92dbd3538bd625e0719"
         ),
         .binaryTarget(
             name: "nm",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/nm.xcframework.zip",
-            checksum: "d63c4d5745dbeb315e94c8e80cc802469d1ec8cb55bc1bdc0e2f990893e52c8c"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/nm.xcframework.zip",
+            checksum: "3c004f6d5345bde727bb34d2daa252c46a9cf5ee3e053c7a18b2933cf0df16c0"
         ),
         .binaryTarget(
             name: "opt",
-            url: "https://github.com/holzschu/llvm-project/releases/download/1.0/opt.xcframework.zip",
-            checksum: "28a908e363b6c91caf45c9cc4f139fa7128a1336684066ee31410ccec9074b3e"
+            url: "https://github.com/holzschu/llvm-project/releases/download/14.0.0/opt.xcframework.zip",
+            checksum: "616d858d3bfd3f2782baedda34ba1fb6c449704faeae0db59e742d27169710ab"
         )
     ]
 )
@@ -67,24 +67,24 @@ let package = Package(
 
 /* Merging into xcframeworks: 
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/ar.xcframework
-bd9a798136eaccf6eb548065bd9cda8d08e6b4304b31041010dc852fdad0f0c5
+b64e6430fafa6353734229cf3f36efac3b3bb00cfa271ba83b95992a479f3704
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/lld.xcframework
-70947a5e9c4c3779332879e1768f81fd4fcb5ab14133cf580850f75e909f32dd
+f49af64fcef79629277473d159db802f4772cc0fce4b76a30d77fc7177e572d1
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/llc.xcframework
-0979caa054a9b8d6ce6115e3af88202c347bacc61a6f56ad1c1432c52d973dfb
+93952531fb43d799b0a0ffb6cc9cc351e71245edb133ee2e0ed4592df7b3f0c9
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/clang.xcframework
-b9477489e8f7fd5a2abd3c7d1bde96aa7afb58acac3767c68dcfd4e4573371a5
+d0f45645bca98f49a3acd926a34b80a9403586fde28ffbba5b766980d24776a8
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/dis.xcframework
-0946eb227531a7c0c455e05aa98b71438a2fa3ea14306734aa0afe168e596096
+fc8c0aca29e0a8653aea5343b6585e94b3d550a40b35477d18549a0434df1b3a
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/libLLVM.xcframework
-ae902d76ab04bcae0e54782eb123d91452fcfbbee5e7200813dcc4c38cee0487
+2e5f05afd237b79ed264759b602c31af0907cab5bc45af2851d971358f412d4f
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/link.xcframework
-7344eb79d43ec851c281d3a4bab77a6db671fa468b06a43843106350bd2ec9b5
+e4b3531bd3ca702ddf5c1f652da8c83b956ab6d8b19107de0972b4da3151e781
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/lli.xcframework
-bca9a7f2428b73a370f13e026826d18a4de49644637644628672cc42c76d1959
+469fa5fae7dc51c5195661505c5a32f3023a2136ed3057c79baae27b19eff220
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/nm.xcframework
-1820814bb7a66d35a751cf3bdb56e1643a4e834e07c6068fe4cf104f1932b3f4
+ddb50953b2b6b2e9331a992b7f861ad0f2581788b2520b526ec4c8ca86bada3b
 xcframework successfully written out to: /Users/holzschu/src/Xcode_iPad/llvm-project/opt.xcframework
-3fde056ea4f49aab3be8023537221ef86dc72ab2a8d66e7042b6d58a640a8f29
+13c5748e2f5280879b7c28711c99648d850b75147c961e5031e0dabb8efd8cb9
 
  */

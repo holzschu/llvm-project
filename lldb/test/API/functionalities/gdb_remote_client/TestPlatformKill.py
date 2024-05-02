@@ -5,16 +5,14 @@ from lldbsuite.test.decorators import *
 from lldbsuite.test.gdbclientutils import *
 from lldbsuite.test.lldbgdbclient import GDBRemoteTestBase
 
+
 class TestPlatformKill(GDBRemoteTestBase):
-
-    mydir = TestBase.compute_mydir(__file__)
-
     @skipIfRemote
     @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr52451")
     def test_kill_different_platform(self):
         """Test connecting to a remote linux platform"""
 
-        self.build(dictionary={"CXX_SOURCES":"sleep.cpp"})
+        self.build(dictionary={"CXX_SOURCES": "sleep.cpp"})
         host_process = self.spawnSubprocess(self.getBuildArtifact())
 
         # Create a fake remote process with the same PID as host_process
@@ -24,7 +22,7 @@ class TestPlatformKill(GDBRemoteTestBase):
                 self.got_kill = False
 
             def qC(self):
-                return "QC%x"%host_process.pid
+                return "QC%x" % host_process.pid
 
             def k(self):
                 self.got_kill = True
@@ -33,8 +31,9 @@ class TestPlatformKill(GDBRemoteTestBase):
         self.server.responder = MyResponder()
 
         error = lldb.SBError()
-        target = self.dbg.CreateTarget("", "x86_64-pc-linux", "remote-linux",
-                False, error)
+        target = self.dbg.CreateTarget(
+            "", "x86_64-pc-linux", "remote-linux", False, error
+        )
         self.assertSuccess(error)
         process = self.connect(target)
         self.assertEqual(process.GetProcessID(), host_process.pid)

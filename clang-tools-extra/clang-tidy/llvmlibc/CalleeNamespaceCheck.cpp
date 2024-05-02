@@ -7,22 +7,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "CalleeNamespaceCheck.h"
+#include "NamespaceConstants.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
+#include "clang/ASTMatchers/ASTMatchers.h"
 #include "llvm/ADT/StringSet.h"
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace llvm_libc {
+namespace clang::tidy::llvm_libc {
 
 // Gets the outermost namespace of a DeclContext, right under the Translation
 // Unit.
 const DeclContext *getOutermostNamespace(const DeclContext *Decl) {
   const DeclContext *Parent = Decl->getParent();
-  if (Parent && Parent->isTranslationUnit())
+  if (Parent->isTranslationUnit())
     return Decl;
   return getOutermostNamespace(Parent);
 }
@@ -47,22 +47,25 @@ void CalleeNamespaceCheck::check(const MatchFinder::MatchResult &Result) {
   if (FuncDecl->getBuiltinID() != 0)
     return;
 
-  // If the outermost namespace of the function is __llvm_libc, we're good.
+  // If the outermost namespace of the function is a macro that starts with
+  // __llvm_libc, we're good.
   const auto *NS = dyn_cast<NamespaceDecl>(getOutermostNamespace(FuncDecl));
-  if (NS && NS->getName() == "__llvm_libc")
+  if (NS && Result.SourceManager->isMacroBodyExpansion(NS->getLocation()) &&
+      NS->getName().starts_with(RequiredNamespaceStart))
     return;
 
-  if (IgnoredFunctions.contains(FuncDecl->getName()))
+  const DeclarationName &Name = FuncDecl->getDeclName();
+  if (Name.isIdentifier() &&
+      IgnoredFunctions.contains(Name.getAsIdentifierInfo()->getName()))
     return;
 
-  diag(UsageSiteExpr->getBeginLoc(), "%0 must resolve to a function declared "
-                                     "within the '__llvm_libc' namespace")
-      << FuncDecl;
+  diag(UsageSiteExpr->getBeginLoc(),
+       "%0 must resolve to a function declared "
+       "within the namespace defined by the '%1' macro")
+      << FuncDecl << RequiredNamespaceMacroName;
 
   diag(FuncDecl->getLocation(), "resolves to this declaration",
        clang::DiagnosticIDs::Note);
 }
 
-} // namespace llvm_libc
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::llvm_libc

@@ -20,8 +20,7 @@ namespace llvm {
 struct LTOCodeGenerator;
 }
 
-namespace lld {
-namespace coff {
+namespace lld::coff {
 
 class Chunk;
 class CommonChunk;
@@ -29,7 +28,6 @@ class COFFLinkerContext;
 class Defined;
 class DefinedAbsolute;
 class DefinedRegular;
-class DefinedRelative;
 class LazyArchive;
 class SectionChunk;
 class Symbol;
@@ -48,7 +46,7 @@ class Symbol;
 // There is one add* function per symbol type.
 class SymbolTable {
 public:
-  SymbolTable(COFFLinkerContext &ctx) : ctx(ctx) {}
+  SymbolTable(COFFLinkerContext &c) : ctx(c) {}
 
   void addFile(InputFile *file);
 
@@ -96,7 +94,8 @@ public:
   Symbol *addAbsolute(StringRef n, COFFSymbolRef s);
   Symbol *addRegular(InputFile *f, StringRef n,
                      const llvm::object::coff_symbol_generic *s = nullptr,
-                     SectionChunk *c = nullptr, uint32_t sectionOffset = 0);
+                     SectionChunk *c = nullptr, uint32_t sectionOffset = 0,
+                     bool isWeak = false);
   std::pair<DefinedRegular *, bool>
   addComdat(InputFile *f, StringRef n,
             const llvm::object::coff_symbol_generic *s = nullptr);
@@ -134,6 +133,7 @@ private:
 
   llvm::DenseMap<llvm::CachedHashStringRef, Symbol *> symMap;
   std::unique_ptr<BitcodeCompiler> lto;
+  bool ltoCompilationDone = false;
 
   COFFLinkerContext &ctx;
 };
@@ -142,7 +142,6 @@ std::vector<std::string> getSymbolLocations(ObjFile *file, uint32_t symIndex);
 
 StringRef ltrim1(StringRef s, const char *chars);
 
-} // namespace coff
-} // namespace lld
+} // namespace lld::coff
 
 #endif

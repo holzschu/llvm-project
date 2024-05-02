@@ -42,7 +42,6 @@ define i64 @selecti32i64(i32 %a) {
 ; CHECK-LABEL: selecti32i64:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    srawi 3, 3, 31
-; CHECK-NEXT:    extsw 3, 3
 ; CHECK-NEXT:    xori 3, 3, 65535
 ; CHECK-NEXT:    xoris 3, 3, 32767
 ; CHECK-NEXT:    blr
@@ -69,7 +68,6 @@ define i32 @selecti32i32(i32 %a) {
 ; CHECK-LABEL: selecti32i32:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    srawi 3, 3, 31
-; CHECK-NEXT:    extsw 3, 3
 ; CHECK-NEXT:    xori 3, 3, 84
 ; CHECK-NEXT:    blr
   %c = icmp sgt i32 %a, -1
@@ -81,7 +79,6 @@ define i8 @selecti32i8(i32 %a) {
 ; CHECK-LABEL: selecti32i8:
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    srawi 3, 3, 31
-; CHECK-NEXT:    extsw 3, 3
 ; CHECK-NEXT:    xori 3, 3, 84
 ; CHECK-NEXT:    blr
   %c = icmp sgt i32 %a, -1
@@ -94,7 +91,6 @@ define i32 @selecti8i32(i8 %a) {
 ; CHECK:       # %bb.0:
 ; CHECK-NEXT:    extsb 3, 3
 ; CHECK-NEXT:    srawi 3, 3, 7
-; CHECK-NEXT:    extsw 3, 3
 ; CHECK-NEXT:    xori 3, 3, 84
 ; CHECK-NEXT:    blr
   %c = icmp sgt i8 %a, -1
@@ -129,11 +125,11 @@ define i32 @icmpasrne(i32 %input, i32 %a, i32 %b) {
 define i32 @oneusecmp(i32 %a, i32 %b, i32 %d) {
 ; CHECK-LABEL: oneusecmp:
 ; CHECK:       # %bb.0:
-; CHECK-NEXT:    srawi 6, 3, 31
 ; CHECK-NEXT:    cmpwi 3, 0
-; CHECK-NEXT:    xori 3, 6, 127
-; CHECK-NEXT:    isellt 4, 5, 4
-; CHECK-NEXT:    add 3, 3, 4
+; CHECK-NEXT:    srawi 6, 3, 31
+; CHECK-NEXT:    xori 6, 6, 127
+; CHECK-NEXT:    isellt 3, 5, 4
+; CHECK-NEXT:    add 3, 6, 3
 ; CHECK-NEXT:    blr
   %c = icmp sle i32 %a, -1
   %s = select i1 %c, i32 -128, i32 127

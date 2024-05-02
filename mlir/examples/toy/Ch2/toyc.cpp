@@ -10,16 +10,20 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "toy/AST.h"
 #include "toy/Dialect.h"
+#include "toy/Lexer.h"
 #include "toy/MLIRGen.h"
 #include "toy/Parser.h"
 #include <memory>
+#include <string>
+#include <system_error>
+#include <utility>
 
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/Verifier.h"
-#include "mlir/Parser.h"
+#include "mlir/Parser/Parser.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/CommandLine.h"
@@ -74,11 +78,11 @@ int dumpMLIR() {
 
   // Handle '.toy' input to the compiler.
   if (inputType != InputType::MLIR &&
-      !llvm::StringRef(inputFilename).endswith(".mlir")) {
+      !llvm::StringRef(inputFilename).ends_with(".mlir")) {
     auto moduleAST = parseInputFile(inputFilename);
     if (!moduleAST)
       return 6;
-    mlir::OwningModuleRef module = mlirGen(context, *moduleAST);
+    mlir::OwningOpRef<mlir::ModuleOp> module = mlirGen(context, *moduleAST);
     if (!module)
       return 1;
 
@@ -97,7 +101,8 @@ int dumpMLIR() {
   // Parse the input mlir.
   llvm::SourceMgr sourceMgr;
   sourceMgr.AddNewSourceBuffer(std::move(*fileOrErr), llvm::SMLoc());
-  mlir::OwningModuleRef module = mlir::parseSourceFile(sourceMgr, &context);
+  mlir::OwningOpRef<mlir::ModuleOp> module =
+      mlir::parseSourceFile<mlir::ModuleOp>(sourceMgr, &context);
   if (!module) {
     llvm::errs() << "Error can't load file " << inputFilename << "\n";
     return 3;

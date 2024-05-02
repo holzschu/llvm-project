@@ -4,7 +4,7 @@
 ;       checks are looking for the absence of specific metadata, which
 ;       cannot be expressed reliably by the generated checks.
 
-; RUN: llc -march=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck %s -check-prefix=ISA
+; RUN: llc -mtriple=amdgcn -mcpu=gfx900 -verify-machineinstrs < %s | FileCheck %s -check-prefix=ISA
 ; RUN: opt --amdgpu-annotate-uniform -S %s |  FileCheck %s -check-prefix=UNIFORM
 ; RUN: opt --amdgpu-annotate-uniform --si-annotate-control-flow -S %s |  FileCheck %s -check-prefix=CONTROLFLOW
 
@@ -30,7 +30,6 @@ define amdgpu_ps void @main(i32 %0, float %1) {
 ; ISA-NEXT:  .LBB0_1: ; %Flow1
 ; ISA-NEXT:    ; in Loop: Header=BB0_3 Depth=1
 ; ISA-NEXT:    s_or_b64 exec, exec, s[6:7]
-; ISA-NEXT:    s_add_i32 s8, s8, 1
 ; ISA-NEXT:    s_mov_b64 s[6:7], 0
 ; ISA-NEXT:  .LBB0_2: ; %Flow
 ; ISA-NEXT:    ; in Loop: Header=BB0_3 Depth=1
@@ -54,6 +53,7 @@ define amdgpu_ps void @main(i32 %0, float %1) {
 ; ISA-NEXT:    s_cbranch_execz .LBB0_1
 ; ISA-NEXT:  ; %bb.5: ; %endif2
 ; ISA-NEXT:    ; in Loop: Header=BB0_3 Depth=1
+; ISA-NEXT:    s_add_i32 s8, s8, 1
 ; ISA-NEXT:    s_xor_b64 s[4:5], exec, -1
 ; ISA-NEXT:    s_branch .LBB0_1
 ; ISA-NEXT:  .LBB0_6: ; %Flow2
@@ -97,7 +97,7 @@ Flow2:                                            ; preds = %Flow
   br i1 %8, label %if1, label %endloop
 
 if1:                                              ; preds = %Flow2
-  %v3 = call float @llvm.sqrt.f32(float %v0)
+  %v3 = call afn float @llvm.sqrt.f32(float %v0)
   br label %endloop
 
 endif1:                                           ; preds = %loop

@@ -2,7 +2,7 @@
 ; RUN: llc < %s -mtriple=i386-apple-darwin10.0 | FileCheck %s --check-prefix=CHECK-X86
 ; RUN: llc < %s -mtriple=x86_64-grtev4-linux-gnu | FileCheck %s --check-prefix=CHECK-X64
 
-@g_14 = dso_local global i8 -6, align 1                     ; <i8*> [#uses=1]
+@g_14 = dso_local global i8 -6, align 1                     ; <ptr> [#uses=1]
 
 declare i32 @func_16(i8 signext %p_19, i32 %p_20) nounwind
 
@@ -35,7 +35,7 @@ define dso_local i32 @func_35(i64 %p_38) nounwind ssp {
 ; CHECK-X64-NEXT:    popq %rcx
 ; CHECK-X64-NEXT:    retq
 entry:
-  %tmp = load i8, i8* @g_14                           ; <i8> [#uses=2]
+  %tmp = load i8, ptr @g_14                           ; <i8> [#uses=2]
   %conv = zext i8 %tmp to i32                     ; <i32> [#uses=1]
   %cmp = icmp sle i32 1, %conv                    ; <i1> [#uses=1]
   %conv2 = zext i1 %cmp to i32                    ; <i32> [#uses=1]
@@ -64,21 +64,21 @@ define dso_local void @fail(i16 %a, <2 x i8> %b) {
 ;
 ; CHECK-X64-LABEL: fail:
 ; CHECK-X64:       # %bb.0:
-; CHECK-X64-NEXT:    pushq %rax
-; CHECK-X64-NEXT:    .cfi_def_cfa_offset 16
 ; CHECK-X64-NEXT:    testl $263, %edi # imm = 0x107
 ; CHECK-X64-NEXT:    je .LBB1_3
 ; CHECK-X64-NEXT:  # %bb.1:
+; CHECK-X64-NEXT:    punpcklbw {{.*#+}} xmm0 = xmm0[0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7]
 ; CHECK-X64-NEXT:    pcmpeqb {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %xmm0
-; CHECK-X64-NEXT:    pslldq {{.*#+}} xmm0 = zero,zero,zero,zero,zero,zero,zero,xmm0[0,1,2,3,4,5,6,7,8]
-; CHECK-X64-NEXT:    pextrw $4, %xmm0, %eax
+; CHECK-X64-NEXT:    pextrw $1, %xmm0, %eax
 ; CHECK-X64-NEXT:    testb $1, %al
 ; CHECK-X64-NEXT:    jne .LBB1_3
 ; CHECK-X64-NEXT:  # %bb.2: # %no
+; CHECK-X64-NEXT:    pushq %rax
+; CHECK-X64-NEXT:    .cfi_def_cfa_offset 16
 ; CHECK-X64-NEXT:    callq bar@PLT
-; CHECK-X64-NEXT:  .LBB1_3: # %yes
 ; CHECK-X64-NEXT:    popq %rax
 ; CHECK-X64-NEXT:    .cfi_def_cfa_offset 8
+; CHECK-X64-NEXT:  .LBB1_3: # %yes
 ; CHECK-X64-NEXT:    retq
   %1 = icmp eq <2 x i8> %b, <i8 40, i8 123>
   %2 = extractelement <2 x i1> %1, i32 1

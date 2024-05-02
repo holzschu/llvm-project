@@ -4,9 +4,11 @@
 //      condition (x == 5) is satisfied.
 //      Test using the conditional controller (using \DexLimitSteps).
 //
-// REQUIRES: system-linux
+// The dbgeng driver doesn't support \DexLimitSteps yet.
+// UNSUPPORTED: system-windows
 //
-// RUN: %dexter_regression_test -- %s | FileCheck %s
+// RUN: %dexter_regression_test_build %s -o %t
+// RUN: %dexter_regression_test_run --binary %t -- %s | FileCheck %s
 // CHECK: limit_steps_conditional.cpp
 
 int main() {

@@ -8,7 +8,6 @@
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
 // UNSUPPORTED: ubsan
-// UNSUPPORTED: libcpp-no-coroutines
 
 // <coroutine>
 // struct noop_coroutine_promise;
@@ -59,8 +58,8 @@ int main(int, char**)
   static_assert(h.done() == false, "");
 
   // [coroutine.handle.noop.resumption]p2
-  // Remarks: If noop_­coroutine_­handle is converted to
-  // coroutine_­handle<>, calls to operator(), resume and
+  // Remarks: If noop_coroutine_handle is converted to
+  // coroutine_handle<>, calls to operator(), resume and
   // destroy on that handle will also have no observable
   // effects.
   base.resume();
@@ -69,7 +68,7 @@ int main(int, char**)
   assert(base);
   assert(base.done() == false);
 
-  h.promise();
+  TEST_IGNORE_NODISCARD h.promise();
   assert(h.address() == base.address());
   assert(h == base);
   assert(h.address() != nullptr);

@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: c++03
+// UNSUPPORTED: c++03 && !stdlib=libc++
 
 // <vector>
 
@@ -15,17 +15,18 @@
 // Validate whether the container can be copy-assigned with an ADL-hijacking operator&
 
 #include <vector>
+#include <utility>
 
 #include "test_macros.h"
 #include "operator_hijacker.h"
 
 void test() {
   {
-    std::vector<operator_hijacker> vo{};
-    std::vector<operator_hijacker> v{std::move(vo)};
+    std::vector<operator_hijacker> vo;
+    std::vector<operator_hijacker> v(std::move(vo));
   }
   {
-    std::vector<operator_hijacker> vo{};
-    std::vector<operator_hijacker> v{std::move(vo), std::allocator<operator_hijacker>{}};
+    std::vector<operator_hijacker> vo;
+    std::vector<operator_hijacker> v(std::move(vo), std::allocator<operator_hijacker>());
   }
 }

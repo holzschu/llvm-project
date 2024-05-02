@@ -8,16 +8,19 @@
 
 // <locale>
 
+// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS -D_LIBCPP_ENABLE_CXX26_REMOVED_CODECVT
+
 // wstring_convert<Codecvt, Elem, Wide_alloc, Byte_alloc>
 
 // wstring_convert(const byte_string& byte_err,
 //                 const wide_string& wide_err = wide_string());
 
-// XFAIL: libcpp-has-no-wide-characters
+// XFAIL: no-wide-characters
 
-#include <locale>
-#include <codecvt>
 #include <cassert>
+#include <codecvt>
+#include <locale>
+#include <type_traits>
 
 #include "test_macros.h"
 

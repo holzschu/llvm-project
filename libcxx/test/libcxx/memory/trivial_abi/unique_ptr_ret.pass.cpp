@@ -6,13 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: LIBCXX-AIX-FIXME
-
 // <memory>
 
 // Test unique_ptr<T> with trivial_abi as return-type.
 
-// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_ABI_ENABLE_UNIQUE_PTR_TRIVIAL_ABI
+// ADDITIONAL_COMPILE_FLAGS: -Wno-macro-redefined -D_LIBCPP_ABI_ENABLE_UNIQUE_PTR_TRIVIAL_ABI
 
 // XFAIL: gcc
 
@@ -23,6 +21,8 @@ __attribute__((noinline)) void call_something() { asm volatile(""); }
 
 struct Node {
   explicit Node() {}
+  Node(const Node&) = default;
+  Node& operator=(const Node&) = default;
   ~Node() {}
 };
 
@@ -47,8 +47,9 @@ int main(int, char**) {
   //
   // With trivial_abi, local_addr is the address of a local variable in
   // make_val, and hence different from &ret.
-#if !defined(__i386__) && !defined(_WIN32)
+#if !defined(__i386__) && !defined(_WIN32) && !defined(_AIX)
   // On X86, structs are never returned in registers.
+  // On AIX, structs are never returned in registers.
   // Thus, unique_ptr will be passed indirectly even if it is trivial.
   // On Windows, structs with a destructor are always returned indirectly.
   assert((void*)&ret != local_addr);

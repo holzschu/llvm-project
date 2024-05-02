@@ -15,6 +15,10 @@
 
 #include "mlir/IR/Dialect.h"
 
+namespace mlir {
+class IRMapping;
+} // namespace mlir
+
 namespace fir {
 
 /// FIR dialect
@@ -33,11 +37,19 @@ public:
   void printAttribute(mlir::Attribute attr,
                       mlir::DialectAsmPrinter &p) const override;
 
+  /// Return string name of fir.runtime attribute.
+  static constexpr llvm::StringRef getFirRuntimeAttrName() {
+    return "fir.runtime";
+  }
+
 private:
   // Register the Attributes of this dialect.
   void registerAttributes();
   // Register the Types of this dialect.
   void registerTypes();
+  // Register external interfaces on operations of
+  // this dialect.
+  void registerOpExternalInterfaces();
 };
 
 /// The FIR codegen dialect is a dialect containing a small set of transient
@@ -49,6 +61,11 @@ public:
 
   static llvm::StringRef getDialectNamespace() { return "fircg"; }
 };
+
+/// Support for inlining on FIR.
+bool canLegallyInline(mlir::Operation *op, mlir::Region *reg, bool,
+                      mlir::IRMapping &map);
+bool canLegallyInline(mlir::Operation *, mlir::Operation *, bool);
 
 } // namespace fir
 

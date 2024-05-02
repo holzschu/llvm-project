@@ -340,7 +340,7 @@ define dso_local x86_regcallcc float @test_CallargRetFloat(float %a)  {
 ; X32:       # %bb.0:
 ; X32-NEXT:    subl $28, %esp
 ; X32-NEXT:    vmovups %xmm4, (%esp) # 16-byte Spill
-; X32-NEXT:    vmovss {{.*#+}} xmm4 = mem[0],zero,zero,zero
+; X32-NEXT:    vmovss {{.*#+}} xmm4 = [1.0E+0,0.0E+0,0.0E+0,0.0E+0]
 ; X32-NEXT:    vaddss %xmm4, %xmm0, %xmm0
 ; X32-NEXT:    calll _test_argRetFloat
 ; X32-NEXT:    vaddss %xmm4, %xmm0, %xmm0
@@ -355,7 +355,7 @@ define dso_local x86_regcallcc float @test_CallargRetFloat(float %a)  {
 ; WIN64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; WIN64-NEXT:    .seh_savexmm %xmm8, 0
 ; WIN64-NEXT:    .seh_endprologue
-; WIN64-NEXT:    vmovss {{.*#+}} xmm8 = mem[0],zero,zero,zero
+; WIN64-NEXT:    vmovss {{.*#+}} xmm8 = [1.0E+0,0.0E+0,0.0E+0,0.0E+0]
 ; WIN64-NEXT:    vaddss %xmm0, %xmm8, %xmm0
 ; WIN64-NEXT:    callq test_argRetFloat
 ; WIN64-NEXT:    vaddss %xmm0, %xmm8, %xmm0
@@ -370,7 +370,7 @@ define dso_local x86_regcallcc float @test_CallargRetFloat(float %a)  {
 ; LINUXOSX64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 32
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm8, -32
-; LINUXOSX64-NEXT:    vmovss {{.*#+}} xmm8 = mem[0],zero,zero,zero
+; LINUXOSX64-NEXT:    vmovss {{.*#+}} xmm8 = [1.0E+0,0.0E+0,0.0E+0,0.0E+0]
 ; LINUXOSX64-NEXT:    vaddss %xmm0, %xmm8, %xmm0
 ; LINUXOSX64-NEXT:    callq test_argRetFloat
 ; LINUXOSX64-NEXT:    vaddss %xmm0, %xmm8, %xmm0
@@ -410,7 +410,7 @@ define dso_local x86_regcallcc double @test_CallargRetDouble(double %a)  {
 ; X32:       # %bb.0:
 ; X32-NEXT:    subl $28, %esp
 ; X32-NEXT:    vmovups %xmm4, (%esp) # 16-byte Spill
-; X32-NEXT:    vmovsd {{.*#+}} xmm4 = mem[0],zero
+; X32-NEXT:    vmovsd {{.*#+}} xmm4 = [1.0E+0,0.0E+0]
 ; X32-NEXT:    vaddsd %xmm4, %xmm0, %xmm0
 ; X32-NEXT:    calll _test_argRetDouble
 ; X32-NEXT:    vaddsd %xmm4, %xmm0, %xmm0
@@ -425,7 +425,7 @@ define dso_local x86_regcallcc double @test_CallargRetDouble(double %a)  {
 ; WIN64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; WIN64-NEXT:    .seh_savexmm %xmm8, 0
 ; WIN64-NEXT:    .seh_endprologue
-; WIN64-NEXT:    vmovsd {{.*#+}} xmm8 = mem[0],zero
+; WIN64-NEXT:    vmovsd {{.*#+}} xmm8 = [1.0E+0,0.0E+0]
 ; WIN64-NEXT:    vaddsd %xmm0, %xmm8, %xmm0
 ; WIN64-NEXT:    callq test_argRetDouble
 ; WIN64-NEXT:    vaddsd %xmm0, %xmm8, %xmm0
@@ -440,7 +440,7 @@ define dso_local x86_regcallcc double @test_CallargRetDouble(double %a)  {
 ; LINUXOSX64-NEXT:    vmovaps %xmm8, (%rsp) # 16-byte Spill
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 32
 ; LINUXOSX64-NEXT:    .cfi_offset %xmm8, -32
-; LINUXOSX64-NEXT:    vmovsd {{.*#+}} xmm8 = mem[0],zero
+; LINUXOSX64-NEXT:    vmovsd {{.*#+}} xmm8 = [1.0E+0,0.0E+0]
 ; LINUXOSX64-NEXT:    vaddsd %xmm0, %xmm8, %xmm0
 ; LINUXOSX64-NEXT:    callq test_argRetDouble
 ; LINUXOSX64-NEXT:    vaddsd %xmm0, %xmm8, %xmm0
@@ -579,7 +579,7 @@ define dso_local x86_regcallcc double @test_CallargParamf80(x86_fp80 %a)  {
 }
 
 ; Test regcall when receiving/returning pointer
-define dso_local x86_regcallcc [4 x i32]* @test_argRetPointer([4 x i32]* %a)  {
+define dso_local x86_regcallcc ptr @test_argRetPointer(ptr %a)  {
 ; X32-LABEL: test_argRetPointer:
 ; X32:       # %bb.0:
 ; X32-NEXT:    incl %eax
@@ -594,14 +594,14 @@ define dso_local x86_regcallcc [4 x i32]* @test_argRetPointer([4 x i32]* %a)  {
 ; LINUXOSX64:       # %bb.0:
 ; LINUXOSX64-NEXT:    incl %eax
 ; LINUXOSX64-NEXT:    retq
-  %b = ptrtoint [4 x i32]* %a to i32
+  %b = ptrtoint ptr %a to i32
   %c = add i32 %b, 1
-  %d = inttoptr i32 %c to [4 x i32]*
-  ret [4 x i32]* %d
+  %d = inttoptr i32 %c to ptr
+  ret ptr %d
 }
 
 ; Test regcall when passing/retrieving pointer
-define dso_local x86_regcallcc [4 x i32]* @test_CallargRetPointer([4 x i32]* %a)  {
+define dso_local x86_regcallcc ptr @test_CallargRetPointer(ptr %a)  {
 ; X32-LABEL: test_CallargRetPointer:
 ; X32:       # %bb.0:
 ; X32-NEXT:    incl %eax
@@ -631,14 +631,14 @@ define dso_local x86_regcallcc [4 x i32]* @test_CallargRetPointer([4 x i32]* %a)
 ; LINUXOSX64-NEXT:    popq %rcx
 ; LINUXOSX64-NEXT:    .cfi_def_cfa_offset 8
 ; LINUXOSX64-NEXT:    retq
-  %b = ptrtoint [4 x i32]* %a to i32
+  %b = ptrtoint ptr %a to i32
   %c = add i32 %b, 1
-  %d = inttoptr i32 %c to [4 x i32]*
-  %e = call x86_regcallcc [4 x i32]* @test_argRetPointer([4 x i32]* %d)
-  %f = ptrtoint [4 x i32]* %e to i32
+  %d = inttoptr i32 %c to ptr
+  %e = call x86_regcallcc ptr @test_argRetPointer(ptr %d)
+  %f = ptrtoint ptr %e to i32
   %g = add i32 %f, 1
-  %h = inttoptr i32 %g to [4 x i32]*
-  ret [4 x i32]* %h
+  %h = inttoptr i32 %g to ptr
+  ret ptr %h
 }
 
 ; Test regcall when receiving/returning 128 bit vector
@@ -941,44 +941,43 @@ define dso_local x86_regcallcc i32 @testi32_inp(i32 %a1, i32 %a2, i32 %a3, i32 %
 ; X32-NEXT:    pushl %ebx
 ; X32-NEXT:    subl $12, %esp
 ; X32-NEXT:    movl %esi, (%esp) # 4-byte Spill
-; X32-NEXT:    movl %edi, %esi
-; X32-NEXT:    movl %edx, %ebx
 ; X32-NEXT:    movl %ecx, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; X32-NEXT:    movl %eax, %edi
-; X32-NEXT:    leal (%edx,%esi), %eax
+; X32-NEXT:    movl %eax, %ebp
+; X32-NEXT:    leal (%edx,%edi), %eax
 ; X32-NEXT:    movl %eax, {{[-0-9]+}}(%e{{[sb]}}p) # 4-byte Spill
-; X32-NEXT:    subl %esi, %ebx
-; X32-NEXT:    movl %edi, %eax
-; X32-NEXT:    subl %ecx, %eax
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %ebp
-; X32-NEXT:    movl %ebp, %ecx
-; X32-NEXT:    subl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    imull %eax, %ecx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
-; X32-NEXT:    movl %esi, %eax
-; X32-NEXT:    subl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    imull %ebx, %eax
-; X32-NEXT:    addl %ecx, %eax
-; X32-NEXT:    movl (%esp), %ebx # 4-byte Reload
+; X32-NEXT:    movl %edx, %eax
+; X32-NEXT:    subl %edi, %eax
+; X32-NEXT:    movl %ebp, %edx
+; X32-NEXT:    subl %ecx, %edx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ebx
 ; X32-NEXT:    subl {{[0-9]+}}(%esp), %ebx
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %edx
-; X32-NEXT:    movl %edx, %ecx
-; X32-NEXT:    subl {{[0-9]+}}(%esp), %ecx
-; X32-NEXT:    imull %ebx, %ecx
-; X32-NEXT:    addl %eax, %ecx
-; X32-NEXT:    addl {{[-0-9]+}}(%e{{[sb]}}p), %edi # 4-byte Folded Reload
-; X32-NEXT:    movl {{[0-9]+}}(%esp), %eax
-; X32-NEXT:    addl (%esp), %eax # 4-byte Folded Reload
-; X32-NEXT:    addl {{[0-9]+}}(%esp), %ebp
-; X32-NEXT:    imull %ebp, %edi
-; X32-NEXT:    addl {{[0-9]+}}(%esp), %esi
-; X32-NEXT:    imull {{[0-9]+}}(%esp), %esi
-; X32-NEXT:    addl %esi, %edi
-; X32-NEXT:    addl {{[0-9]+}}(%esp), %edx
+; X32-NEXT:    imull %edx, %ebx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %esi
+; X32-NEXT:    movl %esi, %edx
+; X32-NEXT:    subl {{[0-9]+}}(%esp), %edx
 ; X32-NEXT:    imull %eax, %edx
-; X32-NEXT:    addl %edx, %edi
-; X32-NEXT:    addl %ecx, %edi
-; X32-NEXT:    movl %edi, %eax
+; X32-NEXT:    addl %ebx, %edx
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ebx
+; X32-NEXT:    movl (%esp), %edi # 4-byte Reload
+; X32-NEXT:    subl %ebx, %edi
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    movl %ecx, %eax
+; X32-NEXT:    subl {{[0-9]+}}(%esp), %eax
+; X32-NEXT:    imull %edi, %eax
+; X32-NEXT:    addl %edx, %eax
+; X32-NEXT:    addl {{[-0-9]+}}(%e{{[sb]}}p), %ebp # 4-byte Folded Reload
+; X32-NEXT:    addl (%esp), %ebx # 4-byte Folded Reload
+; X32-NEXT:    movl {{[0-9]+}}(%esp), %edx
+; X32-NEXT:    addl {{[0-9]+}}(%esp), %edx
+; X32-NEXT:    imull %edx, %ebp
+; X32-NEXT:    addl {{[0-9]+}}(%esp), %esi
+; X32-NEXT:    imull {{[-0-9]+}}(%e{{[sb]}}p), %esi # 4-byte Folded Reload
+; X32-NEXT:    addl %esi, %ebp
+; X32-NEXT:    addl {{[0-9]+}}(%esp), %ecx
+; X32-NEXT:    imull %ebx, %ecx
+; X32-NEXT:    addl %ecx, %ebp
+; X32-NEXT:    addl %eax, %ebp
+; X32-NEXT:    movl %ebp, %eax
 ; X32-NEXT:    addl $12, %esp
 ; X32-NEXT:    popl %ebx
 ; X32-NEXT:    popl %ebp
@@ -986,11 +985,9 @@ define dso_local x86_regcallcc i32 @testi32_inp(i32 %a1, i32 %a2, i32 %a3, i32 %
 ;
 ; WIN64-LABEL: testi32_inp:
 ; WIN64:       # %bb.0:
-; WIN64-NEXT:    pushq %r13
 ; WIN64-NEXT:    pushq %rbp
 ; WIN64-NEXT:    pushq %rbx
 ; WIN64-NEXT:    # kill: def $edx killed $edx def $rdx
-; WIN64-NEXT:    movl %ecx, %ebx
 ; WIN64-NEXT:    # kill: def $esi killed $esi def $rsi
 ; WIN64-NEXT:    # kill: def $r15d killed $r15d def $r15
 ; WIN64-NEXT:    # kill: def $r14d killed $r14d def $r14
@@ -1000,45 +997,41 @@ define dso_local x86_regcallcc i32 @testi32_inp(i32 %a1, i32 %a2, i32 %a3, i32 %
 ; WIN64-NEXT:    # kill: def $r9d killed $r9d def $r9
 ; WIN64-NEXT:    # kill: def $r8d killed $r8d def $r8
 ; WIN64-NEXT:    # kill: def $edi killed $edi def $rdi
-; WIN64-NEXT:    leal (%rdx,%rdi), %r13d
-; WIN64-NEXT:    # kill: def $edx killed $edx killed $rdx
-; WIN64-NEXT:    subl %edi, %edx
-; WIN64-NEXT:    leal (%rsi,%r8), %ecx
+; WIN64-NEXT:    leal (%rdx,%rdi), %ebx
+; WIN64-NEXT:    movl %edx, %ebp
+; WIN64-NEXT:    subl %edi, %ebp
+; WIN64-NEXT:    leal (%rsi,%r8), %edx
 ; WIN64-NEXT:    # kill: def $esi killed $esi killed $rsi
 ; WIN64-NEXT:    subl %r8d, %esi
-; WIN64-NEXT:    leal (%r9,%r10), %r8d
-; WIN64-NEXT:    movl %r9d, %ebp
-; WIN64-NEXT:    subl %r10d, %ebp
-; WIN64-NEXT:    movl %eax, %edi
-; WIN64-NEXT:    movl %ebx, %r9d
-; WIN64-NEXT:    subl %ebx, %edi
-; WIN64-NEXT:    imull %edi, %ebp
-; WIN64-NEXT:    leal (%r11,%r12), %edi
-; WIN64-NEXT:    movl %r11d, %ebx
-; WIN64-NEXT:    subl %r12d, %ebx
-; WIN64-NEXT:    imull %edx, %ebx
-; WIN64-NEXT:    addl %ebp, %ebx
-; WIN64-NEXT:    leal (%r14,%r15), %edx
-; WIN64-NEXT:    movl %r14d, %ebp
-; WIN64-NEXT:    subl %r15d, %ebp
-; WIN64-NEXT:    imull %esi, %ebp
-; WIN64-NEXT:    addl %ebx, %ebp
+; WIN64-NEXT:    leal (%r9,%r10), %edi
+; WIN64-NEXT:    movl %r9d, %r8d
+; WIN64-NEXT:    subl %r10d, %r8d
+; WIN64-NEXT:    movl %eax, %r9d
+; WIN64-NEXT:    subl %ecx, %r9d
+; WIN64-NEXT:    imull %r9d, %r8d
+; WIN64-NEXT:    leal (%r11,%r12), %r9d
+; WIN64-NEXT:    movl %r11d, %r10d
+; WIN64-NEXT:    subl %r12d, %r10d
+; WIN64-NEXT:    imull %ebp, %r10d
+; WIN64-NEXT:    addl %r8d, %r10d
+; WIN64-NEXT:    leal (%r14,%r15), %r8d
+; WIN64-NEXT:    movl %r14d, %r11d
+; WIN64-NEXT:    subl %r15d, %r11d
+; WIN64-NEXT:    imull %esi, %r11d
+; WIN64-NEXT:    addl %r10d, %r11d
+; WIN64-NEXT:    addl %ecx, %eax
+; WIN64-NEXT:    imull %edi, %eax
+; WIN64-NEXT:    imull %ebx, %r9d
 ; WIN64-NEXT:    addl %r9d, %eax
-; WIN64-NEXT:    imull %r8d, %eax
-; WIN64-NEXT:    imull %r13d, %edi
-; WIN64-NEXT:    addl %edi, %eax
-; WIN64-NEXT:    imull %ecx, %edx
-; WIN64-NEXT:    addl %edx, %eax
-; WIN64-NEXT:    addl %ebp, %eax
+; WIN64-NEXT:    imull %edx, %r8d
+; WIN64-NEXT:    addl %r8d, %eax
+; WIN64-NEXT:    addl %r11d, %eax
 ; WIN64-NEXT:    popq %rbx
 ; WIN64-NEXT:    popq %rbp
-; WIN64-NEXT:    popq %r13
 ; WIN64-NEXT:    retq
 ;
 ; LINUXOSX64-LABEL: testi32_inp:
 ; LINUXOSX64:       # %bb.0:
-; LINUXOSX64-NEXT:    pushq %rbp
-; LINUXOSX64-NEXT:    pushq %rbx
 ; LINUXOSX64-NEXT:    # kill: def $edx killed $edx def $rdx
 ; LINUXOSX64-NEXT:    # kill: def $esi killed $esi def $rsi
 ; LINUXOSX64-NEXT:    # kill: def $r14d killed $r14d def $r14
@@ -1048,37 +1041,35 @@ define dso_local x86_regcallcc i32 @testi32_inp(i32 %a1, i32 %a2, i32 %a3, i32 %
 ; LINUXOSX64-NEXT:    # kill: def $r8d killed $r8d def $r8
 ; LINUXOSX64-NEXT:    # kill: def $edi killed $edi def $rdi
 ; LINUXOSX64-NEXT:    leal (%rdx,%rdi), %r10d
-; LINUXOSX64-NEXT:    movl %edx, %ebp
-; LINUXOSX64-NEXT:    subl %edi, %ebp
-; LINUXOSX64-NEXT:    leal (%rsi,%r8), %r11d
+; LINUXOSX64-NEXT:    movl %edx, %r11d
+; LINUXOSX64-NEXT:    subl %edi, %r11d
+; LINUXOSX64-NEXT:    leal (%rsi,%r8), %edx
 ; LINUXOSX64-NEXT:    # kill: def $esi killed $esi killed $rsi
 ; LINUXOSX64-NEXT:    subl %r8d, %esi
-; LINUXOSX64-NEXT:    leal (%r9,%r12), %r8d
-; LINUXOSX64-NEXT:    movl %r9d, %edi
-; LINUXOSX64-NEXT:    subl %r12d, %edi
-; LINUXOSX64-NEXT:    movl %eax, %edx
-; LINUXOSX64-NEXT:    subl %ecx, %edx
-; LINUXOSX64-NEXT:    imull %edx, %edi
-; LINUXOSX64-NEXT:    leal (%r13,%r14), %edx
-; LINUXOSX64-NEXT:    movl %r13d, %ebx
-; LINUXOSX64-NEXT:    subl %r14d, %ebx
-; LINUXOSX64-NEXT:    imull %ebp, %ebx
-; LINUXOSX64-NEXT:    movl 24(%rsp), %ebp
-; LINUXOSX64-NEXT:    addl %edi, %ebx
-; LINUXOSX64-NEXT:    movl %r15d, %edi
-; LINUXOSX64-NEXT:    subl %ebp, %edi
-; LINUXOSX64-NEXT:    imull %esi, %edi
-; LINUXOSX64-NEXT:    addl %ebx, %edi
+; LINUXOSX64-NEXT:    leal (%r9,%r12), %edi
+; LINUXOSX64-NEXT:    movl %r9d, %r8d
+; LINUXOSX64-NEXT:    subl %r12d, %r8d
+; LINUXOSX64-NEXT:    movl %eax, %r9d
+; LINUXOSX64-NEXT:    subl %ecx, %r9d
+; LINUXOSX64-NEXT:    imull %r9d, %r8d
+; LINUXOSX64-NEXT:    leal (%r13,%r14), %r9d
+; LINUXOSX64-NEXT:    movl %r13d, %r12d
+; LINUXOSX64-NEXT:    subl %r14d, %r12d
+; LINUXOSX64-NEXT:    imull %r11d, %r12d
+; LINUXOSX64-NEXT:    movl {{[0-9]+}}(%rsp), %r11d
+; LINUXOSX64-NEXT:    addl %r8d, %r12d
+; LINUXOSX64-NEXT:    movl %r15d, %r8d
+; LINUXOSX64-NEXT:    subl %r11d, %r8d
+; LINUXOSX64-NEXT:    imull %esi, %r8d
+; LINUXOSX64-NEXT:    addl %r12d, %r8d
 ; LINUXOSX64-NEXT:    addl %ecx, %eax
-; LINUXOSX64-NEXT:    imull %r8d, %eax
-; LINUXOSX64-NEXT:    imull %r10d, %edx
-; LINUXOSX64-NEXT:    addl %edx, %eax
-; LINUXOSX64-NEXT:    addl %r15d, %ebp
-; LINUXOSX64-NEXT:    imull %r11d, %ebp
-; LINUXOSX64-NEXT:    addl %ebp, %eax
-; LINUXOSX64-NEXT:    addl %edi, %eax
-; LINUXOSX64-NEXT:    popq %rbx
-; LINUXOSX64-NEXT:    popq %rbp
+; LINUXOSX64-NEXT:    imull %edi, %eax
+; LINUXOSX64-NEXT:    imull %r10d, %r9d
+; LINUXOSX64-NEXT:    addl %r9d, %eax
+; LINUXOSX64-NEXT:    addl %r15d, %r11d
+; LINUXOSX64-NEXT:    imull %edx, %r11d
+; LINUXOSX64-NEXT:    addl %r11d, %eax
+; LINUXOSX64-NEXT:    addl %r8d, %eax
 ; LINUXOSX64-NEXT:    retq
   %x1 = sub i32 %a1, %a2
   %x2 = sub i32 %a3, %a4
@@ -1197,7 +1188,7 @@ define dso_local x86_regcallcc <32 x float> @testf32_stack(<32 x float> %a0, <32
 }
 
 ; Test regcall when passing/retrieving mixed types
-define dso_local x86_regcallcc i32 @test_argRetMixTypes(double, float, i8 signext, i32, i64, i16 signext, i32*) #0 {
+define dso_local x86_regcallcc i32 @test_argRetMixTypes(double, float, i8 signext, i32, i64, i16 signext, ptr) #0 {
 ; X32-LABEL: test_argRetMixTypes:
 ; X32:       # %bb.0:
 ; X32-NEXT:    pushl %ebx
@@ -1264,7 +1255,7 @@ define dso_local x86_regcallcc i32 @test_argRetMixTypes(double, float, i8 signex
   %15 = fadd double %13, %14
   %16 = sitofp i16 %5 to double
   %17 = fadd double %15, %16
-  %18 = load i32, i32* %6, align 4
+  %18 = load i32, ptr %6, align 4
   %19 = sitofp i32 %18 to double
   %20 = fadd double %17, %19
   %21 = fptosi double %20 to i32

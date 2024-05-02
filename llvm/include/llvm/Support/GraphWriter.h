@@ -28,8 +28,6 @@
 #include "llvm/Support/DOTGraphTraits.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
-#include <cstddef>
 #include <iterator>
 #include <string>
 #include <type_traits>
@@ -75,7 +73,7 @@ class GraphWriter {
   using child_iterator = typename GTraits::ChildIteratorType;
   DOTTraits DTraits;
 
-  static_assert(std::is_pointer<NodeRef>::value,
+  static_assert(std::is_pointer_v<NodeRef>,
                 "FIXME: Currently GraphWriter requires the NodeRef type to be "
                 "a pointer.\nThe pointer usage should be moved to "
                 "DOTGraphTraits, and removed from GraphWriter itself.");

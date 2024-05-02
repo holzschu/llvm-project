@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LoopConvertUtils.h"
+#include "../utils/ASTUtils.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/Lambda.h"
@@ -21,14 +22,13 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <utility>
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace modernize {
+namespace clang::tidy::modernize {
 
 /// Tracks a stack of parent statements during traversal.
 ///
@@ -49,10 +49,10 @@ bool StmtAncestorASTVisitor::TraverseStmt(Stmt *Statement) {
 /// Combined with StmtAncestors, this provides roughly the same information as
 /// Scope, as we can map a VarDecl to its DeclStmt, then walk up the parent tree
 /// using StmtAncestors.
-bool StmtAncestorASTVisitor::VisitDeclStmt(DeclStmt *Decls) {
-  for (const auto *Decl : Decls->decls()) {
+bool StmtAncestorASTVisitor::VisitDeclStmt(DeclStmt *Statement) {
+  for (const auto *Decl : Statement->decls()) {
     if (const auto *V = dyn_cast<VarDecl>(Decl))
-      DeclParents.insert(std::make_pair(V, Decls));
+      DeclParents.insert(std::make_pair(V, Statement));
   }
   return true;
 }
@@ -174,7 +174,7 @@ const Expr *digThroughConstructorsConversions(const Expr *E) {
     // The initial constructor must take exactly one parameter, but base class
     // and deferred constructors can take more.
     if (ConstructExpr->getNumArgs() != 1 ||
-        ConstructExpr->getConstructionKind() != CXXConstructExpr::CK_Complete)
+        ConstructExpr->getConstructionKind() != CXXConstructionKind::Complete)
       return nullptr;
     E = ConstructExpr->getArg(0);
     if (const auto *Temp = dyn_cast<MaterializeTemporaryExpr>(E))
@@ -191,13 +191,7 @@ const Expr *digThroughConstructorsConversions(const Expr *E) {
 
 /// Returns true when two Exprs are equivalent.
 bool areSameExpr(ASTContext *Context, const Expr *First, const Expr *Second) {
-  if (!First || !Second)
-    return false;
-
-  llvm::FoldingSetNodeID FirstID, SecondID;
-  First->Profile(FirstID, *Context, true);
-  Second->Profile(SecondID, *Context, true);
-  return FirstID == SecondID;
+  return utils::areStatementsIdentical(First, Second, *Context, true);
 }
 
 /// Returns the DeclRefExpr represented by E, or NULL if there isn't one.
@@ -398,8 +392,8 @@ static bool isAliasDecl(ASTContext *Context, const Decl *TheDecl,
     if (OpCall->getOperator() == OO_Star)
       return isDereferenceOfOpCall(OpCall, IndexVar);
     if (OpCall->getOperator() == OO_Subscript) {
-      assert(OpCall->getNumArgs() == 2);
-      return isIndexInSubscriptExpr(OpCall->getArg(1), IndexVar);
+      return OpCall->getNumArgs() == 2 &&
+             isIndexInSubscriptExpr(OpCall->getArg(1), IndexVar);
     }
     break;
   }
@@ -444,7 +438,7 @@ static bool arrayMatchesBoundExpr(ASTContext *Context,
       Context->getAsConstantArrayType(ArrayType);
   if (!ConstType)
     return false;
-  Optional<llvm::APSInt> ConditionSize =
+  std::optional<llvm::APSInt> ConditionSize =
       ConditionExpr->getIntegerConstantExpr(*Context);
   if (!ConditionSize)
     return false;
@@ -461,10 +455,8 @@ ForLoopIndexUseVisitor::ForLoopIndexUseVisitor(ASTContext *Context,
     : Context(Context), IndexVar(IndexVar), EndVar(EndVar),
       ContainerExpr(ContainerExpr), ArrayBoundExpr(ArrayBoundExpr),
       ContainerNeedsDereference(ContainerNeedsDereference),
-      OnlyUsedAsIndex(true), AliasDecl(nullptr),
-      ConfidenceLevel(Confidence::CL_Safe), NextStmtParent(nullptr),
-      CurrStmtParent(nullptr), ReplaceWithAliasUse(false),
-      AliasFromForInit(false) {
+
+      ConfidenceLevel(Confidence::CL_Safe) {
   if (ContainerExpr)
     addComponent(ContainerExpr);
 }
@@ -785,8 +777,8 @@ bool ForLoopIndexUseVisitor::TraverseLambdaCapture(LambdaExpr *LE,
                                                    const LambdaCapture *C,
                                                    Expr *Init) {
   if (C->capturesVariable()) {
-    const VarDecl *VDecl = C->getCapturedVar();
-    if (areSameVariable(IndexVar, cast<ValueDecl>(VDecl))) {
+    const ValueDecl *VDecl = C->getCapturedVar();
+    if (areSameVariable(IndexVar, VDecl)) {
       // FIXME: if the index is captured, it will count as an usage and the
       // alias (if any) won't work, because it is only used in case of having
       // exactly one usage.
@@ -857,14 +849,14 @@ std::string VariableNamer::createIndexName() {
     ContainerName = TheContainer->getName();
 
   size_t Len = ContainerName.size();
-  if (Len > 1 && ContainerName.endswith(Style == NS_UpperCase ? "S" : "s")) {
+  if (Len > 1 && ContainerName.ends_with(Style == NS_UpperCase ? "S" : "s")) {
     IteratorName = std::string(ContainerName.substr(0, Len - 1));
     // E.g.: (auto thing : things)
     if (!declarationExists(IteratorName) || IteratorName == OldIndex->getName())
       return IteratorName;
   }
 
-  if (Len > 2 && ContainerName.endswith(Style == NS_UpperCase ? "S_" : "s_")) {
+  if (Len > 2 && ContainerName.ends_with(Style == NS_UpperCase ? "S_" : "s_")) {
     IteratorName = std::string(ContainerName.substr(0, Len - 2));
     // E.g.: (auto thing : things_)
     if (!declarationExists(IteratorName) || IteratorName == OldIndex->getName())
@@ -910,6 +902,4 @@ bool VariableNamer::declarationExists(StringRef Symbol) {
   return DeclFinder.findUsages(SourceStmt);
 }
 
-} // namespace modernize
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::modernize

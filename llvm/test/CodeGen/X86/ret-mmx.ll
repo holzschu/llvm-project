@@ -15,7 +15,7 @@ define void @t1() nounwind {
 ; CHECK-NEXT:    retq
 entry:
   %call = call <1 x i64> @return_v1di()		; <<1 x i64>> [#uses=0]
-  store <1 x i64> %call, <1 x i64>* @g_v1di
+  store <1 x i64> %call, ptr @g_v1di
   ret void
 }
 
@@ -40,7 +40,7 @@ define <2 x i32> @t3() nounwind {
 define double @t4() nounwind {
 ; CHECK-LABEL: t4:
 ; CHECK:       ## %bb.0:
-; CHECK-NEXT:    movsd {{.*#+}} xmm0 = mem[0],zero
+; CHECK-NEXT:    movsd {{.*#+}} xmm0 = [1,0,0,0]
 ; CHECK-NEXT:    retq
   ret double bitcast (<2 x i32> <i32 1, i32 0> to double)
 }

@@ -15,6 +15,8 @@
 
 #include <memory>
 #include <cassert>
+#include <utility>
+
 #include "test_macros.h"
 
 struct Irrelevant;
@@ -150,6 +152,14 @@ constexpr bool test() {
     int (*p11)() = nullptr;
     assert(std::to_address(&p11) == &p11);
     ASSERT_SAME_TYPE(decltype(std::to_address(&p11)), int(**)());
+
+    // See https://github.com/llvm/llvm-project/issues/67449
+    {
+        struct S { };
+        S* p = nullptr;
+        assert(std::to_address<S>(p) == p);
+        ASSERT_SAME_TYPE(decltype(std::to_address<S>(p)), S*);
+    }
 
     return true;
 }

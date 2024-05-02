@@ -24,7 +24,16 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 def fir_Dialect : Dialect {
   let name = "fir";
   let cppNamespace = "::fir";
-  let emitAccessorPrefix = kEmitAccessorPrefix_Both;
+  let useDefaultTypePrinterParser = 0;
+  let useDefaultAttributePrinterParser = 0;
+  let usePropertiesForAttributes = 1;
+  let dependentDialects = [
+    // Arith dialect provides FastMathFlagsAttr
+    // supported by some FIR operations.
+    "arith::ArithDialect",
+    // TBAA Tag types
+    "LLVM::LLVMDialect"
+  ];
 }
 
 #endif // FORTRAN_DIALECT_FIR_DIALECT

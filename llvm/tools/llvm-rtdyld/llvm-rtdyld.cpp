@@ -55,7 +55,7 @@ using namespace llvm::object;
 
 static cl::OptionCategory RTDyldCategory("RTDyld Options");
 
-static cl::list<std::string> InputFileList(cl::Positional, cl::ZeroOrMore,
+static cl::list<std::string> InputFileList(cl::Positional,
                                            cl::desc("<input files>"),
                                            cl::cat(RTDyldCategory));
 
@@ -88,11 +88,11 @@ static cl::opt<std::string>
                cl::init("_main"), cl::cat(RTDyldCategory));
 
 static cl::list<std::string> Dylibs("dylib", cl::desc("Add library."),
-                                    cl::ZeroOrMore, cl::cat(RTDyldCategory));
+                                    cl::cat(RTDyldCategory));
 
 static cl::list<std::string> InputArgv("args", cl::Positional,
                                        cl::desc("<program arguments>..."),
-                                       cl::ZeroOrMore, cl::PositionalEatsArgs,
+                                       cl::PositionalEatsArgs,
                                        cl::cat(RTDyldCategory));
 
 static cl::opt<std::string>
@@ -107,7 +107,7 @@ static cl::opt<std::string>
 static cl::list<std::string>
     CheckFiles("check",
                cl::desc("File containing RuntimeDyld verifier checks."),
-               cl::ZeroOrMore, cl::cat(RTDyldCategory));
+               cl::cat(RTDyldCategory));
 
 static cl::opt<uint64_t>
     PreallocMemory("preallocate",
@@ -136,14 +136,13 @@ static cl::list<std::string>
     SpecificSectionMappings("map-section",
                             cl::desc("For -verify only: Map a section to a "
                                      "specific address."),
-                            cl::ZeroOrMore, cl::Hidden,
-                            cl::cat(RTDyldCategory));
+                            cl::Hidden, cl::cat(RTDyldCategory));
 
 static cl::list<std::string> DummySymbolMappings(
     "dummy-extern",
     cl::desc("For -verify only: Inject a symbol into the extern "
              "symbol table."),
-    cl::ZeroOrMore, cl::Hidden, cl::cat(RTDyldCategory));
+    cl::Hidden, cl::cat(RTDyldCategory));
 
 static cl::opt<bool> PrintAllocationRequests(
     "print-alloc-requests",
@@ -295,7 +294,7 @@ private:
   uintptr_t SlabSize = 0;
   uintptr_t CurrentSlabOffset = 0;
   SectionIDMap *SecIDMap = nullptr;
-#if defined(__x86_64__) && defined(__ELF__)
+#if defined(__x86_64__) && defined(__ELF__) && defined(__linux__)
   unsigned UsedTLSStorage = 0;
 #endif
 };
@@ -359,7 +358,7 @@ uint8_t *TrivialMemoryManager::allocateDataSection(uintptr_t Size,
 
 // In case the execution needs TLS storage, we define a very small TLS memory
 // area here that will be used in allocateTLSSection().
-#if defined(__x86_64__) && defined(__ELF__)
+#if defined(__x86_64__) && defined(__ELF__) && defined(__linux__)
 extern "C" {
 alignas(16) __attribute__((visibility("hidden"), tls_model("initial-exec"),
                            used)) thread_local char LLVMRTDyldTLSSpace[16];
@@ -370,7 +369,7 @@ TrivialMemoryManager::TLSSection
 TrivialMemoryManager::allocateTLSSection(uintptr_t Size, unsigned Alignment,
                                          unsigned SectionID,
                                          StringRef SectionName) {
-#if defined(__x86_64__) && defined(__ELF__)
+#if defined(__x86_64__) && defined(__ELF__) && defined(__linux__)
   if (Size + UsedTLSStorage > sizeof(LLVMRTDyldTLSSpace)) {
     return {};
   }
@@ -902,6 +901,8 @@ static int linkAndVerify() {
         StringRef SecContent = Dyld.getSectionContent(SectionID);
         uint64_t SymSize = SecContent.size() - (CSymAddr - SecContent.data());
         SymInfo.setContent(ArrayRef<char>(CSymAddr, SymSize));
+        SymInfo.setTargetFlags(
+            Dyld.getSymbol(Symbol).getFlags().getTargetFlags());
       }
     }
     return SymInfo;
@@ -934,7 +935,8 @@ static int linkAndVerify() {
   };
 
   auto GetStubInfo = [&Dyld, &StubMap](StringRef StubContainer,
-                                       StringRef SymbolName)
+                                       StringRef SymbolName,
+                                       StringRef KindNameFilter)
       -> Expected<RuntimeDyldChecker::MemoryRegionInfo> {
     if (!StubMap.count(StubContainer))
       return make_error<StringError>("Stub container not found: " +
@@ -953,6 +955,11 @@ static int linkAndVerify() {
     StubMemInfo.setContent(
         ArrayRef<char>(SecContent.data(), SecContent.size()));
     return StubMemInfo;
+  };
+
+  auto GetGOTInfo = [&GetStubInfo](StringRef StubContainer,
+                                   StringRef SymbolName) {
+    return GetStubInfo(StubContainer, SymbolName, "");
   };
 
   // We will initialize this below once we have the first object file and can
@@ -985,9 +992,10 @@ static int linkAndVerify() {
 
     if (!Checker)
       Checker = std::make_unique<RuntimeDyldChecker>(
-          IsSymbolValid, GetSymbolInfo, GetSectionInfo, GetStubInfo,
-          GetStubInfo, Obj.isLittleEndian() ? support::little : support::big,
-          Disassembler.get(), InstPrinter.get(), dbgs());
+          IsSymbolValid, GetSymbolInfo, GetSectionInfo, GetStubInfo, GetGOTInfo,
+          Obj.isLittleEndian() ? llvm::endianness::little
+                               : llvm::endianness::big,
+          TheTriple, MCPU, SubtargetFeatures(), dbgs());
 
     auto FileName = sys::path::filename(InputFile);
     MemMgr.setSectionIDsMap(&FileToSecIDMap[FileName]);

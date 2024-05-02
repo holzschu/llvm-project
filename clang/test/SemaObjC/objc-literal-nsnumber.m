@@ -1,5 +1,4 @@
 // RUN: %clang_cc1  -fsyntax-only -fblocks -triple x86_64-apple-darwin10 -verify %s
-// rdar://10111397
 
 #if __LP64__
 typedef unsigned long NSUInteger;
@@ -9,7 +8,7 @@ typedef unsigned int NSUInteger;
 typedef int NSInteger;
 #endif
 
-void checkNSNumberUnavailableDiagnostic() {
+void checkNSNumberUnavailableDiagnostic(void) {
   id num = @1000; // expected-error {{definition of class NSNumber must be available to use Objective-C numeric literals}}
 
   int x = 1000;
@@ -19,7 +18,7 @@ void checkNSNumberUnavailableDiagnostic() {
 
 @class NSNumber; // expected-note 2 {{forward declaration of class here}}
 
-void checkNSNumberFDDiagnostic() {
+void checkNSNumberFDDiagnostic(void) {
   id num = @1000; // expected-error {{definition of class NSNumber must be available to use Objective-C numeric literals}}
 
   int x = 1000;
@@ -47,10 +46,9 @@ void checkNSNumberFDDiagnostic() {
 + (NSNumber *)numberWithUnsignedInteger:(NSUInteger)value ;
 @end
 
-// rdar://16417427
 int big = 1391126400;
 int thousand = 1000;
-int main() {
+int main(void) {
   NSNumber * N = @3.1415926535;  // expected-error {{declaration of 'numberWithDouble:' is missing in NSNumber class}}
   NSNumber *noNumber = @__objc_yes; // expected-error {{declaration of 'numberWithBool:' is missing in NSNumber class}}
   NSNumber * NInt = @1000;
@@ -73,7 +71,7 @@ int main() {
 // Dictionary test
 @class NSDictionary;  // expected-note {{forward declaration of class here}}
 
-NSDictionary *err() {
+NSDictionary *err(void) {
   return @{@"name" : @"value"}; // expected-error {{definition of class NSDictionary must be available to use Objective-C dictionary literals}}
 }
 
@@ -92,15 +90,15 @@ NSDictionary *err() {
 @interface NSString<NSCopying>
 @end
 
-id NSUserName();
+id NSUserName(void);
 
-int Int();
+int Int(void);
 
-NSDictionary * blocks() {
+NSDictionary * blocks(void) {
   return @{ @"task" : ^ { return 17; } };
 }
 
-NSDictionary * warn() {
+NSDictionary * warn(void) {
   NSDictionary *dictionary = @{@"name" : NSUserName(),
                                @"date" : [NSDate date],
                                @"name2" : @"other",
@@ -113,10 +111,9 @@ NSDictionary * warn() {
   return dictionary3;
 }
 
-// rdar:// 11231426
 typedef float BOOL;
 
-BOOL radar11231426() {
+BOOL radar11231426(void) {
         return __objc_yes;
 }
 

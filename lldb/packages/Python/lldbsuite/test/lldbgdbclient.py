@@ -4,6 +4,7 @@ import lldb
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test.gdbclientutils import *
 
+
 class GDBRemoteTestBase(TestBase):
     """
     Base class for GDB client tests.
@@ -52,13 +53,14 @@ class GDBRemoteTestBase(TestBase):
         """
         listener = self.dbg.GetListener()
         error = lldb.SBError()
-        process = target.ConnectRemote(listener,
-                self.server.get_connect_url(), "gdb-remote", error)
+        process = target.ConnectRemote(
+            listener, self.server.get_connect_url(), "gdb-remote", error
+        )
         self.assertTrue(error.Success(), error.description)
         self.assertTrue(process, PROCESS_IS_VALID)
         return process
 
-    def assertPacketLogContains(self, packets):
+    def assertPacketLogContains(self, packets, log=None):
         """
         Assert that the mock server's packet log contains the given packets.
 
@@ -69,17 +71,20 @@ class GDBRemoteTestBase(TestBase):
         The check does not require that the packets be consecutive, but does
         require that they are ordered in the log as they ordered in the arg.
         """
+        if log is None:
+            log = self.server.responder.packetLog
         i = 0
         j = 0
-        log = self.server.responder.packetLog
 
         while i < len(packets) and j < len(log):
             if log[j] == packets[i]:
                 i += 1
             j += 1
         if i < len(packets):
-            self.fail(u"Did not receive: %s\nLast 10 packets:\n\t%s" %
-                    (packets[i], u'\n\t'.join(log)))
+            self.fail(
+                "Did not receive: %s\nLast 10 packets:\n\t%s"
+                % (packets[i], "\n\t".join(log))
+            )
 
 
 class GDBPlatformClientTestBase(GDBRemoteTestBase):

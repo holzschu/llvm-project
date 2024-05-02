@@ -1,5 +1,5 @@
-; RUN: llc -march=amdgcn -verify-machineinstrs -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=GCN %s
-; RUN: llc -march=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=GCN %s
+; RUN: llc -mtriple=amdgcn -verify-machineinstrs -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=GCN %s
+; RUN: llc -mtriple=amdgcn -mcpu=tonga -mattr=-flat-for-global -verify-machineinstrs -simplifycfg-require-and-preserve-domtree=1 < %s | FileCheck -check-prefix=GCN %s
 
 ; This used to crash because during intermediate control flow lowering, there
 ; was a sequence
@@ -30,7 +30,7 @@ bb:
   br i1 %tmp3, label %bb4, label %bb5
 
 bb4:                                              ; preds = %bb
-  store volatile i32 4, i32 addrspace(3)* undef
+  store volatile i32 4, ptr addrspace(3) undef
   unreachable
 
 bb5:                                              ; preds = %bb

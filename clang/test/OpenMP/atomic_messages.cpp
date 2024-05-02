@@ -1,10 +1,10 @@
 // RUN: %clang_cc1 -verify=expected,omp45 -fopenmp -fopenmp-version=45 -ferror-limit 150 %s -Wuninitialized
-// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp -ferror-limit 150 %s -Wuninitialized
-// RUN: %clang_cc1 -verify=expected,omp50,omp51 -fopenmp -fopenmp-version=51 -ferror-limit 150 %s -Wuninitialized
+// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp -fopenmp-version=50 -ferror-limit 150 %s -Wuninitialized
+// RUN: %clang_cc1 -DOMP51 -verify=expected,omp50,omp51 -fopenmp -ferror-limit 150 %s -Wuninitialized
 
 // RUN: %clang_cc1 -verify=expected,omp45 -fopenmp-simd -fopenmp-version=45 -ferror-limit 150 %s -Wuninitialized
-// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp-simd -ferror-limit 150 %s -Wuninitialized
-// RUN: %clang_cc1 -verify=expected,omp50,omp51 -fopenmp-simd -fopenmp-version=51 -ferror-limit 150 %s -Wuninitialized
+// RUN: %clang_cc1 -verify=expected,omp50 -fopenmp-simd -fopenmp-version=50 -ferror-limit 150 %s -Wuninitialized
+// RUN: %clang_cc1 -DOMP51 -verify=expected,omp50,omp51 -fopenmp-simd -ferror-limit 150 %s -Wuninitialized
 
 int foo() {
 L1:
@@ -914,11 +914,21 @@ T mixed() {
 // expected-note@+1 2 {{'capture' clause used here}}
 #pragma omp atomic capture read
   a = ++b;
+#ifdef OMP51
+// expected-error@+2 2 {{directive '#pragma omp atomic' cannot contain more than one 'read', 'write', 'update', 'capture', or 'compare' clause}}
+// expected-note@+1 2 {{'write' clause used here}}
+#pragma omp atomic write compare
+  a = b;
+// expected-error@+2 2 {{directive '#pragma omp atomic' cannot contain more than one 'read', 'write', 'update', 'capture', or 'compare' clause}}
+// expected-note@+1 2 {{'read' clause used here}}
+#pragma omp atomic read compare
+  a = b;
+#endif
   return T();
 }
 
 int mixed() {
-  int a, b = 0;
+  int a, v, b = 0;
 // expected-error@+2 {{directive '#pragma omp atomic' cannot contain more than one 'read', 'write', 'update', 'capture', or 'compare' clause}}
 // expected-note@+1 {{'read' clause used here}}
 #pragma omp atomic read write
@@ -935,18 +945,38 @@ int mixed() {
 // expected-note@+1 {{'write' clause used here}}
 #pragma omp atomic write capture
   a = b;
+#ifdef OMP51
+// expected-error@+2 {{directive '#pragma omp atomic' cannot contain more than one 'read', 'write', 'update', 'capture', or 'compare' clause}}
+// expected-note@+1 {{'write' clause used here}}
+#pragma omp atomic write compare
+  a = b;
+// expected-error@+2 {{directive '#pragma omp atomic' cannot contain more than one 'read', 'write', 'update', 'capture', or 'compare' clause}}
+// expected-note@+1 {{'read' clause used here}}
+#pragma omp atomic read compare
+  a = b;
+// expected-error@+2 {{directive '#pragma omp atomic' cannot contain more than one 'compare' clause}}
+// expected-error@+1 {{directive '#pragma omp atomic' cannot contain more than one 'capture' clause}}
+#pragma omp atomic compare compare capture capture
+  { v = a; if (a > b) a = b; }
+// expected-error@+1 {{expected 'compare' clause with the 'fail' modifier}}
+#pragma omp atomic fail(seq_cst)
+  if(v == a) { v = a; }
+// expected-error@+1 {{expected '(' after 'fail'}}
+#pragma omp atomic compare fail
+  if(v < a) { v = a; }
+// expected-error@+1 {{expected a memory order clause}}
+#pragma omp atomic compare fail(capture)
+  if(v < a) { v = a; }
+ // expected-error@+2 {{expected ')'}}
+ // expected-note@+1 {{to match this '('}}
+#pragma omp atomic compare fail(seq_cst | acquire)
+  if(v < a) { v = a; }
+// expected-error@+1 {{directive '#pragma omp atomic' cannot contain more than one 'fail' clause}}
+#pragma omp atomic compare fail(relaxed) fail(seq_cst)
+  if(v < a) { v = a; }
+
+
+#endif
   // expected-note@+1 {{in instantiation of function template specialization 'mixed<int>' requested here}}
   return mixed<int>();
 }
-
-#if _OPENMP >= 202011
-int compare() {
-  int a, b, c;
-// omp51-error@+1 {{atomic compare is not supported for now}}
-#pragma omp atomic compare
-  {
-    if (a == b)
-      a = c;
-  }
-}
-#endif

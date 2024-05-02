@@ -10,7 +10,6 @@
 #define LLVM_SUPPORT_BINARYSTREAMWRITER_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/BinaryStreamArray.h"
 #include "llvm/Support/BinaryStreamError.h"
@@ -34,18 +33,13 @@ public:
   explicit BinaryStreamWriter(WritableBinaryStreamRef Ref);
   explicit BinaryStreamWriter(WritableBinaryStream &Stream);
   explicit BinaryStreamWriter(MutableArrayRef<uint8_t> Data,
-                              llvm::support::endianness Endian);
+                              llvm::endianness Endian);
 
-  BinaryStreamWriter(const BinaryStreamWriter &Other)
-      : Stream(Other.Stream), Offset(Other.Offset) {}
+  BinaryStreamWriter(const BinaryStreamWriter &Other) = default;
 
-  BinaryStreamWriter &operator=(const BinaryStreamWriter &Other) {
-    Stream = Other.Stream;
-    Offset = Other.Offset;
-    return *this;
-  }
+  BinaryStreamWriter &operator=(const BinaryStreamWriter &Other) = default;
 
-  virtual ~BinaryStreamWriter() {}
+  virtual ~BinaryStreamWriter() = default;
 
   /// Write the bytes specified in \p Buffer to the underlying stream.
   /// On success, updates the offset so that subsequent writes will occur
@@ -62,11 +56,10 @@ public:
   /// \returns a success error code if the data was successfully written,
   /// otherwise returns an appropriate error code.
   template <typename T> Error writeInteger(T Value) {
-    static_assert(std::is_integral<T>::value,
+    static_assert(std::is_integral_v<T>,
                   "Cannot call writeInteger with non-integral value!");
     uint8_t Buffer[sizeof(T)];
-    llvm::support::endian::write<T, llvm::support::unaligned>(
-        Buffer, Value, Stream.getEndian());
+    llvm::support::endian::write<T>(Buffer, Value, Stream.getEndian());
     return writeBytes(Buffer);
   }
 

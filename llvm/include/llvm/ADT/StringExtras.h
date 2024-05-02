@@ -5,9 +5,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-//
-// This file contains some functions that are useful when dealing with strings.
-//
+///
+/// \file
+/// This file contains some functions that are useful when dealing with strings.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_ADT_STRINGEXTRAS_H
@@ -29,14 +30,15 @@
 
 namespace llvm {
 
-template<typename T> class SmallVectorImpl;
 class raw_ostream;
 
 /// hexdigit - Return the hexadecimal character for the
 /// given number \p X (which should be less than 16).
 inline char hexdigit(unsigned X, bool LowerCase = false) {
-  const char HexChar = LowerCase ? 'a' : 'A';
-  return X < 10 ? '0' + X : HexChar + X - 10;
+  assert(X < 16);
+  static const char LUT[] = "0123456789ABCDEF";
+  const uint8_t Offset = LowerCase ? 32 : 0;
+  return LUT[X] | Offset;
 }
 
 /// Given an array of c-style strings terminated by a null pointer, construct
@@ -56,10 +58,19 @@ inline StringRef toStringRef(bool B) { return StringRef(B ? "true" : "false"); }
 inline StringRef toStringRef(ArrayRef<uint8_t> Input) {
   return StringRef(reinterpret_cast<const char *>(Input.begin()), Input.size());
 }
+inline StringRef toStringRef(ArrayRef<char> Input) {
+  return StringRef(Input.begin(), Input.size());
+}
 
 /// Construct a string ref from an array ref of unsigned chars.
-inline ArrayRef<uint8_t> arrayRefFromStringRef(StringRef Input) {
-  return {Input.bytes_begin(), Input.bytes_end()};
+template <class CharT = uint8_t>
+inline ArrayRef<CharT> arrayRefFromStringRef(StringRef Input) {
+  static_assert(std::is_same<CharT, char>::value ||
+                    std::is_same<CharT, unsigned char>::value ||
+                    std::is_same<CharT, signed char>::value,
+                "Expected byte type");
+  return ArrayRef<CharT>(reinterpret_cast<const CharT *>(Input.data()),
+                         Input.size());
 }
 
 /// Interpret the given character \p C as a hexadecimal digit and return its
@@ -96,10 +107,14 @@ inline bool isDigit(char C) { return C >= '0' && C <= '9'; }
 /// Checks if character \p C is a hexadecimal numeric character.
 inline bool isHexDigit(char C) { return hexDigitValue(C) != ~0U; }
 
+/// Checks if character \p C is a lowercase letter as classified by "C" locale.
+inline bool isLower(char C) { return 'a' <= C && C <= 'z'; }
+
+/// Checks if character \p C is a uppercase letter as classified by "C" locale.
+inline bool isUpper(char C) { return 'A' <= C && C <= 'Z'; }
+
 /// Checks if character \p C is a valid letter as classified by "C" locale.
-inline bool isAlpha(char C) {
-  return ('a' <= C && C <= 'z') || ('A' <= C && C <= 'Z');
-}
+inline bool isAlpha(char C) { return isLower(C) || isUpper(C); }
 
 /// Checks whether character \p C is either a decimal digit or an uppercase or
 /// lowercase letter as classified by "C" locale.
@@ -135,25 +150,26 @@ inline bool isSpace(char C) {
 
 /// Returns the corresponding lowercase character if \p x is uppercase.
 inline char toLower(char x) {
-  if (x >= 'A' && x <= 'Z')
+  if (isUpper(x))
     return x - 'A' + 'a';
   return x;
 }
 
 /// Returns the corresponding uppercase character if \p x is lowercase.
 inline char toUpper(char x) {
-  if (x >= 'a' && x <= 'z')
+  if (isLower(x))
     return x - 'a' + 'A';
   return x;
 }
 
-inline std::string utohexstr(uint64_t X, bool LowerCase = false) {
+inline std::string utohexstr(uint64_t X, bool LowerCase = false,
+                             unsigned Width = 0) {
   char Buffer[17];
   char *BufPtr = std::end(Buffer);
 
   if (X == 0) *--BufPtr = '0';
 
-  while (X) {
+  for (unsigned i = 0; Width ? (i < Width) : X; ++i) {
     unsigned char Mod = static_cast<unsigned char>(X) & 15;
     *--BufPtr = hexdigit(Mod, LowerCase);
     X >>= 4;
@@ -164,23 +180,26 @@ inline std::string utohexstr(uint64_t X, bool LowerCase = false) {
 
 /// Convert buffer \p Input to its hexadecimal representation.
 /// The returned string is double the size of \p Input.
-inline std::string toHex(StringRef Input, bool LowerCase = false) {
-  static const char *const LUT = "0123456789ABCDEF";
-  const uint8_t Offset = LowerCase ? 32 : 0;
-  size_t Length = Input.size();
+inline void toHex(ArrayRef<uint8_t> Input, bool LowerCase,
+                  SmallVectorImpl<char> &Output) {
+  const size_t Length = Input.size();
+  Output.resize_for_overwrite(Length * 2);
 
-  std::string Output;
-  Output.reserve(2 * Length);
-  for (size_t i = 0; i < Length; ++i) {
-    const unsigned char c = Input[i];
-    Output.push_back(LUT[c >> 4] | Offset);
-    Output.push_back(LUT[c & 15] | Offset);
+  for (size_t i = 0; i < Length; i++) {
+    const uint8_t c = Input[i];
+    Output[i * 2    ] = hexdigit(c >> 4, LowerCase);
+    Output[i * 2 + 1] = hexdigit(c & 15, LowerCase);
   }
-  return Output;
 }
 
 inline std::string toHex(ArrayRef<uint8_t> Input, bool LowerCase = false) {
-  return toHex(toStringRef(Input), LowerCase);
+  SmallString<16> Output;
+  toHex(Input, LowerCase, Output);
+  return std::string(Output);
+}
+
+inline std::string toHex(StringRef Input, bool LowerCase = false) {
+  return toHex(arrayRefFromStringRef(Input), LowerCase);
 }
 
 /// Store the binary representation of the two provided values, \p MSB and
@@ -313,7 +332,7 @@ inline std::string toString(const APInt &I, unsigned Radix, bool Signed,
                             bool formatAsCLiteral = false) {
   SmallString<40> S;
   I.toString(S, Radix, Signed, formatAsCLiteral);
-  return std::string(S.str());
+  return std::string(S);
 }
 
 inline std::string toString(const APSInt &I, unsigned Radix) {
@@ -408,7 +427,7 @@ inline std::string join_impl(IteratorT Begin, IteratorT End,
 
   size_t Len = (std::distance(Begin, End) - 1) * Separator.size();
   for (IteratorT I = Begin; I != End; ++I)
-    Len += (*I).size();
+    Len += StringRef(*I).size();
   S.reserve(Len);
   size_t PrevCapacity = S.capacity();
   (void)PrevCapacity;
@@ -445,14 +464,8 @@ template <typename T> inline size_t join_one_item_size(const T &Str) {
   return Str.size();
 }
 
-inline size_t join_items_size() { return 0; }
-
-template <typename A1> inline size_t join_items_size(const A1 &A) {
-  return join_one_item_size(A);
-}
-template <typename A1, typename... Args>
-inline size_t join_items_size(const A1 &A, Args &&... Items) {
-  return join_one_item_size(A) + join_items_size(std::forward<Args>(Items)...);
+template <typename... Args> inline size_t join_items_size(Args &&...Items) {
+  return (0 + ... + join_one_item_size(std::forward<Args>(Items)));
 }
 
 } // end namespace detail

@@ -19,23 +19,14 @@ declare <4 x i32> @llvm.fshr.v4i32(<4 x i32>, <4 x i32>, <4 x i32>)
 ; General case - all operands can be variables.
 
 define i32 @fshl_i32(i32 %x, i32 %y, i32 %z) {
-; CHECK32-LABEL: fshl_i32:
-; CHECK32:       # %bb.0:
-; CHECK32-NEXT:    clrlwi 5, 5, 27
-; CHECK32-NEXT:    slw 3, 3, 5
-; CHECK32-NEXT:    subfic 5, 5, 32
-; CHECK32-NEXT:    srw 4, 4, 5
-; CHECK32-NEXT:    or 3, 3, 4
-; CHECK32-NEXT:    blr
-;
-; CHECK64-LABEL: fshl_i32:
-; CHECK64:       # %bb.0:
-; CHECK64-NEXT:    clrlwi 5, 5, 27
-; CHECK64-NEXT:    subfic 6, 5, 32
-; CHECK64-NEXT:    slw 3, 3, 5
-; CHECK64-NEXT:    srw 4, 4, 6
-; CHECK64-NEXT:    or 3, 3, 4
-; CHECK64-NEXT:    blr
+; CHECK-LABEL: fshl_i32:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    clrlwi 5, 5, 27
+; CHECK-NEXT:    slw 3, 3, 5
+; CHECK-NEXT:    subfic 5, 5, 32
+; CHECK-NEXT:    srw 4, 4, 5
+; CHECK-NEXT:    or 3, 3, 4
+; CHECK-NEXT:    blr
   %f = call i32 @llvm.fshl.i32(i32 %x, i32 %y, i32 %z)
   ret i32 %f
 }
@@ -89,9 +80,9 @@ define i64 @fshl_i64(i64 %x, i64 %y, i64 %z) {
 ; CHECK64-LABEL: fshl_i64:
 ; CHECK64:       # %bb.0:
 ; CHECK64-NEXT:    clrlwi 5, 5, 26
-; CHECK64-NEXT:    subfic 6, 5, 64
 ; CHECK64-NEXT:    sld 3, 3, 5
-; CHECK64-NEXT:    srd 4, 4, 6
+; CHECK64-NEXT:    subfic 5, 5, 64
+; CHECK64-NEXT:    srd 4, 4, 5
 ; CHECK64-NEXT:    or 3, 3, 4
 ; CHECK64-NEXT:    blr
   %f = call i64 @llvm.fshl.i64(i64 %x, i64 %y, i64 %z)
@@ -213,16 +204,17 @@ define i128 @fshl_i128(i128 %x, i128 %y, i128 %z) nounwind {
 ; CHECK64:       # %bb.0:
 ; CHECK64-NEXT:    andi. 8, 7, 64
 ; CHECK64-NEXT:    clrlwi 7, 7, 26
-; CHECK64-NEXT:    iseleq 5, 6, 5
 ; CHECK64-NEXT:    subfic 8, 7, 64
+; CHECK64-NEXT:    iseleq 5, 6, 5
 ; CHECK64-NEXT:    iseleq 6, 3, 6
 ; CHECK64-NEXT:    iseleq 3, 4, 3
-; CHECK64-NEXT:    srd 4, 5, 8
-; CHECK64-NEXT:    sld 5, 6, 7
+; CHECK64-NEXT:    srd 5, 5, 8
+; CHECK64-NEXT:    sld 9, 6, 7
 ; CHECK64-NEXT:    srd 6, 6, 8
-; CHECK64-NEXT:    sld 7, 3, 7
-; CHECK64-NEXT:    or 3, 5, 4
-; CHECK64-NEXT:    or 4, 7, 6
+; CHECK64-NEXT:    sld 3, 3, 7
+; CHECK64-NEXT:    or 5, 9, 5
+; CHECK64-NEXT:    or 4, 3, 6
+; CHECK64-NEXT:    mr 3, 5
 ; CHECK64-NEXT:    blr
   %f = call i128 @llvm.fshl.i128(i128 %x, i128 %y, i128 %z)
   ret i128 %f
@@ -234,8 +226,8 @@ define i37 @fshl_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_32-LABEL: fshl_i37:
 ; CHECK32_32:       # %bb.0:
 ; CHECK32_32-NEXT:    mflr 0
-; CHECK32_32-NEXT:    stw 0, 4(1)
 ; CHECK32_32-NEXT:    stwu 1, -32(1)
+; CHECK32_32-NEXT:    stw 0, 36(1)
 ; CHECK32_32-NEXT:    .cfi_def_cfa_offset 32
 ; CHECK32_32-NEXT:    .cfi_offset lr, 4
 ; CHECK32_32-NEXT:    .cfi_offset r27, -20
@@ -250,7 +242,7 @@ define i37 @fshl_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_32-NEXT:    mr 29, 5
 ; CHECK32_32-NEXT:    stw 30, 24(1) # 4-byte Folded Spill
 ; CHECK32_32-NEXT:    mr 30, 6
-; CHECK32_32-NEXT:    mr 3, 7
+; CHECK32_32-NEXT:    clrlwi 3, 7, 27
 ; CHECK32_32-NEXT:    mr 4, 8
 ; CHECK32_32-NEXT:    li 5, 0
 ; CHECK32_32-NEXT:    li 6, 37
@@ -289,8 +281,8 @@ define i37 @fshl_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_64-LABEL: fshl_i37:
 ; CHECK32_64:       # %bb.0:
 ; CHECK32_64-NEXT:    mflr 0
-; CHECK32_64-NEXT:    stw 0, 4(1)
 ; CHECK32_64-NEXT:    stwu 1, -32(1)
+; CHECK32_64-NEXT:    stw 0, 36(1)
 ; CHECK32_64-NEXT:    .cfi_def_cfa_offset 32
 ; CHECK32_64-NEXT:    .cfi_offset lr, 4
 ; CHECK32_64-NEXT:    .cfi_offset r27, -20
@@ -299,7 +291,7 @@ define i37 @fshl_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_64-NEXT:    .cfi_offset r30, -8
 ; CHECK32_64-NEXT:    stw 27, 12(1) # 4-byte Folded Spill
 ; CHECK32_64-NEXT:    mr 27, 3
-; CHECK32_64-NEXT:    mr 3, 7
+; CHECK32_64-NEXT:    clrlwi 3, 7, 27
 ; CHECK32_64-NEXT:    stw 28, 16(1) # 4-byte Folded Spill
 ; CHECK32_64-NEXT:    mr 28, 4
 ; CHECK32_64-NEXT:    mr 4, 8
@@ -352,20 +344,20 @@ define i37 @fshl_i37(i37 %x, i37 %y, i37 %z) {
 ;
 ; CHECK64-LABEL: fshl_i37:
 ; CHECK64:       # %bb.0:
-; CHECK64-NEXT:    lis 6, 28339
+; CHECK64-NEXT:    lis 7, 1771
+; CHECK64-NEXT:    clrldi 6, 5, 27
 ; CHECK64-NEXT:    sldi 4, 4, 27
-; CHECK64-NEXT:    ori 6, 6, 58451
-; CHECK64-NEXT:    rldic 6, 6, 33, 0
-; CHECK64-NEXT:    oris 6, 6, 3542
-; CHECK64-NEXT:    ori 6, 6, 31883
-; CHECK64-NEXT:    mulhdu 6, 5, 6
-; CHECK64-NEXT:    rldicl 6, 6, 59, 5
+; CHECK64-NEXT:    ori 7, 7, 15941
+; CHECK64-NEXT:    rldic 7, 7, 32, 5
+; CHECK64-NEXT:    oris 7, 7, 12398
+; CHECK64-NEXT:    ori 7, 7, 46053
+; CHECK64-NEXT:    mulhdu 6, 6, 7
 ; CHECK64-NEXT:    mulli 6, 6, 37
 ; CHECK64-NEXT:    sub 5, 5, 6
 ; CHECK64-NEXT:    clrlwi 5, 5, 26
-; CHECK64-NEXT:    subfic 6, 5, 64
 ; CHECK64-NEXT:    sld 3, 3, 5
-; CHECK64-NEXT:    srd 4, 4, 6
+; CHECK64-NEXT:    subfic 5, 5, 64
+; CHECK64-NEXT:    srd 4, 4, 5
 ; CHECK64-NEXT:    or 3, 3, 4
 ; CHECK64-NEXT:    blr
   %f = call i37 @llvm.fshl.i37(i37 %x, i37 %y, i37 %z)
@@ -448,23 +440,14 @@ define i8 @fshl_i8_const_fold() {
 ; General case - all operands can be variables.
 
 define i32 @fshr_i32(i32 %x, i32 %y, i32 %z) {
-; CHECK32-LABEL: fshr_i32:
-; CHECK32:       # %bb.0:
-; CHECK32-NEXT:    clrlwi 5, 5, 27
-; CHECK32-NEXT:    srw 4, 4, 5
-; CHECK32-NEXT:    subfic 5, 5, 32
-; CHECK32-NEXT:    slw 3, 3, 5
-; CHECK32-NEXT:    or 3, 3, 4
-; CHECK32-NEXT:    blr
-;
-; CHECK64-LABEL: fshr_i32:
-; CHECK64:       # %bb.0:
-; CHECK64-NEXT:    clrlwi 5, 5, 27
-; CHECK64-NEXT:    subfic 6, 5, 32
-; CHECK64-NEXT:    srw 4, 4, 5
-; CHECK64-NEXT:    slw 3, 3, 6
-; CHECK64-NEXT:    or 3, 3, 4
-; CHECK64-NEXT:    blr
+; CHECK-LABEL: fshr_i32:
+; CHECK:       # %bb.0:
+; CHECK-NEXT:    clrlwi 5, 5, 27
+; CHECK-NEXT:    srw 4, 4, 5
+; CHECK-NEXT:    subfic 5, 5, 32
+; CHECK-NEXT:    slw 3, 3, 5
+; CHECK-NEXT:    or 3, 3, 4
+; CHECK-NEXT:    blr
   %f = call i32 @llvm.fshr.i32(i32 %x, i32 %y, i32 %z)
   ret i32 %f
 }
@@ -518,9 +501,9 @@ define i64 @fshr_i64(i64 %x, i64 %y, i64 %z) {
 ; CHECK64-LABEL: fshr_i64:
 ; CHECK64:       # %bb.0:
 ; CHECK64-NEXT:    clrlwi 5, 5, 26
-; CHECK64-NEXT:    subfic 6, 5, 64
 ; CHECK64-NEXT:    srd 4, 4, 5
-; CHECK64-NEXT:    sld 3, 3, 6
+; CHECK64-NEXT:    subfic 5, 5, 64
+; CHECK64-NEXT:    sld 3, 3, 5
 ; CHECK64-NEXT:    or 3, 3, 4
 ; CHECK64-NEXT:    blr
   %f = call i64 @llvm.fshr.i64(i64 %x, i64 %y, i64 %z)
@@ -533,8 +516,8 @@ define i37 @fshr_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_32-LABEL: fshr_i37:
 ; CHECK32_32:       # %bb.0:
 ; CHECK32_32-NEXT:    mflr 0
-; CHECK32_32-NEXT:    stw 0, 4(1)
 ; CHECK32_32-NEXT:    stwu 1, -32(1)
+; CHECK32_32-NEXT:    stw 0, 36(1)
 ; CHECK32_32-NEXT:    .cfi_def_cfa_offset 32
 ; CHECK32_32-NEXT:    .cfi_offset lr, 4
 ; CHECK32_32-NEXT:    .cfi_offset r27, -20
@@ -549,7 +532,7 @@ define i37 @fshr_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_32-NEXT:    mr 29, 5
 ; CHECK32_32-NEXT:    stw 30, 24(1) # 4-byte Folded Spill
 ; CHECK32_32-NEXT:    mr 30, 6
-; CHECK32_32-NEXT:    mr 3, 7
+; CHECK32_32-NEXT:    clrlwi 3, 7, 27
 ; CHECK32_32-NEXT:    mr 4, 8
 ; CHECK32_32-NEXT:    li 5, 0
 ; CHECK32_32-NEXT:    li 6, 37
@@ -589,8 +572,8 @@ define i37 @fshr_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_64-LABEL: fshr_i37:
 ; CHECK32_64:       # %bb.0:
 ; CHECK32_64-NEXT:    mflr 0
-; CHECK32_64-NEXT:    stw 0, 4(1)
 ; CHECK32_64-NEXT:    stwu 1, -32(1)
+; CHECK32_64-NEXT:    stw 0, 36(1)
 ; CHECK32_64-NEXT:    .cfi_def_cfa_offset 32
 ; CHECK32_64-NEXT:    .cfi_offset lr, 4
 ; CHECK32_64-NEXT:    .cfi_offset r27, -20
@@ -599,7 +582,7 @@ define i37 @fshr_i37(i37 %x, i37 %y, i37 %z) {
 ; CHECK32_64-NEXT:    .cfi_offset r30, -8
 ; CHECK32_64-NEXT:    stw 27, 12(1) # 4-byte Folded Spill
 ; CHECK32_64-NEXT:    mr 27, 3
-; CHECK32_64-NEXT:    mr 3, 7
+; CHECK32_64-NEXT:    clrlwi 3, 7, 27
 ; CHECK32_64-NEXT:    stw 28, 16(1) # 4-byte Folded Spill
 ; CHECK32_64-NEXT:    mr 28, 4
 ; CHECK32_64-NEXT:    mr 4, 8
@@ -648,21 +631,21 @@ define i37 @fshr_i37(i37 %x, i37 %y, i37 %z) {
 ;
 ; CHECK64-LABEL: fshr_i37:
 ; CHECK64:       # %bb.0:
-; CHECK64-NEXT:    lis 6, 28339
+; CHECK64-NEXT:    lis 7, 1771
+; CHECK64-NEXT:    clrldi 6, 5, 27
 ; CHECK64-NEXT:    sldi 4, 4, 27
-; CHECK64-NEXT:    ori 6, 6, 58451
-; CHECK64-NEXT:    rldic 6, 6, 33, 0
-; CHECK64-NEXT:    oris 6, 6, 3542
-; CHECK64-NEXT:    ori 6, 6, 31883
-; CHECK64-NEXT:    mulhdu 6, 5, 6
-; CHECK64-NEXT:    rldicl 6, 6, 59, 5
+; CHECK64-NEXT:    ori 7, 7, 15941
+; CHECK64-NEXT:    rldic 7, 7, 32, 5
+; CHECK64-NEXT:    oris 7, 7, 12398
+; CHECK64-NEXT:    ori 7, 7, 46053
+; CHECK64-NEXT:    mulhdu 6, 6, 7
 ; CHECK64-NEXT:    mulli 6, 6, 37
 ; CHECK64-NEXT:    sub 5, 5, 6
 ; CHECK64-NEXT:    addi 5, 5, 27
 ; CHECK64-NEXT:    clrlwi 5, 5, 26
-; CHECK64-NEXT:    subfic 6, 5, 64
 ; CHECK64-NEXT:    srd 4, 4, 5
-; CHECK64-NEXT:    sld 3, 3, 6
+; CHECK64-NEXT:    subfic 5, 5, 64
+; CHECK64-NEXT:    sld 3, 3, 5
 ; CHECK64-NEXT:    or 3, 3, 4
 ; CHECK64-NEXT:    blr
   %f = call i37 @llvm.fshr.i37(i37 %x, i37 %y, i37 %z)

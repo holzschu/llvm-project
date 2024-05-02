@@ -1,4 +1,4 @@
-//===-- mlir-c/Dialect/LLVM.h - C API for LLVM --------------------*- C -*-===//
+//===-- mlir-c/Dialect/Quant.h - C API for LLVM -------------------*- C -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM
 // Exceptions.
@@ -11,7 +11,6 @@
 #define MLIR_C_DIALECT_QUANT_H
 
 #include "mlir-c/IR.h"
-#include "mlir-c/Registration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +26,7 @@ MLIR_DECLARE_CAPI_DIALECT_REGISTRATION(quant, quant);
 MLIR_CAPI_EXPORTED bool mlirTypeIsAQuantizedType(MlirType type);
 
 /// Returns the bit flag used to indicate signedness of a quantized type.
-MLIR_CAPI_EXPORTED unsigned mlirQuantizedTypeGetSignedFlag();
+MLIR_CAPI_EXPORTED unsigned mlirQuantizedTypeGetSignedFlag(void);
 
 /// Returns the minimum possible value stored by a quantized type.
 MLIR_CAPI_EXPORTED int64_t mlirQuantizedTypeGetDefaultMinimumForInteger(

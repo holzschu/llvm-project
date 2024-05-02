@@ -6,21 +6,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "src/__support/FPUtil/FPBits.h"
+#include "exhaustive_test.h"
 #include "src/math/logf.h"
 #include "utils/MPFRWrapper/MPFRUtils.h"
-#include "utils/UnitTest/FPMatcher.h"
-#include "utils/UnitTest/Test.h"
 
-using FPBits = __llvm_libc::fputil::FPBits<float>;
+namespace mpfr = LIBC_NAMESPACE::testing::mpfr;
 
-namespace mpfr = __llvm_libc::testing::mpfr;
+using LlvmLibcLogfExhaustiveTest =
+    LlvmLibcUnaryOpExhaustiveMathTest<float, mpfr::Operation::Log,
+                                      LIBC_NAMESPACE::logf>;
 
-TEST(LlvmLibcLogfExhaustiveTest, AllValues) {
-  uint32_t bits = 0U;
-  do {
-    FPBits xbits(bits);
-    float x = float(xbits);
-    EXPECT_MPFR_MATCH(mpfr::Operation::Log, x, __llvm_libc::logf(x), 0.5);
-  } while (bits++ < 0x7f7f'ffffU);
+// Range: [0, Inf];
+static constexpr uint32_t POS_START = 0x0000'0000U;
+static constexpr uint32_t POS_STOP = 0x7f80'0000U;
+
+TEST_F(LlvmLibcLogfExhaustiveTest, PostiveRange) {
+  test_full_range_all_roundings(POS_START, POS_STOP);
 }

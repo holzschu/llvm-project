@@ -36,9 +36,13 @@ static Token getTokenAtLoc(SourceLocation Loc,
   return Tok;
 }
 
-namespace tidy {
-namespace google {
-namespace runtime {
+namespace {
+AST_MATCHER(FunctionDecl, isUserDefineLiteral) {
+  return Node.getLiteralIdentifier() != nullptr;
+}
+} // namespace
+
+namespace tidy::google::runtime {
 
 IntegerTypesCheck::IntegerTypesCheck(StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
@@ -58,11 +62,14 @@ void IntegerTypesCheck::registerMatchers(MatchFinder *Finder) {
   // http://google.github.io/styleguide/cppguide.html#64-bit_Portability
   // "Where possible, avoid passing arguments of types specified by
   // bitwidth typedefs to printf-based APIs."
-  Finder->addMatcher(typeLoc(loc(isInteger()),
-                             unless(hasAncestor(callExpr(
-                                 callee(functionDecl(hasAttr(attr::Format)))))))
-                         .bind("tl"),
-                     this);
+  Finder->addMatcher(
+      typeLoc(loc(isInteger()),
+              unless(anyOf(hasAncestor(callExpr(
+                               callee(functionDecl(hasAttr(attr::Format))))),
+                           hasParent(parmVarDecl(hasAncestor(
+                               functionDecl(isUserDefineLiteral())))))))
+          .bind("tl"),
+      this);
   IdentTable = std::make_unique<IdentifierTable>(getLangOpts());
 }
 
@@ -90,8 +97,8 @@ void IntegerTypesCheck::check(const MatchFinder::MatchResult &Result) {
                    tok::kw_signed))
     return;
 
-  bool IsSigned;
-  unsigned Width;
+  bool IsSigned = false;
+  unsigned Width = 0;
   const TargetInfo &TargetInfo = Result.Context->getTargetInfo();
 
   // Look for uses of short, long, long long and their unsigned versions.
@@ -144,7 +151,5 @@ void IntegerTypesCheck::check(const MatchFinder::MatchResult &Result) {
                                                << Replacement;
 }
 
-} // namespace runtime
-} // namespace google
-} // namespace tidy
+} // namespace tidy::google::runtime
 } // namespace clang

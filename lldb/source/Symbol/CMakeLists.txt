@@ -1,12 +1,4 @@
-set(LLVM_OPTIONAL_SOURCES LocateSymbolFileMacOSX.cpp)
-
-if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set(PLATFORM_SOURCES
-    LocateSymbolFileMacOSX.cpp
-    )
-endif()
-
-add_lldb_library(lldbSymbol
+add_lldb_library(lldbSymbol NO_PLUGIN_DEPENDENCIES
   ArmUnwindInfo.cpp
   Block.cpp
   CompactUnwindInfo.cpp
@@ -21,12 +13,14 @@ add_lldb_library(lldbSymbol
   Function.cpp
   LineEntry.cpp
   LineTable.cpp
-  LocateSymbolFile.cpp
+  ObjectContainer.cpp
   ObjectFile.cpp
   PostfixExpression.cpp
   Symbol.cpp
   SymbolContext.cpp
   SymbolFile.cpp
+  SymbolFileOnDemand.cpp
+  SymbolLocator.cpp
   SymbolVendor.cpp
   Symtab.cpp
   Type.cpp
@@ -37,8 +31,6 @@ add_lldb_library(lldbSymbol
   UnwindTable.cpp
   Variable.cpp
   VariableList.cpp
-
-  ${PLATFORM_SOURCES}
 
   LINK_LIBS
     lldbCore

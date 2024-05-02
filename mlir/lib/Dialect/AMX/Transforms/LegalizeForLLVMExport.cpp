@@ -12,7 +12,6 @@
 #include "mlir/Conversion/LLVMCommon/Pattern.h"
 #include "mlir/Dialect/AMX/AMXDialect.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/PatternMatch.h"
 
@@ -25,7 +24,7 @@ namespace {
 /// dimension directly translates into the number of rows of the tiles.
 /// The second dimensions needs to be scaled by the number of bytes.
 std::pair<Value, Value> getTileSizes(ConversionPatternRewriter &rewriter,
-                                     LLVMTypeConverter &typeConverter,
+                                     const LLVMTypeConverter &typeConverter,
                                      VectorType vType, Location loc) {
   Type llvmInt16Type = IntegerType::get(&typeConverter.getContext(), 16);
   unsigned width = vType.getElementType().getIntOrFloatBitWidth();
@@ -53,8 +52,8 @@ LogicalResult verifyStride(MemRefType mType) {
 /// Maps the 2-dim memref shape to the 64-bit stride. Note that the buffer
 /// shape may "envelop" the actual tile shape, and may be dynamically sized.
 Value getStride(ConversionPatternRewriter &rewriter,
-                LLVMTypeConverter &typeConverter, MemRefType mType, Value base,
-                Location loc) {
+                const LLVMTypeConverter &typeConverter, MemRefType mType,
+                Value base, Location loc) {
   assert(mType.getRank() >= 2);
   int64_t last = mType.getRank() - 1;
   Type llvmInt64Type = IntegerType::get(&typeConverter.getContext(), 64);
@@ -72,13 +71,6 @@ Value getStride(ConversionPatternRewriter &rewriter,
   // Use direct constant for static size.
   auto attr = rewriter.getI64IntegerAttr(mType.getDimSize(last) * bytes);
   return rewriter.create<LLVM::ConstantOp>(loc, llvmInt64Type, attr);
-}
-
-/// Cast any pointer to the !llvm.ptr<i8> pointer type.
-Value castPtr(ConversionPatternRewriter &rewriter, Location loc, Value ptr) {
-  auto i8Ptr =
-      LLVM::LLVMPointerType::get(IntegerType::get(ptr.getContext(), 8));
-  return rewriter.create<LLVM::BitcastOp>(loc, i8Ptr, ptr);
 }
 
 struct TileZeroConversion : public ConvertOpToLLVMPattern<TileZeroOp> {
@@ -113,11 +105,10 @@ struct TileLoadConversion : public ConvertOpToLLVMPattern<TileLoadOp> {
     if (failed(verifyStride(mType)))
       return failure();
     Value stride = getStride(rewriter, *getTypeConverter(), mType,
-                             adaptor.base(), op.getLoc());
+                             adaptor.getBase(), op.getLoc());
     // Replace operation with intrinsic.
-    Value ptr = getStridedElementPtr(op.getLoc(), mType, adaptor.base(),
-                                     adaptor.indices(), rewriter);
-    ptr = castPtr(rewriter, op.getLoc(), ptr);
+    Value ptr = getStridedElementPtr(op.getLoc(), mType, adaptor.getBase(),
+                                     adaptor.getIndices(), rewriter);
     Type resType = typeConverter->convertType(vType);
     rewriter.replaceOpWithNewOp<amx::x86_amx_tileloadd64>(
         op, resType, tsz.first, tsz.second, ptr, stride);
@@ -140,13 +131,12 @@ struct TileStoreConversion : public ConvertOpToLLVMPattern<TileStoreOp> {
     if (failed(verifyStride(mType)))
       return failure();
     Value stride = getStride(rewriter, *getTypeConverter(), mType,
-                             adaptor.base(), op.getLoc());
+                             adaptor.getBase(), op.getLoc());
     // Replace operation with intrinsic.
-    Value ptr = getStridedElementPtr(op.getLoc(), mType, adaptor.base(),
-                                     adaptor.indices(), rewriter);
-    ptr = castPtr(rewriter, op.getLoc(), ptr);
+    Value ptr = getStridedElementPtr(op.getLoc(), mType, adaptor.getBase(),
+                                     adaptor.getIndices(), rewriter);
     rewriter.replaceOpWithNewOp<amx::x86_amx_tilestored64>(
-        op, tsz.first, tsz.second, ptr, stride, adaptor.val());
+        op, tsz.first, tsz.second, ptr, stride, adaptor.getVal());
     return success();
   }
 };
@@ -167,8 +157,8 @@ struct TileMulFConversion : public ConvertOpToLLVMPattern<TileMulFOp> {
     // Replace operation with intrinsic.
     Type resType = typeConverter->convertType(cType);
     rewriter.replaceOpWithNewOp<amx::x86_amx_tdpbf16ps>(
-        op, resType, tsza.first, tszb.second, tsza.second, adaptor.acc(),
-        adaptor.lhs(), adaptor.rhs());
+        op, resType, tsza.first, tszb.second, tsza.second, adaptor.getAcc(),
+        adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };
@@ -188,24 +178,24 @@ struct TileMulIConversion : public ConvertOpToLLVMPattern<TileMulIOp> {
         getTileSizes(rewriter, *getTypeConverter(), bType, op.getLoc());
     // Replace operation with intrinsic.
     Type resType = typeConverter->convertType(cType);
-    bool zexta = op.isZextLhs();
-    bool zextb = op.isZextRhs();
+    bool zexta = op.getIsZextLhs();
+    bool zextb = op.getIsZextRhs();
     if (zexta && zextb)
       rewriter.replaceOpWithNewOp<amx::x86_amx_tdpbuud>(
-          op, resType, tsza.first, tszb.second, tsza.second, adaptor.acc(),
-          adaptor.lhs(), adaptor.rhs());
+          op, resType, tsza.first, tszb.second, tsza.second, adaptor.getAcc(),
+          adaptor.getLhs(), adaptor.getRhs());
     else if (zexta && !zextb)
       rewriter.replaceOpWithNewOp<amx::x86_amx_tdpbusd>(
-          op, resType, tsza.first, tszb.second, tsza.second, adaptor.acc(),
-          adaptor.lhs(), adaptor.rhs());
+          op, resType, tsza.first, tszb.second, tsza.second, adaptor.getAcc(),
+          adaptor.getLhs(), adaptor.getRhs());
     else if (!zexta && zextb)
       rewriter.replaceOpWithNewOp<amx::x86_amx_tdpbsud>(
-          op, resType, tsza.first, tszb.second, tsza.second, adaptor.acc(),
-          adaptor.lhs(), adaptor.rhs());
+          op, resType, tsza.first, tszb.second, tsza.second, adaptor.getAcc(),
+          adaptor.getLhs(), adaptor.getRhs());
     else
       rewriter.replaceOpWithNewOp<amx::x86_amx_tdpbssd>(
-          op, resType, tsza.first, tszb.second, tsza.second, adaptor.acc(),
-          adaptor.lhs(), adaptor.rhs());
+          op, resType, tsza.first, tszb.second, tsza.second, adaptor.getAcc(),
+          adaptor.getLhs(), adaptor.getRhs());
     return success();
   }
 };

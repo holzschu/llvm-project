@@ -14,8 +14,8 @@ define <4 x i32> @sel_C1_or_C2_vec(<4 x i1> %cond) {
 ; CHECK-NEXT:    adrp x8, .LCPI0_0
 ; CHECK-NEXT:    adrp x9, .LCPI0_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI0_0]
-; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI0_1]
+; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    cmlt v0.4s, v0.4s, #0
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
 ; CHECK-NEXT:    ret
@@ -27,8 +27,8 @@ define <4 x i32> @cmp_sel_C1_or_C2_vec(<4 x i32> %x, <4 x i32> %y) {
 ; CHECK-LABEL: cmp_sel_C1_or_C2_vec:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    adrp x8, .LCPI1_0
-; CHECK-NEXT:    adrp x9, .LCPI1_1
 ; CHECK-NEXT:    cmeq v0.4s, v0.4s, v1.4s
+; CHECK-NEXT:    adrp x9, .LCPI1_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI1_0]
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI1_1]
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
@@ -45,8 +45,8 @@ define <4 x i32> @sel_Cplus1_or_C_vec(<4 x i1> %cond) {
 ; CHECK-NEXT:    adrp x8, .LCPI2_0
 ; CHECK-NEXT:    adrp x9, .LCPI2_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI2_0]
-; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI2_1]
+; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    cmlt v0.4s, v0.4s, #0
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
 ; CHECK-NEXT:    ret
@@ -58,8 +58,8 @@ define <4 x i32> @cmp_sel_Cplus1_or_C_vec(<4 x i32> %x, <4 x i32> %y) {
 ; CHECK-LABEL: cmp_sel_Cplus1_or_C_vec:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    adrp x8, .LCPI3_0
-; CHECK-NEXT:    adrp x9, .LCPI3_1
 ; CHECK-NEXT:    cmeq v0.4s, v0.4s, v1.4s
+; CHECK-NEXT:    adrp x9, .LCPI3_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI3_0]
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI3_1]
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
@@ -76,8 +76,8 @@ define <4 x i32> @sel_Cminus1_or_C_vec(<4 x i1> %cond) {
 ; CHECK-NEXT:    adrp x8, .LCPI4_0
 ; CHECK-NEXT:    adrp x9, .LCPI4_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI4_0]
-; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI4_1]
+; CHECK-NEXT:    shl v0.4s, v0.4s, #31
 ; CHECK-NEXT:    cmlt v0.4s, v0.4s, #0
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
 ; CHECK-NEXT:    ret
@@ -89,8 +89,8 @@ define <4 x i32> @cmp_sel_Cminus1_or_C_vec(<4 x i32> %x, <4 x i32> %y) {
 ; CHECK-LABEL: cmp_sel_Cminus1_or_C_vec:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    adrp x8, .LCPI5_0
-; CHECK-NEXT:    adrp x9, .LCPI5_1
 ; CHECK-NEXT:    cmeq v0.4s, v0.4s, v1.4s
+; CHECK-NEXT:    adrp x9, .LCPI5_1
 ; CHECK-NEXT:    ldr q1, [x8, :lo12:.LCPI5_0]
 ; CHECK-NEXT:    ldr q2, [x9, :lo12:.LCPI5_1]
 ; CHECK-NEXT:    bsl v0.16b, v2.16b, v1.16b
@@ -370,9 +370,10 @@ define <vscale x 16 x i8> @signbit_mask_xor_nxv16i8(<vscale x 16 x i8> %a, <vsca
 ; CHECK-LABEL: signbit_mask_xor_nxv16i8:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    ptrue p0.b
+; CHECK-NEXT:    eor z1.d, z0.d, z1.d
 ; CHECK-NEXT:    cmplt p0.b, p0/z, z0.b, #0
-; CHECK-NEXT:    eor z0.d, z0.d, z1.d
-; CHECK-NEXT:    mov z0.b, p0/m, #0 // =0x0
+; CHECK-NEXT:    mov z1.b, p0/m, #0 // =0x0
+; CHECK-NEXT:    mov z0.d, z1.d
 ; CHECK-NEXT:    ret
   %cond = icmp slt <vscale x 16 x i8> %a, zeroinitializer
   %xor = xor <vscale x 16 x i8> %a, %b

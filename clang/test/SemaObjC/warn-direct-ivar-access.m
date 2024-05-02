@@ -1,5 +1,4 @@
 // RUN: %clang_cc1  -fsyntax-only -fobjc-arc -fobjc-runtime-has-weak  -Wdirect-ivar-access -verify -Wno-objc-root-class %s
-// rdar://6505197
 
 __attribute__((objc_root_class)) @interface MyObject {
 @public
@@ -30,7 +29,7 @@ __attribute__((objc_root_class)) @interface MyObject {
 - (void) dealloc { _myLeader = 0; }
 @end
 
-MyObject * foo ()
+MyObject * foo (void)
 {
 	MyObject* p=0;
         p.isTickledPink = p.myLeader;	// ok
@@ -54,7 +53,6 @@ id Test32(__weak ITest32 *x) {
            : (*x).ivar;  // expected-error {{dereferencing a __weak pointer is not allowed}}
 }
 
-// rdar://13142820
 @protocol PROTOCOL
 @property (copy, nonatomic) id property_in_protocol;
 @end

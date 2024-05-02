@@ -1,11 +1,17 @@
 add_mlir_unittest(MLIRIRTests
+  AdaptorTest.cpp
   AttributeTest.cpp
   DialectTest.cpp
+  InterfaceTest.cpp
+  IRMapping.cpp
   InterfaceAttachmentTest.cpp
   OperationSupportTest.cpp
   PatternMatchTest.cpp
   ShapedTypeTest.cpp
-  SubElementInterfaceTest.cpp
+  SymbolTableTest.cpp
+  TypeTest.cpp
+  TypeAttrNamesTest.cpp
+  OpPropertiesTest.cpp
 
   DEPENDS
   MLIRTestInterfaceIncGen

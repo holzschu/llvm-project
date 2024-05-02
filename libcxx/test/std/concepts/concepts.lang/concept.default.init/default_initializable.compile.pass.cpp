@@ -7,7 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
+
+// We voluntarily use std::default_initializable on types that have redundant
+// or ignored cv-qualifiers -- don't warn about it.
+// ADDITIONAL_COMPILE_FLAGS(gcc-style-warnings): -Wno-ignored-qualifiers
 
 // template<class T>
 //     concept default_initializable = constructible_from<T> &&
@@ -196,7 +199,7 @@ void test()
     test_not_const<void(Empty::*)(const int&) noexcept(false)>();
 
     // Sequence containers
-    test_not_const<std::array<               int, 0>>();
+    test_true     <std::array<               int, 0>>();
     test_not_const<std::array<               int, 1>>();
     test_false    <std::array<const          int, 1>>();
     test_not_const<std::array<      volatile int, 1>>();
@@ -257,9 +260,4 @@ void test()
     test_true     <std::shared_ptr<int>>();
     test_true     <std::weak_ptr<int>>();
 
-}
-
-// Required for MSVC internal test runner compatibility.
-int main(int, char**) {
-    return 0;
 }

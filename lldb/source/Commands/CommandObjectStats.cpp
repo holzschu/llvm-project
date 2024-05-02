@@ -9,6 +9,7 @@
 #include "CommandObjectStats.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Host/OptionParser.h"
+#include "lldb/Interpreter/CommandOptionArgumentTable.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Target/Target.h"
 
@@ -25,15 +26,14 @@ public:
   ~CommandObjectStatsEnable() override = default;
 
 protected:
-  bool DoExecute(Args &command, CommandReturnObject &result) override {
+  void DoExecute(Args &command, CommandReturnObject &result) override {
     if (DebuggerStats::GetCollectingStats()) {
       result.AppendError("statistics already enabled");
-      return false;
+      return;
     }
 
     DebuggerStats::SetCollectingStats(true);
     result.SetStatus(eReturnStatusSuccessFinishResult);
-    return true;
   }
 };
 
@@ -47,15 +47,14 @@ public:
   ~CommandObjectStatsDisable() override = default;
 
 protected:
-  bool DoExecute(Args &command, CommandReturnObject &result) override {
+  void DoExecute(Args &command, CommandReturnObject &result) override {
     if (!DebuggerStats::GetCollectingStats()) {
       result.AppendError("need to enable statistics before disabling them");
-      return false;
+      return;
     }
 
     DebuggerStats::SetCollectingStats(false);
     result.SetStatus(eReturnStatusSuccessFinishResult);
-    return true;
   }
 };
 
@@ -65,7 +64,7 @@ protected:
 class CommandObjectStatsDump : public CommandObjectParsed {
   class CommandOptions : public Options {
   public:
-    CommandOptions() : Options() { OptionParsingStarting(nullptr); }
+    CommandOptions() { OptionParsingStarting(nullptr); }
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
                           ExecutionContext *execution_context) override {
@@ -87,7 +86,7 @@ class CommandObjectStatsDump : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      return llvm::makeArrayRef(g_statistics_dump_options);
+      return llvm::ArrayRef(g_statistics_dump_options);
     }
 
     bool m_all_targets = false;
@@ -104,7 +103,7 @@ public:
   Options *GetOptions() override { return &m_options; }
 
 protected:
-  bool DoExecute(Args &command, CommandReturnObject &result) override {
+  void DoExecute(Args &command, CommandReturnObject &result) override {
     Target *target = nullptr;
     if (!m_options.m_all_targets)
       target = m_exe_ctx.GetTargetPtr();
@@ -112,7 +111,6 @@ protected:
     result.AppendMessageWithFormatv(
         "{0:2}", DebuggerStats::ReportStatistics(GetDebugger(), target));
     result.SetStatus(eReturnStatusSuccessFinishResult);
-    return true;
   }
 
   CommandOptions m_options;

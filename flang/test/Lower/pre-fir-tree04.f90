@@ -6,8 +6,8 @@
 Subroutine test_coarray
   use iso_fortran_env, only: team_type, event_type, lock_type
   type(team_type) :: t
-  type(event_type) :: done
-  type(lock_type) :: alock
+  type(event_type) :: done[*]
+  type(lock_type) :: alock[*]
   real :: y[10,*]
   integer :: counter[*]
   logical :: is_square
@@ -61,10 +61,10 @@ Subroutine test_coarray
   end if
   ! CHECK: <<End IfConstruct>>
 
-  ! CHECK: <<IfConstruct>>
+  ! CHECK: <<IfConstruct!>>
   if (y<0.) then
     ! CHECK: FailImageStmt
    fail image
   end if
-  ! CHECK: <<End IfConstruct>>
+  ! CHECK: <<End IfConstruct!>>
 end

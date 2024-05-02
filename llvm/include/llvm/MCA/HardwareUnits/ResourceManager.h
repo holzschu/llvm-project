@@ -49,7 +49,7 @@ class ResourceStrategy {
   ResourceStrategy &operator=(const ResourceStrategy &) = delete;
 
 public:
-  ResourceStrategy() {}
+  ResourceStrategy() = default;
   virtual ~ResourceStrategy();
 
   /// Selects a processor resource unit from a ReadyMask.
@@ -247,7 +247,7 @@ public:
   }
 
   unsigned getNumUnits() const {
-    return isAResourceGroup() ? 1U : countPopulation(ResourceSizeMask);
+    return isAResourceGroup() ? 1U : llvm::popcount(ResourceSizeMask);
   }
 
   /// Checks if there is an available slot in the resource buffer.
@@ -430,7 +430,7 @@ public:
 
   void issueInstruction(
       const InstrDesc &Desc,
-      SmallVectorImpl<std::pair<ResourceRef, ResourceCycles>> &Pipes);
+      SmallVectorImpl<std::pair<ResourceRef, ReleaseAtCycles>> &Pipes);
 
   void cycleEvent(SmallVectorImpl<ResourceRef> &ResourcesFreed);
 

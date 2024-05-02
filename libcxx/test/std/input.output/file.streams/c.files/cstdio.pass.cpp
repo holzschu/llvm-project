@@ -79,11 +79,7 @@
 
 #include <cstdarg>
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wformat-zero-length"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
+TEST_CLANG_DIAGNOSTIC_IGNORED("-Wformat-zero-length")
 
 int main(int, char**)
 {
@@ -106,12 +102,20 @@ int main(int, char**)
     static_assert((std::is_same<decltype(std::fprintf(fp," ")), int>::value), "");
     static_assert((std::is_same<decltype(std::fscanf(fp," ")), int>::value), "");
     static_assert((std::is_same<decltype(std::snprintf(cp,0," ")), int>::value), "");
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(std::sprintf(cp," ")), int>::value), "");
+    TEST_DIAGNOSTIC_POP
     static_assert((std::is_same<decltype(std::sscanf(""," ")), int>::value), "");
     static_assert((std::is_same<decltype(std::vfprintf(fp," ",va)), int>::value), "");
     static_assert((std::is_same<decltype(std::vfscanf(fp," ",va)), int>::value), "");
     static_assert((std::is_same<decltype(std::vsnprintf(cp,0," ",va)), int>::value), "");
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(std::vsprintf(cp," ",va)), int>::value), "");
+    TEST_DIAGNOSTIC_POP
     static_assert((std::is_same<decltype(std::vsscanf(""," ",va)), int>::value), "");
     static_assert((std::is_same<decltype(std::fgetc(fp)), int>::value), "");
     static_assert((std::is_same<decltype(std::fgets(cp,0,fp)), char*>::value), "");
@@ -122,13 +126,9 @@ int main(int, char**)
     static_assert((std::is_same<decltype(std::ungetc(0,fp)), int>::value), "");
     static_assert((std::is_same<decltype(std::fread((void*)0,0,0,fp)), std::size_t>::value), "");
     static_assert((std::is_same<decltype(std::fwrite(vp,0,0,fp)), std::size_t>::value), "");
-#ifndef _LIBCPP_HAS_NO_FGETPOS_FSETPOS
     static_assert((std::is_same<decltype(std::fgetpos(fp, &fpos)), int>::value), "");
-#endif
     static_assert((std::is_same<decltype(std::fseek(fp, 0,0)), int>::value), "");
-#ifndef _LIBCPP_HAS_NO_FGETPOS_FSETPOS
     static_assert((std::is_same<decltype(std::fsetpos(fp, &fpos)), int>::value), "");
-#endif
     static_assert((std::is_same<decltype(std::ftell(fp)), long>::value), "");
     static_assert((std::is_same<decltype(std::rewind(fp)), void>::value), "");
     static_assert((std::is_same<decltype(std::clearerr(fp)), void>::value), "");
@@ -141,14 +141,20 @@ int main(int, char**)
     static_assert((std::is_same<decltype(std::remove("")), int>::value), "");
     static_assert((std::is_same<decltype(std::rename("","")), int>::value), "");
     static_assert((std::is_same<decltype(std::tmpfile()), std::FILE*>::value), "");
+
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(std::tmpnam(cp)), char*>::value), "");
+    TEST_DIAGNOSTIC_POP
 
     static_assert((std::is_same<decltype(std::getchar()), int>::value), "");
 #if TEST_STD_VER <= 11
-#   pragma GCC diagnostic push
-#   pragma GCC diagnostic ignored "-Wdeprecated-declarations" // disable the warning from the C library
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
+    TEST_GCC_DIAGNOSTIC_IGNORED("-Wdeprecated-declarations")
     static_assert((std::is_same<decltype(std::gets(cp)), char*>::value), "");
-#   pragma GCC diagnostic pop
+    TEST_DIAGNOSTIC_POP
 #endif
     static_assert((std::is_same<decltype(std::scanf(" ")), int>::value), "");
     static_assert((std::is_same<decltype(std::vscanf(" ",va)), int>::value), "");

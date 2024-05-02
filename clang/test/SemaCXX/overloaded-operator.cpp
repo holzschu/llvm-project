@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -std=c++11 %s 
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,precxx23 -std=c++11 %s
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,cxx23 -std=c++23 %s
+
 class X { };
 
 X operator+(X, X);
@@ -33,7 +35,9 @@ struct A {
 
 A make_A();
 
-bool operator==(A&, Z&); // expected-note 3{{candidate function}}
+bool operator==(A&, Z&); // expected-note 3{{candidate function}} \
+                         // cxx23-note 2{{candidate function}}
+
 
 void h(A a, const A ac, Z z) {
   make_A() == z; // expected-warning{{equality comparison result unused}}
@@ -68,7 +72,9 @@ struct E2 {
 };
 
 // C++ [over.match.oper]p3 - enum restriction.
-float& operator==(E1, E2);  // expected-note{{candidate function}}
+float& operator==(E1, E2);  // expected-note{{candidate function}} \
+                            // cxx23-note{{candidate function}}
+
 
 void enum_test(Enum1 enum1, Enum2 enum2, E1 e1, E2 e2, Enum1 next_enum1) {
   float &f1 = (e1 == e2);
@@ -86,7 +92,8 @@ class pr5244_foo
 };
 
 bool operator==(const pr5244_foo& s1, const pr5244_foo& s2); // expected-note{{candidate function}}
-bool operator==(char c, const pr5244_foo& s); // expected-note{{candidate function}}
+bool operator==(char c, const pr5244_foo& s); // expected-note{{candidate function}} \
+                                              // cxx23-note{{candidate function}}
 
 enum pr5244_bar
 {
@@ -130,7 +137,7 @@ struct SmartPtr {
 };
 
 void test_smartptr(SmartPtr ptr, const SmartPtr cptr, 
-                   const volatile SmartPtr cvptr) {
+                   const volatile SmartPtr cvptr) { // cxx23-warning {{volatile-qualified parameter type 'const volatile SmartPtr' is deprecated}}
   int &ir = *ptr;
   long &lr = *cptr;
   long &lr2 = *cvptr;
@@ -404,7 +411,7 @@ namespace rdar9136502 {
 namespace rdar9222009 {
 class StringRef {
   inline bool operator==(StringRef LHS, StringRef RHS) { // expected-error{{overloaded 'operator==' must be a binary operator (has 3 parameters)}}
-    return !(LHS == RHS); // expected-error{{invalid operands to binary expression ('rdar9222009::StringRef' and 'rdar9222009::StringRef')}}
+    return !(LHS == RHS); // expected-error{{invalid operands to binary expression ('StringRef' and 'StringRef')}}
   }
 };
 
@@ -481,7 +488,7 @@ namespace PR14995 {
   void h() {
     D d;
     d++;  // ok
-    ++d; // expected-error{{cannot increment value of type 'PR14995::D'}}
+    ++d; // expected-error{{cannot increment value of type 'D'}}
   }
 
   template<typename...T> struct E {
@@ -584,4 +591,57 @@ namespace LateADLInNonDependentExpressions {
   float &operator++(B, int);
   float &operator->*(B, B);
   template void f<int>();
+}
+
+namespace test {
+namespace A {
+template<typename T> T f(T t) {
+  T operator+(T, T);
+  return t + t;
+}
+}
+namespace B {
+  struct X {};
+}
+void g(B::X x) { A::f(x); }
+}
+
+namespace GH78314 {
+
+class a {
+public:
+  void operator--() = delete; // expected-note {{candidate function has been explicitly deleted}} \
+                              // expected-note {{candidate function not viable: requires 0 arguments, but 1 was provided}}
+  void operator--(int) = delete; // expected-note {{candidate function has been explicitly deleted}} \
+                                 // expected-note {{candidate function not viable: requires 1 argument, but 0 were provided}}
+};
+
+class c {
+  void operator--(this c) = delete; //precxx23-error {{explicit object parameters are incompatible with C++ standards before C++2b}} \
+                                    // expected-note {{candidate function has been explicitly deleted}} \
+                                    // expected-note {{candidate function not viable: requires 0 non-object arguments, but 1 was provided}}
+  void operator--(this c, int) = delete; //precxx23-error {{explicit object parameters are incompatible with C++ standards before C++2b}} \
+                                         // expected-note {{candidate function has been explicitly deleted}} \
+                                         // expected-note {{candidate function not viable: requires 1 non-object argument, but 0 were provided}}
+};
+
+void foo() {
+  a aa;
+  --aa; // expected-error {{overload resolution selected deleted operator '--'}}
+  aa--; // expected-error {{overload resolution selected deleted operator '--'}}
+
+  c cc; 
+  --cc; // expected-error {{overload resolution selected deleted operator '--'}}
+  cc--; // expected-error {{overload resolution selected deleted operator '--'}}
+}
+
+class b {
+  void operator++() = delete; // expected-note {{candidate function has been explicitly deleted}}
+  template <class> void operator++(int) { // expected-note {{function template not viable: requires 1 argument, but 0 were provided}}
+    b bb;
+    ++bb; // expected-error {{overload resolution selected deleted operator '++'}}
+  }
+};
+
+
 }

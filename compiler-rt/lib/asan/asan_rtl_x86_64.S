@@ -4,7 +4,6 @@
 #if defined(__x86_64__)
 #include "sanitizer_common/sanitizer_platform.h"
 
-.section .text
 .file "asan_rtl_x86_64.S"
 
 #define NAME(n, reg, op, s, i) n##_##op##_##i##_##s##_##reg
@@ -15,6 +14,7 @@
 #define FLABEL(reg, op, s, i) NAME(.fail, reg, op, s, i)
 
 #define BEGINF(reg, op, s, i) \
+.section .text.FNAME(reg, op, s, i),"ax",@progbits ;\
 .globl  FNAME(reg, op, s, i) ;\
 .hidden  FNAME(reg, op, s, i) ;\
 ASM_TYPE_FUNCTION(FNAME(reg, op, s, i)) ;\
@@ -27,7 +27,12 @@ FNAME(reg, op, s, i): ;\
 #define ASAN_MEMORY_ACCESS_INITIAL_CHECK_ADD(reg, op, s) \
         mov    %##reg,%r10 ;\
         shr    $0x3,%r10 ;\
+        .if ASAN_SHADOW_OFFSET_CONST < 0x80000000   ;\
         movsbl ASAN_SHADOW_OFFSET_CONST(%r10),%r10d ;\
+        .else                                       ;\
+        movabsq $ASAN_SHADOW_OFFSET_CONST,%r11      ;\
+        movsbl (%r10,%r11),%r10d                    ;\
+        .endif                                      ;\
         test   %r10d,%r10d ;\
         jne    CLABEL(reg, op, s, add) ;\
 RLABEL(reg, op, s, add): ;\
@@ -35,38 +40,32 @@ RLABEL(reg, op, s, add): ;\
 
 #define ASAN_MEMORY_ACCESS_EXTRA_CHECK_1(reg, op, i) \
 CLABEL(reg, op, 1, i): ;\
-        push   %rcx ;\
-        mov    %##reg,%rcx ;\
-        and    $0x7,%ecx ;\
-        cmp    %r10d,%ecx ;\
-        pop    %rcx ;\
+        mov    %##reg,%r11 ;\
+        and    $0x7,%r11d ;\
+        cmp    %r10d,%r11d ;\
         jl     RLABEL(reg, op, 1, i);\
         mov    %##reg,%rdi ;\
-        jmp    __asan_report_##op##1@PLT ;\
+        jmp    __asan_report_##op##1_asm ;\
 
 #define ASAN_MEMORY_ACCESS_EXTRA_CHECK_2(reg, op, i) \
 CLABEL(reg, op, 2, i): ;\
-        push   %rcx ;\
-        mov    %##reg,%rcx ;\
-        and    $0x7,%ecx ;\
-        add    $0x1,%ecx ;\
-        cmp    %r10d,%ecx ;\
-        pop    %rcx ;\
+        mov    %##reg,%r11 ;\
+        and    $0x7,%r11d ;\
+        add    $0x1,%r11d ;\
+        cmp    %r10d,%r11d ;\
         jl     RLABEL(reg, op, 2, i);\
         mov    %##reg,%rdi ;\
-        jmp    __asan_report_##op##2@PLT ;\
+        jmp    __asan_report_##op##2_asm ;\
 
 #define ASAN_MEMORY_ACCESS_EXTRA_CHECK_4(reg, op, i) \
 CLABEL(reg, op, 4, i): ;\
-        push   %rcx ;\
-        mov    %##reg,%rcx ;\
-        and    $0x7,%ecx ;\
-        add    $0x3,%ecx ;\
-        cmp    %r10d,%ecx ;\
-        pop    %rcx ;\
+        mov    %##reg,%r11 ;\
+        and    $0x7,%r11d ;\
+        add    $0x3,%r11d ;\
+        cmp    %r10d,%r11d ;\
         jl     RLABEL(reg, op, 4, i);\
         mov    %##reg,%rdi ;\
-        jmp    __asan_report_##op##4@PLT ;\
+        jmp    __asan_report_##op##4_asm ;\
 
 #define ASAN_MEMORY_ACCESS_CALLBACK_ADD_1(reg, op) \
 BEGINF(reg, op, 1, add) ;\
@@ -90,14 +89,19 @@ ENDF
 #define ASAN_MEMORY_ACCESS_CHECK_ADD(reg, op, s, c) \
         mov    %##reg,%r10 ;\
         shr    $0x3,%r10 ;\
+        .if ASAN_SHADOW_OFFSET_CONST < 0x80000000  ;\
         ##c    $0x0,ASAN_SHADOW_OFFSET_CONST(%r10) ;\
+        .else                                      ;\
+        movabsq $ASAN_SHADOW_OFFSET_CONST,%r11     ;\
+        ##c    $0x0,(%r10,%r11)                    ;\
+        .endif                                     ;\
         jne    FLABEL(reg, op, s, add) ;\
         retq  ;\
 
 #define ASAN_MEMORY_ACCESS_FAIL(reg, op, s, i) \
 FLABEL(reg, op, s, i): ;\
         mov    %##reg,%rdi ;\
-        jmp    __asan_report_##op##s@PLT;\
+        jmp    __asan_report_##op##s##_asm;\
 
 #define ASAN_MEMORY_ACCESS_CALLBACK_ADD_8(reg, op) \
 BEGINF(reg, op, 8, add) ;\

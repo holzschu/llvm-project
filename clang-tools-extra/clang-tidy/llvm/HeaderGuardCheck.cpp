@@ -10,9 +10,7 @@
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/Path.h"
 
-namespace clang {
-namespace tidy {
-namespace llvm_check {
+namespace clang::tidy::llvm_check {
 
 LLVMHeaderGuardCheck::LLVMHeaderGuardCheck(StringRef Name,
                                            ClangTidyContext *Context)
@@ -56,16 +54,14 @@ std::string LLVMHeaderGuardCheck::getHeaderGuard(StringRef Filename,
   std::replace(Guard.begin(), Guard.end(), '-', '_');
 
   // The prevalent style in clang is LLVM_CLANG_FOO_BAR_H
-  if (StringRef(Guard).startswith("clang"))
+  if (StringRef(Guard).starts_with("clang"))
     Guard = "LLVM_" + Guard;
 
   // The prevalent style in flang is FORTRAN_FOO_BAR_H
-  if (StringRef(Guard).startswith("flang"))
+  if (StringRef(Guard).starts_with("flang"))
     Guard = "FORTRAN" + Guard.substr(sizeof("flang") - 1);
 
   return StringRef(Guard).upper();
 }
 
-} // namespace llvm_check
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::llvm_check

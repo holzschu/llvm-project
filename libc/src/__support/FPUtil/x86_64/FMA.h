@@ -6,24 +6,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIBC_SRC_SUPPORT_FPUTIL_X86_64_FMA_H
-#define LLVM_LIBC_SRC_SUPPORT_FPUTIL_X86_64_FMA_H
+#ifndef LLVM_LIBC_SRC___SUPPORT_FPUTIL_X86_64_FMA_H
+#define LLVM_LIBC_SRC___SUPPORT_FPUTIL_X86_64_FMA_H
 
-#include "src/__support/architectures.h"
+#include "src/__support/macros/attributes.h" // LIBC_INLINE
+#include "src/__support/macros/properties/architectures.h"
+#include "src/__support/macros/properties/cpu_features.h" // LIBC_TARGET_CPU_HAS_FMA
 
-#if !defined(LLVM_LIBC_ARCH_X86_64)
+#if !defined(LIBC_TARGET_ARCH_IS_X86_64)
 #error "Invalid include"
 #endif
 
-#include "src/__support/CPP/TypeTraits.h"
+#if !defined(LIBC_TARGET_CPU_HAS_FMA)
+#error "FMA instructions are not supported"
+#endif
+
+#include "src/__support/CPP/type_traits.h"
 #include <immintrin.h>
 
-namespace __llvm_libc {
+namespace LIBC_NAMESPACE {
 namespace fputil {
 
 template <typename T>
-INLINE_FMA static inline cpp::EnableIfType<cpp::IsSame<T, float>::Value, T>
-fma(T x, T y, T z) {
+LIBC_INLINE cpp::enable_if_t<cpp::is_same_v<T, float>, T> fma(T x, T y, T z) {
   float result;
   __m128 xmm = _mm_load_ss(&x);           // NOLINT
   __m128 ymm = _mm_load_ss(&y);           // NOLINT
@@ -34,8 +39,7 @@ fma(T x, T y, T z) {
 }
 
 template <typename T>
-INLINE_FMA static inline cpp::EnableIfType<cpp::IsSame<T, double>::Value, T>
-fma(T x, T y, T z) {
+LIBC_INLINE cpp::enable_if_t<cpp::is_same_v<T, double>, T> fma(T x, T y, T z) {
   double result;
   __m128d xmm = _mm_load_sd(&x);           // NOLINT
   __m128d ymm = _mm_load_sd(&y);           // NOLINT
@@ -46,6 +50,6 @@ fma(T x, T y, T z) {
 }
 
 } // namespace fputil
-} // namespace __llvm_libc
+} // namespace LIBC_NAMESPACE
 
-#endif // LLVM_LIBC_SRC_SUPPORT_FPUTIL_X86_64_FMA_H
+#endif // LLVM_LIBC_SRC___SUPPORT_FPUTIL_X86_64_FMA_H

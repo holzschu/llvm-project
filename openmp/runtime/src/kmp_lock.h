@@ -50,7 +50,7 @@ typedef struct ident ident_t;
 // recent versions), but we are bounded by the pointer-sized chunks that
 // the Intel compiler allocates.
 
-#if KMP_OS_LINUX && defined(KMP_GOMP_COMPAT)
+#if (KMP_OS_LINUX || KMP_OS_AIX) && defined(KMP_GOMP_COMPAT)
 #define OMP_LOCK_T_SIZE sizeof(int)
 #define OMP_NEST_LOCK_T_SIZE sizeof(void *)
 #else
@@ -120,8 +120,16 @@ extern void __kmp_validate_locks(void);
 
 struct kmp_base_tas_lock {
   // KMP_LOCK_FREE(tas) => unlocked; locked: (gtid+1) of owning thread
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) &&     \
+    __LP64__
+  // Flip the ordering of the high and low 32-bit member to be consistent
+  // with the memory layout of the address in 64-bit big-endian.
+  kmp_int32 depth_locked; // depth locked, for nested locks only
+  std::atomic<kmp_int32> poll;
+#else
   std::atomic<kmp_int32> poll;
   kmp_int32 depth_locked; // depth locked, for nested locks only
+#endif
 };
 
 typedef struct kmp_base_tas_lock kmp_base_tas_lock_t;
@@ -138,7 +146,7 @@ typedef union kmp_tas_lock kmp_tas_lock_t;
 //    kmp_tas_lock_t xlock = KMP_TAS_LOCK_INITIALIZER( xlock );
 #define KMP_TAS_LOCK_INITIALIZER(lock)                                         \
   {                                                                            \
-    { ATOMIC_VAR_INIT(KMP_LOCK_FREE(tas)), 0 }                                 \
+    { KMP_LOCK_FREE(tas), 0 }                                                  \
   }
 
 extern int __kmp_acquire_tas_lock(kmp_tas_lock_t *lck, kmp_int32 gtid);
@@ -276,11 +284,7 @@ typedef union kmp_ticket_lock kmp_ticket_lock_t;
 // Note the macro argument. It is important to make var properly initialized.
 #define KMP_TICKET_LOCK_INITIALIZER(lock)                                      \
   {                                                                            \
-    {                                                                          \
-      ATOMIC_VAR_INIT(true)                                                    \
-      , &(lock), NULL, ATOMIC_VAR_INIT(0U), ATOMIC_VAR_INIT(0U),               \
-          ATOMIC_VAR_INIT(0), ATOMIC_VAR_INIT(-1)                              \
-    }                                                                          \
+    { true, &(lock), NULL, 0U, 0U, 0, -1 }                                     \
   }
 
 extern int __kmp_acquire_ticket_lock(kmp_ticket_lock_t *lck, kmp_int32 gtid);
@@ -651,12 +655,15 @@ extern int (*__kmp_acquire_user_lock_with_checks_)(kmp_user_lock_p lck,
     if (lck->tas.lk.poll != 0 ||                                               \
         !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {     \
       kmp_uint32 spins;                                                        \
+      kmp_uint64 time;                                                         \
       KMP_FSYNC_PREPARE(lck);                                                  \
       KMP_INIT_YIELD(spins);                                                   \
+      KMP_INIT_BACKOFF(time);                                                  \
       do {                                                                     \
-        KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                    \
-      } while (lck->tas.lk.poll != 0 || !__kmp_atomic_compare_store_acq(       \
-                                            &lck->tas.lk.poll, 0, gtid + 1));  \
+        KMP_YIELD_OVERSUB_ELSE_SPIN(spins, time);                              \
+      } while (                                                                \
+          lck->tas.lk.poll != 0 ||                                             \
+          !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));    \
     }                                                                          \
     KMP_FSYNC_ACQUIRED(lck);                                                   \
   } else {                                                                     \
@@ -758,10 +765,12 @@ extern int (*__kmp_acquire_nested_user_lock_with_checks_)(kmp_user_lock_p lck,
       if ((lck->tas.lk.poll != 0) ||                                           \
           !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1)) {   \
         kmp_uint32 spins;                                                      \
+        kmp_uint64 time;                                                       \
         KMP_FSYNC_PREPARE(lck);                                                \
         KMP_INIT_YIELD(spins);                                                 \
+        KMP_INIT_BACKOFF(time);                                                \
         do {                                                                   \
-          KMP_YIELD_OVERSUB_ELSE_SPIN(spins);                                  \
+          KMP_YIELD_OVERSUB_ELSE_SPIN(spins, time);                            \
         } while (                                                              \
             (lck->tas.lk.poll != 0) ||                                         \
             !__kmp_atomic_compare_store_acq(&lck->tas.lk.poll, 0, gtid + 1));  \
@@ -1137,11 +1146,13 @@ extern int (**__kmp_indirect_test)(kmp_user_lock_p, kmp_int32);
 
 // Extracts direct lock tag from a user lock pointer
 #define KMP_EXTRACT_D_TAG(l)                                                   \
-  (*((kmp_dyna_lock_t *)(l)) & ((1 << KMP_LOCK_SHIFT) - 1) &                   \
-   -(*((kmp_dyna_lock_t *)(l)) & 1))
+  ((kmp_dyna_lock_t)((kmp_base_tas_lock_t *)(l))->poll &                       \
+   ((1 << KMP_LOCK_SHIFT) - 1) &                                               \
+   -((kmp_dyna_lock_t)((kmp_tas_lock_t *)(l))->lk.poll & 1))
 
 // Extracts indirect lock index from a user lock pointer
-#define KMP_EXTRACT_I_INDEX(l) (*(kmp_lock_index_t *)(l) >> 1)
+#define KMP_EXTRACT_I_INDEX(l)                                                 \
+  ((kmp_lock_index_t)((kmp_base_tas_lock_t *)(l))->poll >> 1)
 
 // Returns function pointer to the direct lock function with l (kmp_dyna_lock_t
 // *) and op (operation type).

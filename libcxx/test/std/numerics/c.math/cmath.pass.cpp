@@ -6,7 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-// XFAIL: LIBCXX-AIX-FIXME
+// This test fails because Clang no longer enables -fdelayed-template-parsing
+// by default on Windows with C++20 (#69431).
+// XFAIL: msvc && clang-18
 
 // <cmath>
 
@@ -115,10 +117,9 @@ void test_abs()
 {
     // See also "abs.pass.cpp"
 
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wabsolute-value"
-#endif
+    TEST_DIAGNOSTIC_PUSH
+    TEST_CLANG_DIAGNOSTIC_IGNORED("-Wabsolute-value")
+
     static_assert((std::is_same<decltype(std::abs((float)0)), float>::value), "");
     static_assert((std::is_same<decltype(std::abs((double)0)), double>::value), "");
     static_assert((std::is_same<decltype(std::abs((long double)0)), long double>::value), "");
@@ -136,10 +137,9 @@ void test_abs()
     static_assert(!has_abs<unsigned>::value, "");
     static_assert(!has_abs<unsigned long>::value, "");
     static_assert(!has_abs<unsigned long long>::value, "");
-    static_assert(!has_abs<size_t>::value, "");
-#ifdef __clang__
-#pragma clang diagnostic pop
-#endif
+    static_assert(!has_abs<std::size_t>::value, "");
+
+    TEST_DIAGNOSTIC_POP
 
     assert(std::abs(-1.) == 1);
 }
@@ -607,12 +607,20 @@ void test_fpclassify()
     static_assert((std::is_same<decltype(std::fpclassify(0)), int>::value), "");
     static_assert((std::is_same<decltype(std::fpclassify((long double)0)), int>::value), "");
     static_assert((std::is_same<decltype(fpclassify(Ambiguous())), Ambiguous>::value), "");
+    static_assert((std::is_same<decltype(fpclassify(Value<float>())), int>::value), "");
+    static_assert((std::is_same<decltype(fpclassify(Value<double>())), int>::value), "");
+    static_assert((std::is_same<decltype(fpclassify(Value<long double>())), int>::value), "");
+    ASSERT_NOEXCEPT(std::fpclassify((float)0));
+    ASSERT_NOEXCEPT(std::fpclassify((double)0));
+    ASSERT_NOEXCEPT(std::fpclassify((long double)0));
+    ASSERT_NOEXCEPT(std::fpclassify(0));
     assert(std::fpclassify(-1.0) == FP_NORMAL);
     assert(std::fpclassify(0) == FP_ZERO);
     assert(std::fpclassify(1) == FP_NORMAL);
     assert(std::fpclassify(-1) == FP_NORMAL);
     assert(std::fpclassify(std::numeric_limits<int>::max()) == FP_NORMAL);
     assert(std::fpclassify(std::numeric_limits<int>::min()) == FP_NORMAL);
+    assert(std::fpclassify(Value<double, 1>()) == FP_NORMAL);
 }
 
 void test_isfinite()

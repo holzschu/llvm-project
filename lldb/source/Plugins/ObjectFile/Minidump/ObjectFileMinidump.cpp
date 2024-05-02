@@ -33,14 +33,14 @@ void ObjectFileMinidump::Terminate() {
 }
 
 ObjectFile *ObjectFileMinidump::CreateInstance(
-    const lldb::ModuleSP &module_sp, lldb::DataBufferSP &data_sp,
+    const lldb::ModuleSP &module_sp, lldb::DataBufferSP data_sp,
     lldb::offset_t data_offset, const lldb_private::FileSpec *file,
     lldb::offset_t offset, lldb::offset_t length) {
   return nullptr;
 }
 
 ObjectFile *ObjectFileMinidump::CreateMemoryInstance(
-    const lldb::ModuleSP &module_sp, DataBufferSP &data_sp,
+    const lldb::ModuleSP &module_sp, WritableDataBufferSP data_sp,
     const ProcessSP &process_sp, lldb::addr_t header_addr) {
   return nullptr;
 }
@@ -57,10 +57,9 @@ bool ObjectFileMinidump::SaveCore(const lldb::ProcessSP &process_sp,
                                   const lldb_private::FileSpec &outfile,
                                   lldb::SaveCoreStyle &core_style,
                                   lldb_private::Status &error) {
-  if (core_style != SaveCoreStyle::eSaveCoreStackOnly) {
-    error.SetErrorString("Only stack minidumps supported yet.");
-    return false;
-  }
+  // Set default core style if it isn't set.
+  if (core_style == SaveCoreStyle::eSaveCoreUnspecified)
+    core_style = SaveCoreStyle::eSaveCoreStackOnly;
 
   if (!process_sp)
     return false;
@@ -79,19 +78,16 @@ bool ObjectFileMinidump::SaveCore(const lldb::ProcessSP &process_sp,
 
   builder.AddMiscInfo(process_sp);
 
-  if (target.GetArchitecture().GetMachine() == llvm::Triple::ArchType::x86_64) {
-    error = builder.AddThreadList(process_sp);
-    if (error.Fail())
-      return false;
+  error = builder.AddThreadList(process_sp);
+  if (error.Fail())
+    return false;
 
-    error = builder.AddException(process_sp);
-    if (error.Fail())
-      return false;
+  // Add any exceptions but only if there are any in any threads.
+  builder.AddExceptions(process_sp);
 
-    error = builder.AddMemoryList(process_sp);
-    if (error.Fail())
-      return false;
-  }
+  error = builder.AddMemoryList(process_sp, core_style);
+  if (error.Fail())
+    return false;
 
   if (target.GetArchitecture().GetTriple().getOS() ==
       llvm::Triple::OSType::Linux) {

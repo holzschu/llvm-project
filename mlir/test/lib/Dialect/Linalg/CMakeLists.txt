@@ -1,37 +1,34 @@
 # Exclude tests from libMLIR.so
 add_mlir_library(MLIRLinalgTestPasses
-  TestComprehensiveBufferize.cpp
-  TestConvVectorization.cpp
-  TestLinalgCodegenStrategy.cpp
-  TestLinalgDistribution.cpp
+  TestDataLayoutPropagation.cpp
+  TestLinalgDecomposeOps.cpp
+  TestLinalgDropUnitDims.cpp
   TestLinalgElementwiseFusion.cpp
   TestLinalgFusionTransforms.cpp
-  TestLinalgHoisting.cpp
   TestLinalgTransforms.cpp
+  TestPadFusion.cpp
 
   EXCLUDE_FROM_LIBMLIR
 
   LINK_LIBS PUBLIC
-  MLIRAffine
-  MLIRAffineBufferizableOpInterfaceImpl
-  MLIRArithBufferizableOpInterfaceImpl
-  MLIRArithmetic
-  MLIRBufferizableOpInterface
-  MLIRComprehensiveBufferize
+  MLIRAffineDialect
+  MLIRArithDialect
+  MLIRArithTransforms
+  MLIRBufferizationDialect
+  MLIRBufferizationTransforms
   MLIRGPUTransforms
-  MLIRLinalg
-  MLIRLinalgBufferizableOpInterfaceImpl
+  MLIRLinalgDialect
   MLIRLinalgTransforms
   MLIRLLVMToLLVMIRTranslation
-  MLIRMemRef
+  MLIRMemRefDialect
+  MLIRParser
   MLIRPass
-  MLIRSCF
-  MLIRSCFBufferizableOpInterfaceImpl
-  MLIRStandard
-  MLIRTensor
-  MLIRTensorBufferizableOpInterfaceImpl
+  MLIRSCFDialect
+  MLIRSCFTransforms
+  MLIRTensorDialect
+  MLIRTensorTransforms
   MLIRTransformUtils
-  MLIRVector
-  MLIRVectorBufferizableOpInterfaceImpl
+  MLIRVectorDialect
   MLIRVectorToSCF
+  MLIRVectorTransforms
   )

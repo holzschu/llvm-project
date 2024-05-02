@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++2b -verify %s
+// RUN: %clang_cc1 -std=c++23 -verify %s
 
 namespace PR52206 {
 constexpr auto f() {
@@ -19,9 +19,9 @@ constexpr auto h() {
 constexpr auto i() {
   if consteval {
     if consteval { // expected-warning {{consteval if is always true in an immediate context}}
-	  return 1;
-	}
-	return 2;
+      return 1;
+    }
+    return 2;
   } else {
     return 1.0; // expected-error {{'auto' in return type deduced as 'double' here but deduced as 'int' in earlier return statement}}
   }

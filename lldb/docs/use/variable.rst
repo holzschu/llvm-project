@@ -1,9 +1,6 @@
 Variable Formatting
 ===================
 
-.. contents::
-   :local:
-
 LLDB has a data formatters subsystem that allows users to define custom display
 options for their variables.
 
@@ -132,8 +129,8 @@ This is done by typing
 
 at the LLDB command line.
 
-The ``--format`` (which you can shorten to -f) option accepts a :doc:`format
-name<formatting>`. Then, you provide one or more types to which you want the
+The ``--format`` (which you can shorten to -f) option accepts a `format
+name`_. Then, you provide one or more types to which you want the
 new format applied.
 
 A frequent scenario is that your program has a typedef for a numeric type that
@@ -248,6 +245,8 @@ format or till you let your program run again.
 
 Finally, this is a list of formatting options available out of which you can
 pick:
+
+.. _`format name`:
 
 +-----------------------------------------------+------------------+--------------------------------------------------------------------------+
 | **Format name**                               | **Abbreviation** | **Description**                                                          |
@@ -487,9 +486,7 @@ themselves, but which carry a special meaning when used in this context:
 | ``%>``     | Print the expression path for this item                                  |
 +------------+--------------------------------------------------------------------------+
 
-Starting with SVN r228207, you can also specify
-``${script.var:pythonFuncName}``. Previously, back to r220821, this was
-specified with a different syntax: ``${var.script:pythonFuncName}``.
+Since lldb 3.7.0, you can also specify ``${script.var:pythonFuncName}``.
 
 It is expected that the function name you use specifies a function whose
 signature is the same as a Python summary function. The return string from the
@@ -810,6 +807,7 @@ of type names. This would let you rephrase the above example for arrays of type
 Simple [3] as:
 
 ::
+
    (lldb) type summary add --summary-string "${var[].x}" -x "Simple \[[0-9]+\]"
    (lldb) frame variable
    (Simple [3]) sarray = [1,4,7]
@@ -944,25 +942,24 @@ Being more specific, in case of exceptions, LLDB might assume that the given
 object has no children or it might skip printing some children, as they are
 printed one by one.
 
-[1] This method is optional. Also, a boolean value must be returned
-(starting with SVN rev153061/LLDB-134). If ``False`` is returned, then
-whenever the process reaches a new stop, this method will be invoked again to
-generate an updated list of the children for a given variable. Otherwise, if
-``True`` is returned, then the value is cached and this method won't be called
-again, effectively freezing the state of the value in subsequent stops. Beware
-that returning ``True`` incorrectly could show misleading information to the
-user.
+[1] This method is optional. Also, a boolean value must be returned (since lldb
+3.1.0). If ``False`` is returned, then whenever the process reaches a new stop,
+this method will be invoked again to generate an updated list of the children
+for a given variable. Otherwise, if ``True`` is returned, then the value is
+cached and this method won't be called again, effectively freezing the state of
+the value in subsequent stops. Beware that returning ``True`` incorrectly could
+show misleading information to the user.
 
-[2] This method is optional (starting with SVN rev166495/LLDB-175). While
-implementing it in terms of num_children is acceptable, implementors are
-encouraged to look for optimized coding alternatives whenever reasonable.
+[2] This method is optional (since lldb 3.2.0). While implementing it in terms
+of num_children is acceptable, implementors are encouraged to look for
+optimized coding alternatives whenever reasonable.
 
-[3] This method is optional (starting with SVN revision 219330). The `SBValue`
-you return here will most likely be a numeric type (int, float, ...) as its
-value bytes will be used as-if they were the value of the root `SBValue` proper.
-As a shortcut for this, you can inherit from lldb.SBSyntheticValueProvider, and
-just define get_value as other methods are defaulted in the superclass as
-returning default no-children responses.
+[3] This method is optional (since lldb 3.5.2). The `SBValue` you return here
+will most likely be a numeric type (int, float, ...) as its value bytes will be
+used as-if they were the value of the root `SBValue` proper.  As a shortcut for
+this, you can inherit from lldb.SBSyntheticValueProvider, and just define
+get_value as other methods are defaulted in the superclass as returning default
+no-children responses.
 
 If a synthetic child provider supplies a special child named
 ``$$dereference$$`` then it will be used when evaluating ``operator *`` and
@@ -971,7 +968,7 @@ functions. It is possible to declare this synthetic child without
 including it in the range of children displayed by LLDB. For example,
 this subset of a synthetic children provider class would allow the
 synthetic value to be dereferenced without actually showing any
-synthtic children in the UI:
+synthetic children in the UI:
 
 .. code-block:: python
 
@@ -1111,6 +1108,39 @@ only need to see the ones named B, H and Q, you can define a filter:
       (std::string) Q = "Hello world"
    }
 
+Callback-based type matching
+----------------------------
+
+Even though regular expression matching works well for the vast majority of data
+formatters (you normally know the name of the type you're writing a formatter
+for), there are some cases where it's useful to look at the type before deciding
+what formatter to apply.
+
+As an example scenario, imagine we have a code generator that produces some
+classes that inherit from a common ``GeneratedObject`` class, and we have a
+summary function and a synthetic child provider that work for all
+``GeneratedObject`` instances (they all follow the same pattern). However, there
+is no common pattern in the name of these classes, so we can't register the
+formatter neither by name nor by regular expression.
+
+In that case, you can write a recognizer function like this:
+
+::
+
+   def is_generated_object(sbtype, internal_dict):
+     for base in sbtype.get_bases_array():
+       if base.GetName() == "GeneratedObject"
+         return True
+     return False
+
+And pass this function to ``type summary add`` and ``type synthetic add`` using
+the flag ``--recognizer-function``.
+
+::
+
+   (lldb) type summary add --expand --python-function my_summary_function --recognizer-function is_generated_object
+   (lldb) type synthetic add --python-class my_child_provider --recognizer-function is_generated_object
+
 Objective-C Dynamic Type Discovery
 ----------------------------------
 
@@ -1229,11 +1259,11 @@ not-empty category.
 Finding Formatters 101
 ----------------------
 
-Searching for a formatter (including formats, starting in SVN rev r192217)
-given a variable goes through a rather intricate set of rules. Namely, what
-happens is that LLDB starts looking in each enabled category, according to the
-order in which they were enabled (latest enabled first). In each category, LLDB
-does the following:
+Searching for a formatter (including formats, since lldb 3.4.0) given a
+variable goes through a rather intricate set of rules. Namely, what happens is
+that LLDB starts looking in each enabled category, according to the order in
+which they were enabled (latest enabled first). In each category, LLDB does the
+following:
 
 - If there is a formatter for the type of the variable, use it
 - If this object is a pointer, and there is a formatter for the pointee type

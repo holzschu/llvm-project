@@ -16,6 +16,7 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlanRunToAddress.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 
 #include "DynamicLoaderHexagonDYLD.h"
@@ -254,7 +255,7 @@ void DynamicLoaderHexagonDYLD::UnloadSections(const ModuleSP module) {
 
 // Place a breakpoint on <_rtld_debug_state>
 bool DynamicLoaderHexagonDYLD::SetRendezvousBreakpoint() {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
 
   // This is the original code, which want to look in the rendezvous structure
   // to find the breakpoint address.  Its backwards for us, since we can easily
@@ -304,7 +305,7 @@ bool DynamicLoaderHexagonDYLD::SetRendezvousBreakpoint() {
 bool DynamicLoaderHexagonDYLD::RendezvousBreakpointHit(
     void *baton, StoppointCallbackContext *context, user_id_t break_id,
     user_id_t break_loc_id) {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
 
   LLDB_LOGF(log, "Rendezvous breakpoint hit!");
 
@@ -337,7 +338,7 @@ bool DynamicLoaderHexagonDYLD::RendezvousBreakpointHit(
 /// Helper method for RendezvousBreakpointHit.  Updates LLDB's current set
 /// of loaded modules.
 void DynamicLoaderHexagonDYLD::RefreshModules() {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
 
   if (!m_rendezvous.Resolve())
     return;
@@ -419,21 +420,17 @@ DynamicLoaderHexagonDYLD::GetStepThroughTrampolinePlan(Thread &thread,
   const ModuleList &images = target.GetImages();
 
   images.FindSymbolsWithNameAndType(sym_name, eSymbolTypeCode, target_symbols);
-  size_t num_targets = target_symbols.GetSize();
-  if (!num_targets)
+  if (target_symbols.GetSize() == 0)
     return thread_plan_sp;
 
   typedef std::vector<lldb::addr_t> AddressVector;
   AddressVector addrs;
-  for (size_t i = 0; i < num_targets; ++i) {
-    SymbolContext context;
+  for (const SymbolContext &context : target_symbols) {
     AddressRange range;
-    if (target_symbols.GetContextAtIndex(i, context)) {
-      context.GetAddressRange(eSymbolContextEverything, 0, false, range);
-      lldb::addr_t addr = range.GetBaseAddress().GetLoadAddress(&target);
-      if (addr != LLDB_INVALID_ADDRESS)
-        addrs.push_back(addr);
-    }
+    context.GetAddressRange(eSymbolContextEverything, 0, false, range);
+    lldb::addr_t addr = range.GetBaseAddress().GetLoadAddress(&target);
+    if (addr != LLDB_INVALID_ADDRESS)
+      addrs.push_back(addr);
   }
 
   if (addrs.size() > 0) {
@@ -457,7 +454,7 @@ void DynamicLoaderHexagonDYLD::LoadAllCurrentModules() {
   ModuleList module_list;
 
   if (!m_rendezvous.Resolve()) {
-    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    Log *log = GetLog(LLDBLog::DynamicLoader);
     LLDB_LOGF(
         log,
         "DynamicLoaderHexagonDYLD::%s unable to resolve rendezvous address",
@@ -478,7 +475,7 @@ void DynamicLoaderHexagonDYLD::LoadAllCurrentModules() {
     if (module_sp.get()) {
       module_list.Append(module_sp);
     } else {
-      Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+      Log *log = GetLog(LLDBLog::DynamicLoader);
       LLDB_LOGF(log,
                 "DynamicLoaderHexagonDYLD::%s failed loading module %s at "
                 "0x%" PRIx64,
@@ -589,7 +586,7 @@ DynamicLoaderHexagonDYLD::GetThreadLocalData(const lldb::ModuleSP module,
   addr_t tls_block = ReadPointer(dtv_slot + metadata.tls_offset);
 
   Module *mod = module.get();
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+  Log *log = GetLog(LLDBLog::DynamicLoader);
   LLDB_LOGF(log,
             "DynamicLoaderHexagonDYLD::Performed TLS lookup: "
             "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64

@@ -12,6 +12,8 @@
 
 #include "llvm/Support/Path.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/ScopeExit.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/Endian.h"
@@ -21,7 +23,7 @@
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Signals.h"
 #include <cctype>
-#include <cstring>
+#include <cerrno>
 
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
@@ -110,7 +112,7 @@ namespace {
 
     if (is_style_windows(style)) {
       if (pos == StringRef::npos)
-        pos = str.find_last_of(':', str.size() - 2);
+        pos = str.find_last_of(':', str.size() - 1);
     }
 
     if (pos == StringRef::npos || (pos == 1 && is_separator(str[0], style)))
@@ -269,7 +271,7 @@ const_iterator &const_iterator::operator++() {
     // Root dir.
     if (was_net ||
         // c:/
-        (is_style_windows(S) && Component.endswith(":"))) {
+        (is_style_windows(S) && Component.ends_with(":"))) {
       Component = Path.substr(Position, 1);
       return *this;
     }
@@ -358,7 +360,7 @@ StringRef root_path(StringRef path, Style style) {
   if (b != e) {
     bool has_net =
         b->size() > 2 && is_separator((*b)[0], style) && (*b)[1] == (*b)[0];
-    bool has_drive = is_style_windows(style) && b->endswith(":");
+    bool has_drive = is_style_windows(style) && b->ends_with(":");
 
     if (has_net || has_drive) {
       if ((++pos != e) && is_separator((*pos)[0], style)) {
@@ -383,7 +385,7 @@ StringRef root_name(StringRef path, Style style) {
   if (b != e) {
     bool has_net =
         b->size() > 2 && is_separator((*b)[0], style) && (*b)[1] == (*b)[0];
-    bool has_drive = is_style_windows(style) && b->endswith(":");
+    bool has_drive = is_style_windows(style) && b->ends_with(":");
 
     if (has_net || has_drive) {
       // just {C:,//net}, return the first component.
@@ -400,7 +402,7 @@ StringRef root_directory(StringRef path, Style style) {
   if (b != e) {
     bool has_net =
         b->size() > 2 && is_separator((*b)[0], style) && (*b)[1] == (*b)[0];
-    bool has_drive = is_style_windows(style) && b->endswith(":");
+    bool has_drive = is_style_windows(style) && b->ends_with(":");
 
     if ((has_net || has_drive) &&
         // {C:,//net}, skip to the next component.
@@ -520,7 +522,7 @@ static bool starts_with(StringRef Path, StringRef Prefix,
     }
     return true;
   }
-  return Path.startswith(Prefix);
+  return Path.starts_with(Prefix);
 }
 
 bool replace_path_prefix(SmallVectorImpl<char> &Path, StringRef OldPrefix,
@@ -768,14 +770,18 @@ bool remove_dots(SmallVectorImpl<char> &the_path, bool remove_dot_dot,
     }
   }
 
+  SmallString<256> buffer = root;
+  // "root" could be "/", which may need to be translated into "\".
+  make_preferred(buffer, style);
+  needs_change |= root != buffer;
+
   // Avoid rewriting the path unless we have to.
   if (!needs_change)
     return false;
 
-  SmallString<256> buffer = root;
   if (!components.empty()) {
     buffer += components[0];
-    for (StringRef C : makeArrayRef(components).drop_front()) {
+    for (StringRef C : ArrayRef(components).drop_front()) {
       buffer += preferred_separator(style);
       buffer += C;
     }
@@ -1058,7 +1064,7 @@ ErrorOr<MD5::MD5Result> md5_contents(int FD) {
     BytesRead = read(FD, Buf.data(), BufSize);
     if (BytesRead <= 0)
       break;
-    Hash.update(makeArrayRef(Buf.data(), BytesRead));
+    Hash.update(ArrayRef(Buf.data(), BytesRead));
   }
 
   if (BytesRead < 0)
@@ -1147,7 +1153,7 @@ void directory_entry::replace_filename(const Twine &Filename, file_type Type,
                                        basic_file_status Status) {
   SmallString<128> PathStr = path::parent_path(Path);
   path::append(PathStr, Filename);
-  this->Path = std::string(PathStr.str());
+  this->Path = std::string(PathStr);
   this->Type = Type;
   this->Status = Status;
 }
@@ -1175,6 +1181,25 @@ const char *mapped_file_region::const_data() const {
   return reinterpret_cast<const char *>(Mapping);
 }
 
+Error readNativeFileToEOF(file_t FileHandle, SmallVectorImpl<char> &Buffer,
+                          ssize_t ChunkSize) {
+  // Install a handler to truncate the buffer to the correct size on exit.
+  size_t Size = Buffer.size();
+  auto TruncateOnExit = make_scope_exit([&]() { Buffer.truncate(Size); });
+
+  // Read into Buffer until we hit EOF.
+  for (;;) {
+    Buffer.resize_for_overwrite(Size + ChunkSize);
+    Expected<size_t> ReadBytes = readNativeFile(
+        FileHandle, MutableArrayRef(Buffer.begin() + Size, ChunkSize));
+    if (!ReadBytes)
+      return ReadBytes.takeError();
+    if (*ReadBytes == 0)
+      return Error::success();
+    Size += *ReadBytes;
+  }
+}
+
 } // end namespace fs
 } // end namespace sys
 } // end namespace llvm
@@ -1190,6 +1215,7 @@ const char *mapped_file_region::const_data() const {
 namespace llvm {
 namespace sys {
 namespace fs {
+
 TempFile::TempFile(StringRef Name, int FD)
     : TmpName(std::string(Name)), FD(FD) {}
 TempFile::TempFile(TempFile &&Other) { *this = std::move(Other); }
@@ -1242,7 +1268,8 @@ Error TempFile::keep(const Twine &Name) {
 #ifdef _WIN32
   // If we can't cancel the delete don't rename.
   auto H = reinterpret_cast<HANDLE>(_get_osfhandle(FD));
-  std::error_code RenameEC = setDeleteDisposition(H, false);
+  std::error_code RenameEC =
+      RemoveOnClose ? std::error_code() : setDeleteDisposition(H, false);
   bool ShouldDelete = false;
   if (!RenameEC) {
     RenameEC = rename_handle(H, Name);

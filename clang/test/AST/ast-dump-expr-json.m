@@ -51,7 +51,7 @@ typedef signed char BOOL;
 - (void)setObject:(id)object atIndexedSubscript:(int)index;
 @end
 
-void TestObjCEncode() {
+void TestObjCEncode(void) {
   @encode(int);
   @encode(typeof(^{;}));
 }
@@ -61,11 +61,11 @@ void TestObjCMessage(I *Obj) {
   [I method2];
 }
 
-void TestObjCBoxed() {
+void TestObjCBoxed(void) {
   @(1 + 1);
 }
 
-void TestObjCSelector() {
+void TestObjCSelector(void) {
   SEL s = @selector(dealloc);
 }
 
@@ -90,7 +90,7 @@ void TestObjCIVarRef(I *Ptr) {
   Ptr->public = 0;
 }
 
-void TestObjCBoolLiteral() {
+void TestObjCBoolLiteral(void) {
   __objc_yes;
   __objc_no;
 }
@@ -101,7 +101,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1506,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 54,
 // CHECK-NEXT:   "col": 6,
@@ -109,12 +109,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1501,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1566,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 57,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -123,7 +123,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  "name": "TestObjCEncode",
 // CHECK-NEXT:  "mangledName": "TestObjCEncode",
 // CHECK-NEXT:  "type": {
-// CHECK-NEXT:   "qualType": "void ()"
+// CHECK-NEXT:   "qualType": "void (void)"
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "inner": [
 // CHECK-NEXT:   {
@@ -131,13 +131,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1523,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 54,
-// CHECK-NEXT:      "col": 23,
+// CHECK-NEXT:      "col": 27,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1566,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 57,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -149,13 +149,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ImplicitCastExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1527,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 55,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1538,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 14,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -171,12 +171,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCEncodeExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1527,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1538,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -196,13 +196,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ImplicitCastExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1543,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 56,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1563,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 23,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -218,12 +218,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCEncodeExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1543,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1563,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 23,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -248,7 +248,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1574,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 59,
 // CHECK-NEXT:   "col": 6,
@@ -256,12 +256,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1569,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1632,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 62,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -277,19 +277,19 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 1593,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "line": 59,
 // CHECK-NEXT:     "col": 25,
 // CHECK-NEXT:     "tokLen": 3
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1590,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 22,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1593,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 25,
 // CHECK-NEXT:      "tokLen": 3
 // CHECK-NEXT:     }
@@ -305,12 +305,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1598,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 30,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1632,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 62,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -322,13 +322,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCMessageExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1602,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 60,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1614,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 15,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -345,12 +345,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ImplicitCastExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1603,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 4,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1603,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 4,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         }
@@ -366,12 +366,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "DeclRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1603,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 4,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1603,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 4,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           }
@@ -398,13 +398,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCMessageExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1619,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 61,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1629,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 13,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -428,7 +428,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1640,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 64,
 // CHECK-NEXT:   "col": 6,
@@ -436,12 +436,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1635,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1670,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 66,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -450,7 +450,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  "name": "TestObjCBoxed",
 // CHECK-NEXT:  "mangledName": "TestObjCBoxed",
 // CHECK-NEXT:  "type": {
-// CHECK-NEXT:   "qualType": "void ()"
+// CHECK-NEXT:   "qualType": "void (void)"
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "inner": [
 // CHECK-NEXT:   {
@@ -458,13 +458,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1656,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 64,
-// CHECK-NEXT:      "col": 22,
+// CHECK-NEXT:      "col": 26,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1670,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 66,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -476,13 +476,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCBoxedExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1660,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 65,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1667,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 10,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -498,12 +498,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ParenExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1661,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 4,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1667,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 10,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -518,12 +518,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "BinaryOperator",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1662,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 5,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1666,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 9,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -539,12 +539,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1662,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 5,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1662,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 5,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -560,12 +560,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1666,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1666,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -591,7 +591,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1678,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 68,
 // CHECK-NEXT:   "col": 6,
@@ -599,12 +599,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1673,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1729,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 70,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -613,7 +613,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  "name": "TestObjCSelector",
 // CHECK-NEXT:  "mangledName": "TestObjCSelector",
 // CHECK-NEXT:  "type": {
-// CHECK-NEXT:   "qualType": "void ()"
+// CHECK-NEXT:   "qualType": "void (void)"
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "inner": [
 // CHECK-NEXT:   {
@@ -621,13 +621,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1697,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 68,
-// CHECK-NEXT:      "col": 25,
+// CHECK-NEXT:      "col": 29,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1729,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 70,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -639,13 +639,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "DeclStmt",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1701,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 69,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 3
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1727,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 29,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -655,18 +655,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "id": "0x{{.*}}",
 // CHECK-NEXT:        "kind": "VarDecl",
 // CHECK-NEXT:        "loc": {
-// CHECK-NEXT:         "offset": 1705,
+// CHECK-NEXT:         "offset": {{[0-9]+}},
 // CHECK-NEXT:         "col": 7,
 // CHECK-NEXT:         "tokLen": 1
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1701,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1726,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 28,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -684,12 +684,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCSelectorExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1709,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 11,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1726,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 28,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -715,7 +715,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1737,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 72,
 // CHECK-NEXT:   "col": 6,
@@ -723,12 +723,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1732,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1809,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 74,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -744,19 +744,19 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 1757,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "line": 72,
 // CHECK-NEXT:     "col": 26,
 // CHECK-NEXT:     "tokLen": 3
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1754,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 23,
 // CHECK-NEXT:      "tokLen": 2
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1757,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 26,
 // CHECK-NEXT:      "tokLen": 3
 // CHECK-NEXT:     }
@@ -764,7 +764,6 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "isUsed": true,
 // CHECK-NEXT:    "name": "Obj",
 // CHECK-NEXT:    "type": {
-// CHECK-NEXT:     "desugaredQualType": "id",
 // CHECK-NEXT:     "qualType": "id",
 // CHECK-NEXT:     "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:    }
@@ -774,12 +773,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1762,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 31,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1809,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 74,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -791,13 +790,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCMessageExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1766,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 73,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1806,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 43,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -814,18 +813,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ImplicitCastExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1767,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 4,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1767,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 4,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         }
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -837,18 +835,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "DeclRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1767,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 4,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1767,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 4,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -858,7 +855,6 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:           "kind": "ParmVarDecl",
 // CHECK-NEXT:           "name": "Obj",
 // CHECK-NEXT:           "type": {
-// CHECK-NEXT:            "desugaredQualType": "id",
 // CHECK-NEXT:            "qualType": "id",
 // CHECK-NEXT:            "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:           }
@@ -871,12 +867,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCProtocolExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1790,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 27,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1805,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 42,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -902,7 +898,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1817,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 76,
 // CHECK-NEXT:   "col": 6,
@@ -910,12 +906,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1812,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 1884,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 79,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -931,19 +927,19 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 1840,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "line": 76,
 // CHECK-NEXT:     "col": 29,
 // CHECK-NEXT:     "tokLen": 3
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1837,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 26,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1840,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 29,
 // CHECK-NEXT:      "tokLen": 3
 // CHECK-NEXT:     }
@@ -959,12 +955,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1845,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 34,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1884,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 79,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -976,13 +972,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "PseudoObjectExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1849,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 77,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 3
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1860,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 14,
 // CHECK-NEXT:        "tokLen": 2
 // CHECK-NEXT:       }
@@ -997,12 +993,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "BinaryOperator",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1849,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1860,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         }
@@ -1018,12 +1014,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCPropertyRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1849,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1853,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 7,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
@@ -1045,12 +1041,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             }
@@ -1065,12 +1061,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1849,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 3,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1849,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 3,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               }
@@ -1086,12 +1082,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1849,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 3,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1849,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 3,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 }
@@ -1120,12 +1116,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           }
@@ -1140,12 +1136,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             }
@@ -1165,12 +1161,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1849,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1849,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         }
@@ -1185,12 +1181,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1849,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1849,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           }
@@ -1206,12 +1202,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "DeclRefExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             }
@@ -1238,12 +1234,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1860,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1860,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         }
@@ -1258,12 +1254,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "IntegerLiteral",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           }
@@ -1281,12 +1277,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1860,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1860,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 14,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         }
@@ -1301,12 +1297,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           }
@@ -1322,12 +1318,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             }
@@ -1342,12 +1338,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "IntegerLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1860,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 14,
 // CHECK-NEXT:                "tokLen": 2
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1860,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 14,
 // CHECK-NEXT:                "tokLen": 2
 // CHECK-NEXT:               }
@@ -1369,12 +1365,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCMessageExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1853,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 7,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1853,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 7,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         }
@@ -1391,12 +1387,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1849,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1849,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           }
@@ -1411,12 +1407,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1849,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             }
@@ -1432,12 +1428,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "DeclRefExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1849,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 3,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1849,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 3,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               }
@@ -1464,12 +1460,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1860,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 14,
 // CHECK-NEXT:            "tokLen": 2
 // CHECK-NEXT:           }
@@ -1484,12 +1480,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1860,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 14,
 // CHECK-NEXT:              "tokLen": 2
 // CHECK-NEXT:             }
@@ -1505,12 +1501,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1860,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 14,
 // CHECK-NEXT:                "tokLen": 2
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1860,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 14,
 // CHECK-NEXT:                "tokLen": 2
 // CHECK-NEXT:               }
@@ -1525,12 +1521,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "IntegerLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1860,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 14,
 // CHECK-NEXT:                  "tokLen": 2
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1860,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 14,
 // CHECK-NEXT:                  "tokLen": 2
 // CHECK-NEXT:                 }
@@ -1556,13 +1552,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "DeclStmt",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1866,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 78,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 3
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1882,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 19,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -1572,18 +1568,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "id": "0x{{.*}}",
 // CHECK-NEXT:        "kind": "VarDecl",
 // CHECK-NEXT:        "loc": {
-// CHECK-NEXT:         "offset": 1870,
+// CHECK-NEXT:         "offset": {{[0-9]+}},
 // CHECK-NEXT:         "col": 7,
 // CHECK-NEXT:         "tokLen": 1
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1866,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1878,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 15,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         }
@@ -1599,12 +1595,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1874,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 11,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1878,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 15,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
@@ -1620,12 +1616,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "PseudoObjectExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1874,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 11,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1878,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 15,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -1640,12 +1636,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ObjCPropertyRefExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1874,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 11,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1878,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -1667,12 +1663,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "OpaqueValueExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 }
@@ -1687,12 +1683,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "ImplicitCastExpr",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   }
@@ -1708,12 +1704,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                    "kind": "DeclRefExpr",
 // CHECK-NEXT:                    "range": {
 // CHECK-NEXT:                     "begin": {
-// CHECK-NEXT:                      "offset": 1874,
+// CHECK-NEXT:                      "offset": {{[0-9]+}},
 // CHECK-NEXT:                      "col": 11,
 // CHECK-NEXT:                      "tokLen": 3
 // CHECK-NEXT:                     },
 // CHECK-NEXT:                     "end": {
-// CHECK-NEXT:                      "offset": 1874,
+// CHECK-NEXT:                      "offset": {{[0-9]+}},
 // CHECK-NEXT:                      "col": 11,
 // CHECK-NEXT:                      "tokLen": 3
 // CHECK-NEXT:                     }
@@ -1742,12 +1738,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1874,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 11,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1874,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 11,
 // CHECK-NEXT:                "tokLen": 3
 // CHECK-NEXT:               }
@@ -1762,12 +1758,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "ImplicitCastExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 }
@@ -1783,12 +1779,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "DeclRefExpr",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   }
@@ -1815,12 +1811,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ObjCMessageExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1878,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1878,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -1837,12 +1833,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "OpaqueValueExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1874,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 3
 // CHECK-NEXT:                 }
@@ -1857,12 +1853,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "ImplicitCastExpr",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1874,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 11,
 // CHECK-NEXT:                    "tokLen": 3
 // CHECK-NEXT:                   }
@@ -1878,12 +1874,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                    "kind": "DeclRefExpr",
 // CHECK-NEXT:                    "range": {
 // CHECK-NEXT:                     "begin": {
-// CHECK-NEXT:                      "offset": 1874,
+// CHECK-NEXT:                      "offset": {{[0-9]+}},
 // CHECK-NEXT:                      "col": 11,
 // CHECK-NEXT:                      "tokLen": 3
 // CHECK-NEXT:                     },
 // CHECK-NEXT:                     "end": {
-// CHECK-NEXT:                      "offset": 1874,
+// CHECK-NEXT:                      "offset": {{[0-9]+}},
 // CHECK-NEXT:                      "col": 11,
 // CHECK-NEXT:                      "tokLen": 3
 // CHECK-NEXT:                     }
@@ -1924,7 +1920,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 1892,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 81,
 // CHECK-NEXT:   "col": 6,
@@ -1932,12 +1928,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 1887,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 2052,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 87,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -1953,19 +1949,19 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 1929,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "line": 81,
 // CHECK-NEXT:     "col": 43,
 // CHECK-NEXT:     "tokLen": 5
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1913,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 27,
 // CHECK-NEXT:      "tokLen": 14
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1929,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 43,
 // CHECK-NEXT:      "tokLen": 5
 // CHECK-NEXT:     }
@@ -1980,18 +1976,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 1957,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "col": 71,
 // CHECK-NEXT:     "tokLen": 4
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1936,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 50,
 // CHECK-NEXT:      "tokLen": 19
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 1957,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 71,
 // CHECK-NEXT:      "tokLen": 4
 // CHECK-NEXT:     }
@@ -2007,12 +2003,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 1963,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 77,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 2052,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 87,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -2024,19 +2020,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "PseudoObjectExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1966,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 82,
 // CHECK-NEXT:        "col": 2,
 // CHECK-NEXT:        "tokLen": 5
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 1984,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 20,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
 // CHECK-NEXT:      },
 // CHECK-NEXT:      "type": {
-// CHECK-NEXT:       "desugaredQualType": "id",
 // CHECK-NEXT:       "qualType": "id",
 // CHECK-NEXT:       "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:      },
@@ -2047,12 +2042,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "BinaryOperator",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1966,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1984,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 20,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -2068,12 +2063,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCSubscriptRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1966,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1973,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 9,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -2089,12 +2084,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -2109,12 +2104,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1966,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1966,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -2130,12 +2125,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1966,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 2,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1966,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 2,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -2162,12 +2157,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1972,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1972,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2182,12 +2177,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "IntegerLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1972,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 8,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1972,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 8,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -2207,12 +2202,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1977,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 13,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1984,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 20,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -2227,12 +2222,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "CStyleCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1977,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 13,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1984,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 20,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2248,12 +2243,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "IntegerLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1984,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 20,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1984,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 20,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -2275,12 +2270,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1966,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1966,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         }
@@ -2295,12 +2290,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1966,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1966,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           }
@@ -2316,12 +2311,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "DeclRefExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -2348,12 +2343,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1972,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 8,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1972,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 8,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -2368,12 +2363,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "IntegerLiteral",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1972,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1972,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -2391,12 +2386,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1977,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 13,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1984,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 20,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -2411,12 +2406,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "CStyleCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1977,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 13,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1984,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 20,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -2432,12 +2427,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1984,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 20,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1984,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 20,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2457,18 +2452,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1977,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 13,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1984,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 20,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -2479,18 +2473,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1977,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 13,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1984,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 20,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -2502,12 +2495,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1977,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 13,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1984,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 20,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2522,12 +2515,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "CStyleCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1977,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 13,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1984,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 20,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -2543,12 +2536,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "IntegerLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1984,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 20,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1984,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 20,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -2572,12 +2565,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCMessageExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1966,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 1966,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         }
@@ -2594,12 +2587,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1966,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1966,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           }
@@ -2614,12 +2607,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1966,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -2635,12 +2628,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "DeclRefExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1966,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1966,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -2667,18 +2660,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1977,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 13,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1984,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 20,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -2689,18 +2681,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1977,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 13,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1984,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 20,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
 // CHECK-NEXT:            },
 // CHECK-NEXT:            "type": {
-// CHECK-NEXT:             "desugaredQualType": "id",
 // CHECK-NEXT:             "qualType": "id",
 // CHECK-NEXT:             "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:            },
@@ -2712,12 +2703,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1977,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 13,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1984,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 20,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -2732,12 +2723,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "CStyleCastExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1977,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 13,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1984,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 20,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -2753,12 +2744,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "IntegerLiteral",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1984,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 20,
 // CHECK-NEXT:                    "tokLen": 1
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1984,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 20,
 // CHECK-NEXT:                    "tokLen": 1
 // CHECK-NEXT:                   }
@@ -2782,12 +2773,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1972,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 1972,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -2802,12 +2793,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1972,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1972,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2829,13 +2820,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "DeclStmt",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 1988,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 83,
 // CHECK-NEXT:        "col": 2,
 // CHECK-NEXT:        "tokLen": 2
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2003,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 17,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -2845,18 +2836,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "id": "0x{{.*}}",
 // CHECK-NEXT:        "kind": "VarDecl",
 // CHECK-NEXT:        "loc": {
-// CHECK-NEXT:         "offset": 1991,
+// CHECK-NEXT:         "offset": {{[0-9]+}},
 // CHECK-NEXT:         "col": 5,
 // CHECK-NEXT:         "tokLen": 1
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 1988,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 2
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2002,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 16,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -2864,7 +2855,6 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "isUsed": true,
 // CHECK-NEXT:        "name": "i",
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -2875,18 +2865,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "PseudoObjectExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 1995,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 9,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2002,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 16,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -2897,12 +2886,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ObjCSubscriptRefExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1995,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2002,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 16,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -2918,12 +2907,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -2938,12 +2927,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "ImplicitCastExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -2959,12 +2948,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "DeclRefExpr",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1995,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 9,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1995,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 9,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   }
@@ -2991,12 +2980,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -3011,12 +3000,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "IntegerLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2001,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 15,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2001,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 15,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -3036,12 +3025,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1995,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1995,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -3056,12 +3045,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -3077,12 +3066,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -3109,12 +3098,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2001,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 15,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2001,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 15,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -3129,12 +3118,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "IntegerLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -3152,18 +3141,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ObjCMessageExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 1995,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 1995,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 9,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
 // CHECK-NEXT:            },
 // CHECK-NEXT:            "type": {
-// CHECK-NEXT:             "desugaredQualType": "id",
 // CHECK-NEXT:             "qualType": "id",
 // CHECK-NEXT:             "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:            },
@@ -3176,12 +3164,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 1995,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 9,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -3196,12 +3184,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "ImplicitCastExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 1995,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 9,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -3217,12 +3205,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "DeclRefExpr",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 1995,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 9,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 1995,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 9,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   }
@@ -3249,12 +3237,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2001,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 15,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -3269,12 +3257,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "IntegerLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2001,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 15,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2001,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 15,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -3300,19 +3288,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "PseudoObjectExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 2008,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 85,
 // CHECK-NEXT:        "col": 2,
 // CHECK-NEXT:        "tokLen": 4
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2030,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 24,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
 // CHECK-NEXT:      },
 // CHECK-NEXT:      "type": {
-// CHECK-NEXT:       "desugaredQualType": "id",
 // CHECK-NEXT:       "qualType": "id",
 // CHECK-NEXT:       "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:      },
@@ -3323,12 +3310,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "BinaryOperator",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2008,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2030,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 24,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -3344,12 +3331,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCSubscriptRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2008,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2019,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 13,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -3365,12 +3352,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -3385,12 +3372,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2008,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2008,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -3406,12 +3393,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2008,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 2,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2008,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 2,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 }
@@ -3438,12 +3425,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2013,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 7,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2014,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -3458,12 +3445,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ObjCStringLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2013,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 7,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2014,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 8,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -3478,12 +3465,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "StringLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2014,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 8,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2014,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 8,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -3505,12 +3492,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2023,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 17,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2030,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 24,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -3525,12 +3512,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "CStyleCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2023,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 17,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2030,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 24,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -3546,12 +3533,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "IntegerLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2030,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 24,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2030,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 24,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -3573,12 +3560,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2008,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2008,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         }
@@ -3593,12 +3580,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2008,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2008,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
@@ -3614,12 +3601,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "DeclRefExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -3646,12 +3633,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2013,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 7,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2014,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 8,
 // CHECK-NEXT:          "tokLen": 5
 // CHECK-NEXT:         }
@@ -3666,12 +3653,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCStringLiteral",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2013,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 7,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2014,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           }
@@ -3686,12 +3673,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "StringLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2014,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2014,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -3711,12 +3698,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2023,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 17,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2030,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 24,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -3731,12 +3718,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "CStyleCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2023,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 17,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2030,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 24,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -3752,12 +3739,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "IntegerLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2030,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 24,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2030,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 24,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -3777,18 +3764,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "OpaqueValueExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2023,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 17,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2030,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 24,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -3799,18 +3785,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2023,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 17,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2030,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 24,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -3822,12 +3807,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2023,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 17,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2030,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 24,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
@@ -3842,12 +3827,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "CStyleCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2023,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 17,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2030,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 24,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -3863,12 +3848,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "IntegerLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2030,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 24,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2030,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 24,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -3892,12 +3877,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCMessageExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2008,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2008,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         }
@@ -3914,12 +3899,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2008,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2008,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 2,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
@@ -3934,12 +3919,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2008,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 2,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -3955,12 +3940,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "DeclRefExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2008,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2008,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 2,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -3987,18 +3972,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2023,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 17,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2030,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 24,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -4009,18 +3993,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2023,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 17,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2030,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 24,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             }
 // CHECK-NEXT:            },
 // CHECK-NEXT:            "type": {
-// CHECK-NEXT:             "desugaredQualType": "id",
 // CHECK-NEXT:             "qualType": "id",
 // CHECK-NEXT:             "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:            },
@@ -4032,12 +4015,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2023,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 17,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2030,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 24,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               }
@@ -4052,12 +4035,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "CStyleCastExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2023,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 17,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2030,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 24,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 }
@@ -4073,12 +4056,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "IntegerLiteral",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 2030,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 24,
 // CHECK-NEXT:                    "tokLen": 1
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 2030,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 24,
 // CHECK-NEXT:                    "tokLen": 1
 // CHECK-NEXT:                   }
@@ -4102,18 +4085,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2013,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 7,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2014,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 8,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -4125,12 +4107,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2013,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 7,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2014,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 8,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -4145,12 +4127,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ObjCStringLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2013,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 7,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2014,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 8,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -4165,12 +4147,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "StringLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2014,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 8,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2014,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 8,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -4196,19 +4178,18 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "BinaryOperator",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 2034,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 86,
 // CHECK-NEXT:        "col": 2,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2049,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 17,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
 // CHECK-NEXT:      },
 // CHECK-NEXT:      "type": {
-// CHECK-NEXT:       "desugaredQualType": "id",
 // CHECK-NEXT:       "qualType": "id",
 // CHECK-NEXT:       "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:      },
@@ -4220,18 +4201,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "DeclRefExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2034,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2034,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 2,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -4241,7 +4221,6 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:         "kind": "VarDecl",
 // CHECK-NEXT:         "name": "i",
 // CHECK-NEXT:         "type": {
-// CHECK-NEXT:          "desugaredQualType": "id",
 // CHECK-NEXT:          "qualType": "id",
 // CHECK-NEXT:          "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:         }
@@ -4252,18 +4231,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "PseudoObjectExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2038,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 6,
 // CHECK-NEXT:          "tokLen": 4
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2049,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 17,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
 // CHECK-NEXT:        },
 // CHECK-NEXT:        "type": {
-// CHECK-NEXT:         "desugaredQualType": "id",
 // CHECK-NEXT:         "qualType": "id",
 // CHECK-NEXT:         "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:        },
@@ -4274,12 +4252,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCSubscriptRefExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2038,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 6,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2049,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 17,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           }
@@ -4295,12 +4273,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -4315,12 +4293,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -4336,12 +4314,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2038,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 6,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2038,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 6,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 }
@@ -4368,12 +4346,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2043,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 11,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2044,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 12,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -4388,12 +4366,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ObjCStringLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2043,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 11,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2044,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 12,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -4408,12 +4386,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "StringLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2044,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 12,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2044,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 12,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -4435,12 +4413,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2038,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 6,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2038,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 6,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
@@ -4455,12 +4433,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -4476,12 +4454,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "DeclRefExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -4508,12 +4486,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "OpaqueValueExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2043,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 11,
 // CHECK-NEXT:            "tokLen": 1
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2044,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 12,
 // CHECK-NEXT:            "tokLen": 5
 // CHECK-NEXT:           }
@@ -4528,12 +4506,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ObjCStringLiteral",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2043,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 11,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2044,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 12,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
@@ -4548,12 +4526,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "StringLiteral",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2044,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 12,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2044,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 12,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -4573,18 +4551,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ObjCMessageExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2038,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 6,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2038,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 6,
 // CHECK-NEXT:            "tokLen": 4
 // CHECK-NEXT:           }
 // CHECK-NEXT:          },
 // CHECK-NEXT:          "type": {
-// CHECK-NEXT:           "desugaredQualType": "id",
 // CHECK-NEXT:           "qualType": "id",
 // CHECK-NEXT:           "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:          },
@@ -4597,12 +4574,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "OpaqueValueExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2038,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 6,
 // CHECK-NEXT:              "tokLen": 4
 // CHECK-NEXT:             }
@@ -4617,12 +4594,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "ImplicitCastExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2038,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 6,
 // CHECK-NEXT:                "tokLen": 4
 // CHECK-NEXT:               }
@@ -4638,12 +4615,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "DeclRefExpr",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2038,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 6,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2038,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 6,
 // CHECK-NEXT:                  "tokLen": 4
 // CHECK-NEXT:                 }
@@ -4670,18 +4647,17 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "ImplicitCastExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2043,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 11,
 // CHECK-NEXT:              "tokLen": 1
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2044,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 12,
 // CHECK-NEXT:              "tokLen": 5
 // CHECK-NEXT:             }
 // CHECK-NEXT:            },
 // CHECK-NEXT:            "type": {
-// CHECK-NEXT:             "desugaredQualType": "id",
 // CHECK-NEXT:             "qualType": "id",
 // CHECK-NEXT:             "typeAliasDeclId": "0x{{.*}}"
 // CHECK-NEXT:            },
@@ -4693,12 +4669,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:              "kind": "OpaqueValueExpr",
 // CHECK-NEXT:              "range": {
 // CHECK-NEXT:               "begin": {
-// CHECK-NEXT:                "offset": 2043,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 11,
 // CHECK-NEXT:                "tokLen": 1
 // CHECK-NEXT:               },
 // CHECK-NEXT:               "end": {
-// CHECK-NEXT:                "offset": 2044,
+// CHECK-NEXT:                "offset": {{[0-9]+}},
 // CHECK-NEXT:                "col": 12,
 // CHECK-NEXT:                "tokLen": 5
 // CHECK-NEXT:               }
@@ -4713,12 +4689,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                "kind": "ObjCStringLiteral",
 // CHECK-NEXT:                "range": {
 // CHECK-NEXT:                 "begin": {
-// CHECK-NEXT:                  "offset": 2043,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 11,
 // CHECK-NEXT:                  "tokLen": 1
 // CHECK-NEXT:                 },
 // CHECK-NEXT:                 "end": {
-// CHECK-NEXT:                  "offset": 2044,
+// CHECK-NEXT:                  "offset": {{[0-9]+}},
 // CHECK-NEXT:                  "col": 12,
 // CHECK-NEXT:                  "tokLen": 5
 // CHECK-NEXT:                 }
@@ -4733,12 +4709,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:                  "kind": "StringLiteral",
 // CHECK-NEXT:                  "range": {
 // CHECK-NEXT:                   "begin": {
-// CHECK-NEXT:                    "offset": 2044,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 12,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   },
 // CHECK-NEXT:                   "end": {
-// CHECK-NEXT:                    "offset": 2044,
+// CHECK-NEXT:                    "offset": {{[0-9]+}},
 // CHECK-NEXT:                    "col": 12,
 // CHECK-NEXT:                    "tokLen": 5
 // CHECK-NEXT:                   }
@@ -4770,7 +4746,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 2060,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 89,
 // CHECK-NEXT:   "col": 6,
@@ -4778,12 +4754,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 2055,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 2105,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 91,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -4799,19 +4775,19 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "id": "0x{{.*}}",
 // CHECK-NEXT:    "kind": "ParmVarDecl",
 // CHECK-NEXT:    "loc": {
-// CHECK-NEXT:     "offset": 2079,
+// CHECK-NEXT:     "offset": {{[0-9]+}},
 // CHECK-NEXT:     "line": 89,
 // CHECK-NEXT:     "col": 25,
 // CHECK-NEXT:     "tokLen": 3
 // CHECK-NEXT:    },
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 2076,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 22,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 2079,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 25,
 // CHECK-NEXT:      "tokLen": 3
 // CHECK-NEXT:     }
@@ -4827,12 +4803,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 2084,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "col": 30,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 2105,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 91,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -4844,13 +4820,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "BinaryOperator",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 2088,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 90,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 3
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2102,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 17,
 // CHECK-NEXT:        "tokLen": 1
 // CHECK-NEXT:       }
@@ -4866,12 +4842,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "ObjCIvarRefExpr",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2088,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 3,
 // CHECK-NEXT:          "tokLen": 3
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2093,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 8,
 // CHECK-NEXT:          "tokLen": 6
 // CHECK-NEXT:         }
@@ -4895,12 +4871,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:          "kind": "ImplicitCastExpr",
 // CHECK-NEXT:          "range": {
 // CHECK-NEXT:           "begin": {
-// CHECK-NEXT:            "offset": 2088,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           },
 // CHECK-NEXT:           "end": {
-// CHECK-NEXT:            "offset": 2088,
+// CHECK-NEXT:            "offset": {{[0-9]+}},
 // CHECK-NEXT:            "col": 3,
 // CHECK-NEXT:            "tokLen": 3
 // CHECK-NEXT:           }
@@ -4916,12 +4892,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:            "kind": "DeclRefExpr",
 // CHECK-NEXT:            "range": {
 // CHECK-NEXT:             "begin": {
-// CHECK-NEXT:              "offset": 2088,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             },
 // CHECK-NEXT:             "end": {
-// CHECK-NEXT:              "offset": 2088,
+// CHECK-NEXT:              "offset": {{[0-9]+}},
 // CHECK-NEXT:              "col": 3,
 // CHECK-NEXT:              "tokLen": 3
 // CHECK-NEXT:             }
@@ -4948,12 +4924,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:        "kind": "IntegerLiteral",
 // CHECK-NEXT:        "range": {
 // CHECK-NEXT:         "begin": {
-// CHECK-NEXT:          "offset": 2102,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 17,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         },
 // CHECK-NEXT:         "end": {
-// CHECK-NEXT:          "offset": 2102,
+// CHECK-NEXT:          "offset": {{[0-9]+}},
 // CHECK-NEXT:          "col": 17,
 // CHECK-NEXT:          "tokLen": 1
 // CHECK-NEXT:         }
@@ -4975,7 +4951,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NOT: {{^}}Dumping
 // CHECK:  "kind": "FunctionDecl",
 // CHECK-NEXT:  "loc": {
-// CHECK-NEXT:   "offset": 2113,
+// CHECK-NEXT:   "offset": {{[0-9]+}},
 // CHECK-NEXT:   "file": "{{.*}}",
 // CHECK-NEXT:   "line": 93,
 // CHECK-NEXT:   "col": 6,
@@ -4983,12 +4959,12 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "range": {
 // CHECK-NEXT:   "begin": {
-// CHECK-NEXT:    "offset": 2108,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 4
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "end": {
-// CHECK-NEXT:    "offset": 2164,
+// CHECK-NEXT:    "offset": {{[0-9]+}},
 // CHECK-NEXT:    "line": 96,
 // CHECK-NEXT:    "col": 1,
 // CHECK-NEXT:    "tokLen": 1
@@ -4997,7 +4973,7 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:  "name": "TestObjCBoolLiteral",
 // CHECK-NEXT:  "mangledName": "TestObjCBoolLiteral",
 // CHECK-NEXT:  "type": {
-// CHECK-NEXT:   "qualType": "void ()"
+// CHECK-NEXT:   "qualType": "void (void)"
 // CHECK-NEXT:  },
 // CHECK-NEXT:  "inner": [
 // CHECK-NEXT:   {
@@ -5005,13 +4981,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:    "kind": "CompoundStmt",
 // CHECK-NEXT:    "range": {
 // CHECK-NEXT:     "begin": {
-// CHECK-NEXT:      "offset": 2135,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 93,
-// CHECK-NEXT:      "col": 28,
+// CHECK-NEXT:      "col": 32,
 // CHECK-NEXT:      "tokLen": 1
 // CHECK-NEXT:     },
 // CHECK-NEXT:     "end": {
-// CHECK-NEXT:      "offset": 2164,
+// CHECK-NEXT:      "offset": {{[0-9]+}},
 // CHECK-NEXT:      "line": 96,
 // CHECK-NEXT:      "col": 1,
 // CHECK-NEXT:      "tokLen": 1
@@ -5023,13 +4999,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCBoolLiteralExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 2139,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 94,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 10
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2139,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 10
 // CHECK-NEXT:       }
@@ -5047,13 +5023,13 @@ void TestObjCBoolLiteral() {
 // CHECK-NEXT:      "kind": "ObjCBoolLiteralExpr",
 // CHECK-NEXT:      "range": {
 // CHECK-NEXT:       "begin": {
-// CHECK-NEXT:        "offset": 2153,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "line": 95,
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 9
 // CHECK-NEXT:       },
 // CHECK-NEXT:       "end": {
-// CHECK-NEXT:        "offset": 2153,
+// CHECK-NEXT:        "offset": {{[0-9]+}},
 // CHECK-NEXT:        "col": 3,
 // CHECK-NEXT:        "tokLen": 9
 // CHECK-NEXT:       }

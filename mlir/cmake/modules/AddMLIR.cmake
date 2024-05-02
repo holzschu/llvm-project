@@ -1,10 +1,139 @@
+include(GNUInstallDirs)
 include(LLVMDistributionSupport)
 
 function(mlir_tablegen ofn)
   tablegen(MLIR ${ARGV})
   set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
       PARENT_SCOPE)
-  include_directories(${CMAKE_CURRENT_BINARY_DIR})
+endfunction()
+
+# Clear out any pre-existing compile_commands file before processing. This
+# allows for generating a clean compile_commands on each configure.
+file(REMOVE ${CMAKE_BINARY_DIR}/pdll_compile_commands.yml)
+
+# Declare a helper function/copy of tablegen rule for using tablegen without
+# additional tblgen specific flags when invoking PDLL generator.
+function(_pdll_tablegen project ofn)
+  cmake_parse_arguments(ARG "" "" "DEPENDS;EXTRA_INCLUDES" ${ARGN})
+  # Validate calling context.
+  if(NOT ${project}_TABLEGEN_EXE)
+    message(FATAL_ERROR "${project}_TABLEGEN_EXE not set")
+  endif()
+
+  # Use depfile instead of globbing arbitrary *.td(s) for Ninja.
+  if(CMAKE_GENERATOR MATCHES "Ninja")
+    # Make output path relative to build.ninja, assuming located on
+    # ${CMAKE_BINARY_DIR}.
+    # CMake emits build targets as relative paths but Ninja doesn't identify
+    # absolute path (in *.d) as relative path (in build.ninja)
+    # Note that tblgen is executed on ${CMAKE_BINARY_DIR} as working directory.
+    file(RELATIVE_PATH ofn_rel
+      ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/${ofn})
+    set(additional_cmdline
+      -o ${ofn_rel}
+      -d ${ofn_rel}.d
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/${ofn}.d
+      )
+    set(local_tds)
+    set(global_tds)
+  else()
+    file(GLOB local_tds "*.td")
+    file(GLOB_RECURSE global_tds "${LLVM_MAIN_INCLUDE_DIR}/llvm/*.td")
+    set(additional_cmdline
+      -o ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
+      )
+  endif()
+
+  if (IS_ABSOLUTE ${LLVM_TARGET_DEFINITIONS})
+    set(LLVM_TARGET_DEFINITIONS_ABSOLUTE ${LLVM_TARGET_DEFINITIONS})
+  else()
+    set(LLVM_TARGET_DEFINITIONS_ABSOLUTE
+      ${CMAKE_CURRENT_SOURCE_DIR}/${LLVM_TARGET_DEFINITIONS})
+  endif()
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    # Visual Studio has problems with llvm-tblgen's native --write-if-changed
+    # behavior. Since it doesn't do restat optimizations anyway, just don't
+    # pass --write-if-changed there.
+    set(tblgen_change_flag)
+  else()
+    set(tblgen_change_flag "--write-if-changed")
+  endif()
+
+  # We need both _TABLEGEN_TARGET and _TABLEGEN_EXE in the  DEPENDS list
+  # (both the target and the file) to have .inc files rebuilt on
+  # a tablegen change, as cmake does not propagate file-level dependencies
+  # of custom targets. See the following ticket for more information:
+  # https://cmake.org/Bug/view.php?id=15858
+  # The dependency on both, the target and the file, produces the same
+  # dependency twice in the result file when
+  # ("${${project}_TABLEGEN_TARGET}" STREQUAL "${${project}_TABLEGEN_EXE}")
+  # but lets us having smaller and cleaner code here.
+  get_directory_property(tblgen_includes INCLUDE_DIRECTORIES)
+  list(APPEND tblgen_includes ${ARG_EXTRA_INCLUDES})
+  # Filter out empty items before prepending each entry with -I
+  list(REMOVE_ITEM tblgen_includes "")
+  list(TRANSFORM tblgen_includes PREPEND -I)
+
+  set(tablegen_exe ${${project}_TABLEGEN_EXE})
+  set(tablegen_depends ${${project}_TABLEGEN_TARGET} ${tablegen_exe})
+
+  add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
+    COMMAND ${tablegen_exe} ${ARG_UNPARSED_ARGUMENTS} -I ${CMAKE_CURRENT_SOURCE_DIR}
+    ${tblgen_includes}
+    ${LLVM_TARGET_DEFINITIONS_ABSOLUTE}
+    ${tblgen_change_flag}
+    ${additional_cmdline}
+    # The file in LLVM_TARGET_DEFINITIONS may be not in the current
+    # directory and local_tds may not contain it, so we must
+    # explicitly list it here:
+    DEPENDS ${ARG_DEPENDS} ${tablegen_depends}
+      ${local_tds} ${global_tds}
+    ${LLVM_TARGET_DEFINITIONS_ABSOLUTE}
+    ${LLVM_TARGET_DEPENDS}
+    COMMENT "Building ${ofn}..."
+    )
+
+  # `make clean' must remove all those generated files:
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${ofn})
+
+  set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn} PARENT_SCOPE)
+  set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${ofn} PROPERTIES
+    GENERATED 1)
+endfunction()
+
+# Declare a PDLL library in the current directory.
+function(add_mlir_pdll_library target inputFile ofn)
+  set(LLVM_TARGET_DEFINITIONS ${inputFile})
+
+  _pdll_tablegen(MLIR_PDLL ${ofn} -x=cpp ${ARGN})
+  set(TABLEGEN_OUTPUT ${TABLEGEN_OUTPUT} ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
+      PARENT_SCOPE)
+
+  # Get the current set of include paths for this pdll file.
+  cmake_parse_arguments(ARG "" "" "DEPENDS;EXTRA_INCLUDES" ${ARGN})
+  get_directory_property(tblgen_includes INCLUDE_DIRECTORIES)
+  list(APPEND tblgen_includes ${ARG_EXTRA_INCLUDES})
+  # Filter out any empty include items.
+  list(REMOVE_ITEM tblgen_includes "")
+
+  # Build the absolute path for the current input file.
+  if (IS_ABSOLUTE ${LLVM_TARGET_DEFINITIONS})
+    set(LLVM_TARGET_DEFINITIONS_ABSOLUTE ${inputFile})
+  else()
+    set(LLVM_TARGET_DEFINITIONS_ABSOLUTE ${CMAKE_CURRENT_SOURCE_DIR}/${inputFile})
+  endif()
+
+  # Append the includes used for this file to the pdll_compilation_commands
+  # file.
+  file(APPEND ${CMAKE_BINARY_DIR}/pdll_compile_commands.yml
+      "--- !FileInfo:\n"
+      "  filepath: \"${LLVM_TARGET_DEFINITIONS_ABSOLUTE}\"\n"
+      "  includes: \"${CMAKE_CURRENT_SOURCE_DIR};${tblgen_includes}\"\n"
+  )
+
+  add_public_tablegen_target(${target})
 endfunction()
 
 # Declare a dialect in the include directory
@@ -33,7 +162,8 @@ endfunction()
 # Generate Documentation
 function(add_mlir_doc doc_filename output_file output_directory command)
   set(LLVM_TARGET_DEFINITIONS ${doc_filename}.td)
-  tablegen(MLIR ${output_file}.md ${command} ${ARGN})
+  # The MLIR docs use Hugo, so we allow Hugo specific features here.
+  tablegen(MLIR ${output_file}.md ${command} -allow-hugo-specific-features ${ARGN})
   set(GEN_DOC_FILE ${MLIR_BINARY_DIR}/docs/${output_directory}${output_file}.md)
   add_custom_command(
           OUTPUT ${GEN_DOC_FILE}
@@ -45,25 +175,9 @@ function(add_mlir_doc doc_filename output_file output_directory command)
   add_dependencies(mlir-doc ${output_file}DocGen)
 endfunction()
 
-# Declare an mlir library which can be compiled in libMLIR.so
-# In addition to everything that llvm_add_librar accepts, this
-# also has the following option:
-# EXCLUDE_FROM_LIBMLIR
-#   Don't include this library in libMLIR.so.  This option should be used
-#   for test libraries, executable-specific libraries, or rarely used libraries
-#   with large dependencies.
-# ENABLE_AGGREGATION
-#   Forces generation of an OBJECT library, exports additional metadata,
-#   and installs additional object files needed to include this as part of an
-#   aggregate shared library.
-#   TODO: Make this the default for all MLIR libraries once all libraries
-#   are compatible with building an object library.
-function(add_mlir_library name)
-  cmake_parse_arguments(ARG
-    "SHARED;INSTALL_WITH_TOOLCHAIN;EXCLUDE_FROM_LIBMLIR;DISABLE_INSTALL;ENABLE_AGGREGATION"
-    ""
-    "ADDITIONAL_HEADERS;DEPENDS;LINK_COMPONENTS;LINK_LIBS"
-    ${ARGN})
+# Sets ${srcs} to contain the list of additional headers for the target. Extra
+# arguments are included into the list of additional headers.
+function(_set_mlir_additional_headers_as_srcs)
   set(srcs)
   if(MSVC_IDE OR XCODE)
     # Add public headers
@@ -89,13 +203,83 @@ function(add_mlir_library name)
       endif()
     endif()
   endif(MSVC_IDE OR XCODE)
-  if(srcs OR ARG_ADDITIONAL_HEADERS)
+  if(srcs OR ARGN)
     set(srcs
       ADDITIONAL_HEADERS
       ${srcs}
-      ${ARG_ADDITIONAL_HEADERS} # It may contain unparsed unknown args.
+      ${ARGN} # It may contain unparsed unknown args.
+      PARENT_SCOPE
       )
   endif()
+endfunction()
+
+# Checks that the LLVM components are not listed in the extra arguments,
+# assumed to be coming from the LINK_LIBS variable.
+function(_check_llvm_components_usage name)
+  # LINK_COMPONENTS is necessary to allow libLLVM.so to be properly
+  # substituted for individual library dependencies if LLVM_LINK_LLVM_DYLIB
+  # Perhaps this should be in llvm_add_library instead?  However, it fails
+  # on libclang-cpp.so
+  get_property(llvm_component_libs GLOBAL PROPERTY LLVM_COMPONENT_LIBS)
+  foreach(lib ${ARGN})
+    if(${lib} IN_LIST llvm_component_libs)
+      message(SEND_ERROR "${name} specifies LINK_LIBS ${lib}, but LINK_LIBS cannot be used for LLVM libraries.  Please use LINK_COMPONENTS instead.")
+    endif()
+  endforeach()
+endfunction()
+
+function(add_mlir_example_library name)
+  cmake_parse_arguments(ARG
+    "SHARED;DISABLE_INSTALL"
+    ""
+    "ADDITIONAL_HEADERS;DEPENDS;LINK_COMPONENTS;LINK_LIBS"
+    ${ARGN})
+  _set_mlir_additional_headers_as_srcs(${ARG_ADDITIONAL_HEADERS})
+  if (ARG_SHARED)
+    set(LIBTYPE SHARED)
+  else()
+    if(BUILD_SHARED_LIBS)
+      set(LIBTYPE SHARED)
+    else()
+      set(LIBTYPE STATIC)
+    endif()
+  endif()
+
+  # MLIR libraries uniformly depend on LLVMSupport.  Just specify it once here.
+  list(APPEND ARG_LINK_COMPONENTS Support)
+  _check_llvm_components_usage(${name} ${ARG_LINK_LIBS})
+
+  list(APPEND ARG_DEPENDS mlir-generic-headers)
+
+  llvm_add_library(${name} ${LIBTYPE} ${ARG_UNPARSED_ARGUMENTS} ${srcs} DEPENDS ${ARG_DEPENDS} LINK_COMPONENTS ${ARG_LINK_COMPONENTS} LINK_LIBS ${ARG_LINK_LIBS})
+  set_target_properties(${name} PROPERTIES FOLDER "Examples")
+  if (LLVM_BUILD_EXAMPLES AND NOT ${ARG_DISABLE_INSTALL})
+    add_mlir_library_install(${name})
+  else()
+    set_target_properties(${name} PROPERTIES EXCLUDE_FROM_ALL ON)
+  endif()
+endfunction()
+
+# Declare an mlir library which can be compiled in libMLIR.so
+# In addition to everything that llvm_add_library accepts, this
+# also has the following option:
+# EXCLUDE_FROM_LIBMLIR
+#   Don't include this library in libMLIR.so.  This option should be used
+#   for test libraries, executable-specific libraries, or rarely used libraries
+#   with large dependencies.
+# ENABLE_AGGREGATION
+#   Forces generation of an OBJECT library, exports additional metadata,
+#   and installs additional object files needed to include this as part of an
+#   aggregate shared library.
+#   TODO: Make this the default for all MLIR libraries once all libraries
+#   are compatible with building an object library.
+function(add_mlir_library name)
+  cmake_parse_arguments(ARG
+    "SHARED;INSTALL_WITH_TOOLCHAIN;EXCLUDE_FROM_LIBMLIR;DISABLE_INSTALL;ENABLE_AGGREGATION"
+    ""
+    "ADDITIONAL_HEADERS;DEPENDS;LINK_COMPONENTS;LINK_LIBS"
+    ${ARGN})
+  _set_mlir_additional_headers_as_srcs(${ARG_ADDITIONAL_HEADERS})
 
   # Is an object library needed.
   set(NEEDS_OBJECT_LIB OFF)
@@ -131,17 +315,7 @@ function(add_mlir_library name)
 
   # MLIR libraries uniformly depend on LLVMSupport.  Just specify it once here.
   list(APPEND ARG_LINK_COMPONENTS Support)
-
-  # LINK_COMPONENTS is necessary to allow libLLVM.so to be properly
-  # substituted for individual library dependencies if LLVM_LINK_LLVM_DYLIB
-  # Perhaps this should be in llvm_add_library instead?  However, it fails
-  # on libclang-cpp.so
-  get_property(llvm_component_libs GLOBAL PROPERTY LLVM_COMPONENT_LIBS)
-  foreach(lib ${ARG_LINK_LIBS})
-    if(${lib} IN_LIST llvm_component_libs)
-      message(SEND_ERROR "${name} specifies LINK_LIBS ${lib}, but LINK_LIBS cannot be used for LLVM libraries.  Please use LINK_COMPONENTS instead.")
-    endif()
-  endforeach()
+  _check_llvm_components_usage(${name} ${ARG_LINK_LIBS})
 
   list(APPEND ARG_DEPENDS mlir-generic-headers)
   llvm_add_library(${name} ${LIBTYPE} ${ARG_UNPARSED_ARGUMENTS} ${srcs} DEPENDS ${ARG_DEPENDS} LINK_COMPONENTS ${ARG_LINK_COMPONENTS} LINK_LIBS ${ARG_LINK_LIBS})
@@ -194,6 +368,10 @@ function(add_mlir_library name)
     endif()
   endif()
 endfunction(add_mlir_library)
+
+macro(add_mlir_tool name)
+  llvm_add_tool(MLIR ${ARGV})
+endmacro()
 
 # Sets a variable with a transformed list of link libraries such individual
 # libraries will be dynamically excluded when evaluated on a final library
@@ -320,23 +498,29 @@ function(add_mlir_aggregate name)
       "    DEPS = ${_local_deps}\n\n")
   endforeach()
 
-  # Unfortunately need to compile at least one source file, which is hard
-  # to guarantee, so just always generate one. We generate one vs using the
-  # LLVM common dummy.cpp because it works better out of tree.
-  set(_empty_src "${CMAKE_CURRENT_BINARY_DIR}/${name}__empty.cpp")
-  file(WRITE "${_empty_src}" "typedef int dummy;")
-
   add_mlir_library(${name}
     ${_libtype}
     ${ARG_UNPARSED_ARGUMENTS}
     PARTIAL_SOURCES_INTENDED
     EXCLUDE_FROM_LIBMLIR
-    "${_empty_src}"
     LINK_LIBS PRIVATE
     ${_deps}
     ${ARG_PUBLIC_LIBS}
   )
   target_sources(${name} PRIVATE ${_objects})
+
+  # Linux defaults to allowing undefined symbols in shared libraries whereas
+  # many other platforms are more strict. We want these libraries to be
+  # self contained, and we want any undefined symbols to be reported at
+  # library construction time, not at library use, so make Linux strict too.
+  # We make an exception for sanitizer builds, since the AddressSanitizer
+  # run-time doesn't get linked into shared libraries.
+  if((CMAKE_SYSTEM_NAME STREQUAL "Linux") AND (NOT LLVM_USE_SANITIZER))
+    target_link_options(${name} PRIVATE
+      "LINKER:-z,defs"
+    )
+  endif()
+
   # TODO: Should be transitive.
   set_target_properties(${name} PROPERTIES
     MLIR_AGGREGATE_EXCLUDE_LIBS "${_embed_libs}")
@@ -371,7 +555,7 @@ function(add_mlir_library_install name)
     ${export_to_mlirtargets}
     LIBRARY DESTINATION lib${LLVM_LIBDIR_SUFFIX}
     ARCHIVE DESTINATION lib${LLVM_LIBDIR_SUFFIX}
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
     # Note that CMake will create a directory like:
     #   objects-${CMAKE_BUILD_TYPE}/obj.LibName
     # and put object files there.
@@ -421,6 +605,12 @@ function(add_mlir_conversion_library name)
   set_property(GLOBAL APPEND PROPERTY MLIR_CONVERSION_LIBS ${name})
   add_mlir_library(${ARGV} DEPENDS mlir-headers)
 endfunction(add_mlir_conversion_library)
+
+# Declare the library associated with an extension.
+function(add_mlir_extension_library name)
+  set_property(GLOBAL APPEND PROPERTY MLIR_EXTENSION_LIBS ${name})
+  add_mlir_library(${ARGV} DEPENDS mlir-headers)
+endfunction(add_mlir_extension_library)
 
 # Declare the library associated with a translation.
 function(add_mlir_translation_library name)

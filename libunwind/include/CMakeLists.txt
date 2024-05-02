@@ -1,7 +1,9 @@
 set(files
     __libunwind_config.h
     libunwind.h
+    libunwind.modulemap
     mach-o/compact_unwind_encoding.h
+    mach-o/compact_unwind_encoding.modulemap
     unwind_arm_ehabi.h
     unwind_itanium.h
     unwind.h
@@ -14,7 +16,7 @@ if(LIBUNWIND_INSTALL_HEADERS)
   foreach(file ${files})
     get_filename_component(dir ${file} DIRECTORY)
     install(FILES ${file}
-      DESTINATION "include/${dir}"
+      DESTINATION "${LIBUNWIND_INSTALL_INCLUDE_DIR}/${dir}"
       COMPONENT unwind-headers
       PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
     )

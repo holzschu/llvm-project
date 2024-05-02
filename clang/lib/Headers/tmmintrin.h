@@ -17,8 +17,13 @@
 #include <pmmintrin.h>
 
 /* Define the default attributes for the functions in this file. */
-#define __DEFAULT_FN_ATTRS __attribute__((__always_inline__, __nodebug__, __target__("ssse3"), __min_vector_width__(64)))
-#define __DEFAULT_FN_ATTRS_MMX __attribute__((__always_inline__, __nodebug__, __target__("mmx,ssse3"), __min_vector_width__(64)))
+#define __DEFAULT_FN_ATTRS                                                     \
+  __attribute__((__always_inline__, __nodebug__,                               \
+                 __target__("ssse3,no-evex512"), __min_vector_width__(64)))
+#define __DEFAULT_FN_ATTRS_MMX                                                 \
+  __attribute__((__always_inline__, __nodebug__,                               \
+                 __target__("mmx,ssse3,no-evex512"),                           \
+                 __min_vector_width__(64)))
 
 /// Computes the absolute value of each of the packed 8-bit signed
 ///    integers in the source operand and stores the 8-bit unsigned integer
@@ -53,7 +58,7 @@ _mm_abs_pi8(__m64 __a)
 static __inline__ __m128i __DEFAULT_FN_ATTRS
 _mm_abs_epi8(__m128i __a)
 {
-    return (__m128i)__builtin_ia32_pabsb128((__v16qi)__a);
+    return (__m128i)__builtin_elementwise_abs((__v16qs)__a);
 }
 
 /// Computes the absolute value of each of the packed 16-bit signed
@@ -89,7 +94,7 @@ _mm_abs_pi16(__m64 __a)
 static __inline__ __m128i __DEFAULT_FN_ATTRS
 _mm_abs_epi16(__m128i __a)
 {
-    return (__m128i)__builtin_ia32_pabsw128((__v8hi)__a);
+    return (__m128i)__builtin_elementwise_abs((__v8hi)__a);
 }
 
 /// Computes the absolute value of each of the packed 32-bit signed
@@ -125,7 +130,7 @@ _mm_abs_pi32(__m64 __a)
 static __inline__ __m128i __DEFAULT_FN_ATTRS
 _mm_abs_epi32(__m128i __a)
 {
-    return (__m128i)__builtin_ia32_pabsd128((__v4si)__a);
+    return (__m128i)__builtin_elementwise_abs((__v4si)__a);
 }
 
 /// Concatenates the two 128-bit integer vector operands, and

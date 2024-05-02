@@ -1,7 +1,7 @@
-// RUN: mlir-opt -allow-unregistered-dialect %s -pass-pipeline='builtin.func(parallel-loop-collapsing{collapsed-indices-0=0,3 collapsed-indices-1=1,4 collapsed-indices-2=2}, canonicalize)' | FileCheck %s
+// RUN: mlir-opt -allow-unregistered-dialect %s -pass-pipeline='builtin.module(func.func(test-scf-parallel-loop-collapsing{collapsed-indices-0=0,3 collapsed-indices-1=1,4 collapsed-indices-2=2}, canonicalize))' | FileCheck %s
 
 // CHECK-LABEL: func @parallel_many_dims() {
-func @parallel_many_dims() {
+func.func @parallel_many_dims() {
   %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
@@ -43,4 +43,4 @@ func @parallel_many_dims() {
 // CHECK:   [[V2:%.*]] = arith.muli [[V0]], [[C10]] : index
 // CHECK:   [[I3:%.*]] = arith.addi [[V2]], [[C9]] : index
 // CHECK:   "magic.op"([[I0]], [[C3]], [[C6]], [[I3]], [[C12]]) : (index, index, index, index, index) -> index
-// CHECK:   scf.yield
+// CHECK:   scf.reduce

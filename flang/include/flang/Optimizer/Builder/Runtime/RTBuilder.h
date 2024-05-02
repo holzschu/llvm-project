@@ -20,11 +20,18 @@
 #include "flang/Common/Fortran.h"
 #include "flang/Common/uint128.h"
 #include "flang/Optimizer/Builder/FIRBuilder.h"
+#include "flang/Optimizer/Dialect/FIRDialect.h"
 #include "flang/Optimizer/Dialect/FIRType.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "llvm/ADT/SmallVector.h"
+#include <cstdint>
 #include <functional>
+
+#ifdef _WIN32
+// On Windows* OS GetCurrentProcessId returns DWORD aka uint32_t
+typedef std::uint32_t pid_t;
+#endif
 
 // Incomplete type indicating C99 complex ABI in interfaces. Beware, _Complex
 // and std::complex are layout compatible, but not compatible in all ABI call
@@ -35,7 +42,10 @@ struct c_double_complex_t;
 
 namespace Fortran::runtime {
 class Descriptor;
+namespace typeInfo {
+class DerivedType;
 }
+} // namespace Fortran::runtime
 
 namespace fir::runtime {
 
@@ -58,6 +68,14 @@ using FuncTypeBuilderFunc = mlir::FunctionType (*)(mlir::MLIRContext *);
 /// standard type `i32` when `sizeof(int)` is 4.
 template <typename T>
 static constexpr TypeBuilderFunc getModel();
+
+template <>
+constexpr TypeBuilderFunc getModel<unsigned int>() {
+  return [](mlir::MLIRContext *context) -> mlir::Type {
+    return mlir::IntegerType::get(context, 8 * sizeof(unsigned int));
+  };
+}
+
 template <>
 constexpr TypeBuilderFunc getModel<short int>() {
   return [](mlir::MLIRContext *context) -> mlir::Type {
@@ -97,6 +115,12 @@ template <>
 constexpr TypeBuilderFunc getModel<const char32_t *>() {
   return [](mlir::MLIRContext *context) -> mlir::Type {
     return fir::ReferenceType::get(mlir::IntegerType::get(context, 32));
+  };
+}
+template <>
+constexpr TypeBuilderFunc getModel<char>() {
+  return [](mlir::MLIRContext *context) -> mlir::Type {
+    return mlir::IntegerType::get(context, 8 * sizeof(char));
   };
 }
 template <>
@@ -274,6 +298,20 @@ constexpr TypeBuilderFunc getModel<Fortran::common::TypeCategory>() {
   };
 }
 template <>
+constexpr TypeBuilderFunc
+getModel<const Fortran::runtime::typeInfo::DerivedType &>() {
+  return [](mlir::MLIRContext *context) -> mlir::Type {
+    return fir::ReferenceType::get(mlir::NoneType::get(context));
+  };
+}
+template <>
+constexpr TypeBuilderFunc
+getModel<const Fortran::runtime::typeInfo::DerivedType *>() {
+  return [](mlir::MLIRContext *context) -> mlir::Type {
+    return fir::ReferenceType::get(mlir::NoneType::get(context));
+  };
+}
+template <>
 constexpr TypeBuilderFunc getModel<void>() {
   return [](mlir::MLIRContext *context) -> mlir::Type {
     return mlir::NoneType::get(context);
@@ -356,7 +394,7 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
 /// fir::runtime::RuntimeTableEntry<fir::runtime::RuntimeTableKey<
 ///     decltype(_FortranASumReal4)>, "_FortranASumReal4"))>
 /// ```
-/// These entries are then used to to generate the MLIR FunctionType that
+/// These entries are then used to generate the MLIR FunctionType that
 /// correspond to the runtime function declaration in C++.
 #undef FirE
 #define FirE(L, I) (I < sizeof(L) / sizeof(*L) ? L[I] : 0)
@@ -381,12 +419,13 @@ struct RuntimeTableEntry<RuntimeTableKey<KT>, RuntimeIdentifier<Cs...>> {
   fir::runtime::RuntimeTableEntry<fir::runtime::RuntimeTableKey<decltype(X)>,  \
                                   FirAsSequence(X)>
 #define mkRTKey(X) FirmkKey(RTNAME(X))
+#define EXPAND_AND_QUOTE_KEY(S) ExpandAndQuoteKey(RTNAME(S))
 
 /// Get (or generate) the MLIR FuncOp for a given runtime function. Its template
 /// argument is intended to be of the form: <mkRTKey(runtime function name)>.
 template <typename RuntimeEntry>
-static mlir::FuncOp getRuntimeFunc(mlir::Location loc,
-                                   fir::FirOpBuilder &builder) {
+static mlir::func::FuncOp getRuntimeFunc(mlir::Location loc,
+                                         fir::FirOpBuilder &builder) {
   using namespace Fortran::runtime;
   auto name = RuntimeEntry::name;
   auto func = builder.getNamedFunction(name);
@@ -394,7 +433,7 @@ static mlir::FuncOp getRuntimeFunc(mlir::Location loc,
     return func;
   auto funTy = RuntimeEntry::getTypeModel()(builder.getContext());
   func = builder.createFunction(loc, name, funTy);
-  func->setAttr("fir.runtime", builder.getUnitAttr());
+  func->setAttr(FIROpsDialect::getFirRuntimeAttrName(), builder.getUnitAttr());
   return func;
 }
 

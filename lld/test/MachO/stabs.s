@@ -5,18 +5,18 @@
 # RUN: llvm-mc -filetype=obj -triple=x86_64-apple-darwin %t/foo.s -o %t/foo.o
 # RUN: llvm-mc -filetype=obj -triple=x86_64-apple-darwin %t/no-debug.s -o %t/no-debug.o
 ## Set modtimes of the files for deterministic test output.
-# RUN: env TZ=UTC touch -t "197001010000.16" %t/test.o
-# RUN: env TZ=UTC touch -t "197001010000.32" %t/foo.o
+# RUN: env TZ=GMT touch -t "197001010000.16" %t/test.o
+# RUN: env TZ=GMT touch -t "197001010000.32" %t/foo.o
 # RUN: llvm-ar rcsU %t/foo.a %t/foo.o
 
-# RUN: %lld -lSystem %t/test.o %t/foo.o %t/no-debug.o -o %t/test
+# RUN: ZERO_AR_DATE=0 %lld -lSystem %t/test.o %t/foo.o %t/no-debug.o -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.o \
 # RUN:       -D#TEST_TIME=0x10 -D#FOO_TIME=0x20
 
 ## Check that we emit the right modtime even when the object file is in an
 ## archive.
-# RUN: %lld -lSystem %t/test.o %t/foo.a %t/no-debug.o -o %t/test
+# RUN: ZERO_AR_DATE=0 %lld -lSystem %t/test.o %t/foo.a %t/no-debug.o -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.a\(foo.o\) \
 # RUN:       -D#TEST_TIME=0x10 -D#FOO_TIME=0x20
@@ -27,39 +27,44 @@
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.o \
 # RUN:       -D#TEST_TIME=0 -D#FOO_TIME=0
-# RUN: env ZERO_AR_DATE=1 %lld -lSystem %t/test.o %t/foo.a %t/no-debug.o \
+# RUN: env %lld -lSystem %t/test.o %t/foo.a %t/no-debug.o \
 # RUN:     -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.a\(foo.o\) \
 # RUN:       -D#TEST_TIME=0 -D#FOO_TIME=0
-# RUN: env ZERO_AR_DATE=1 %lld -lSystem %t/test.o %t/no-debug.o \
+# RUN: env %lld -lSystem %t/test.o %t/no-debug.o \
 # RUN:     -all_load %t/foo.a -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.a\(foo.o\) \
 # RUN:       -D#TEST_TIME=0 -D#FOO_TIME=0
-# RUN: env ZERO_AR_DATE=1 %lld -lSystem %t/test.o %t/no-debug.o \
+# RUN: env %lld -lSystem %t/test.o %t/no-debug.o \
 # RUN:     -force_load %t/foo.a -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.a\(foo.o\) \
 # RUN:       -D#TEST_TIME=0 -D#FOO_TIME=0
+# RUN: env ZERO_AR_DATE=0 %lld -lSystem -reproducible %t/test.o %t/foo.o \
+# RUN:     %t/no-debug.o -o %t/test
+# RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
+# RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.o \
+# RUN:       -D#TEST_TIME=0 -D#FOO_TIME=0
 
 ## Check that we emit absolute paths to the object files in our OSO entries
 ## even if our inputs are relative paths.
-# RUN: cd %t && %lld -lSystem test.o foo.o no-debug.o -o test
+# RUN: cd %t && ZERO_AR_DATE=0 %lld -lSystem test.o foo.o no-debug.o -o test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.o \
 # RUN:       -D#TEST_TIME=0x10 -D#FOO_TIME=0x20
 
 ## Check that we emit relative path to object files in OSO entries
 ## when -oso_prefix <path> is used.
-# RUN: cd %t && %lld -lSystem test.o foo.o no-debug.o -oso_prefix "%t" -o %t/test-rel
+# RUN: cd %t && ZERO_AR_DATE=0 %lld -lSystem test.o foo.o no-debug.o -oso_prefix "%t" -o %t/test-rel
 # RUN: dsymutil -s  %t/test-rel | grep 'N_OSO' | FileCheck %s  -D#TEST_TIME=0x10 -D#FOO_TIME=0x20 --check-prefix=REL-PATH
-# RUN: cd %t && %lld -lSystem test.o foo.o no-debug.o -oso_prefix "%t/" -o %t/test-rel
+# RUN: cd %t && ZERO_AR_DATE=0 %lld -lSystem test.o foo.o no-debug.o -oso_prefix "%t/" -o %t/test-rel
 # RUN: dsymutil -s  %t/test-rel | grep 'N_OSO' | FileCheck %s  -D#TEST_TIME=0x10 -D#FOO_TIME=0x20 --check-prefix=REL-PATH-NO-SLASH
-# RUN: cd %t && %lld -lSystem test.o foo.o no-debug.o -oso_prefix "." -o %t/test-rel-dot
+# RUN: cd %t && ZERO_AR_DATE=0 %lld -lSystem test.o foo.o no-debug.o -oso_prefix "." -o %t/test-rel-dot
 # RUN: dsymutil -s  %t/test-rel-dot | grep 'N_OSO' | FileCheck %s  -D#TEST_TIME=0x10 -D#FOO_TIME=0x20 --check-prefix=REL-DOT
 ## Set HOME to %t (for ~ to expand to)
-# RUN: cd %t && env HOME=%t %lld -lSystem test.o foo.o no-debug.o -oso_prefix "~" -o %t/test-rel-tilde
+# RUN: cd %t && env HOME=%t ZERO_AR_DATE=0 %lld -lSystem test.o foo.o no-debug.o -oso_prefix "~" -o %t/test-rel-tilde
 # RUN: dsymutil -s  %t/test-rel-tilde | grep 'N_OSO' | FileCheck %s  -D#TEST_TIME=0x10 -D#FOO_TIME=0x20 --check-prefix=REL-PATH
 
 ## Check that we don't emit DWARF or stabs when -S is used
@@ -68,7 +73,7 @@
 ## expect to not find any entries which requires the exit code to be negated.
 # RUN: llvm-nm -ap %t/test-no-debug | not grep -e ' - '
 
-# RUN: cd %t && %lld -lSystem test.o foo.a no-debug.o -o %t/test
+# RUN: cd %t && ZERO_AR_DATE=0 %lld -lSystem test.o foo.a no-debug.o -o %t/test
 # RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | \
 # RUN:   FileCheck %s -DDIR=%t -DFOO_PATH=%t/foo.a\(foo.o\) \
 # RUN:       -D#TEST_TIME=0x10 -D#FOO_TIME=0x20
@@ -140,6 +145,13 @@
 # PIE-NEXT:  segment  section            address     type
 # PIE-EMPTY:
 
+## Check that an absolute DW_AT_name does not have DW_AT_comp_dir prepended
+## when forming N_SO.
+# RUN: llvm-mc -filetype obj -triple=x86_64-apple-darwin %t/abs-path.s -o %t/abs-path.o
+# RUN: %lld %t/abs-path.o -o %t/test
+# RUN: (llvm-objdump --section-headers %t/test; dsymutil -s %t/test) | FileCheck %s --check-prefix=ABS-PATH
+# ABS-PATH:      (N_SO         ) 00      0000   0000000000000000   '/foo.cpp'
+
 #--- test.s
 
 ## Make sure we don't create STABS entries for absolute symbols.
@@ -200,6 +212,8 @@ Lsection_abbrev:
   .byte  18                      ## DW_AT_high_pc
   .byte  6                       ## DW_FORM_data4
   .byte  0                       ## EOM(1)
+  .byte  0                       ## EOM(2)
+  .byte  0                       ## EOM(3)
 .section  __DWARF,__debug_info,regular,debug
 .set Lset0, Ldebug_info_end0-Ldebug_info_start0 ## Length of Unit
   .long  Lset0
@@ -249,6 +263,8 @@ Lsection_abbrev:
   .byte  18                      ## DW_AT_high_pc
   .byte  6                       ## DW_FORM_data4
   .byte  0                       ## EOM(1)
+  .byte  0                       ## EOM(2)
+  .byte  0                       ## EOM(3)
 .section  __DWARF,__debug_info,regular,debug
 .set Lset0, Ldebug_info_end0-Ldebug_info_start0 ## Length of Unit
   .long  Lset0
@@ -278,3 +294,53 @@ ltmp1:
 .globl _no_debug
 _no_debug:
   ret
+
+#--- abs-path.s
+.text
+.globl  _main
+_main:
+Lfunc_begin0:
+  retq
+Lfunc_end0:
+
+.section  __DWARF,__debug_str,regular,debug
+  .asciz  "/foo.cpp"             ## string offset=0
+  .asciz  "/tmp"                 ## string offset=9
+.section  __DWARF,__debug_abbrev,regular,debug
+Lsection_abbrev:
+  .byte  1                       ## Abbreviation Code
+  .byte  17                      ## DW_TAG_compile_unit
+  .byte  1                       ## DW_CHILDREN_yes
+  .byte  3                       ## DW_AT_name
+  .byte  14                      ## DW_FORM_strp
+  .byte  27                      ## DW_AT_comp_dir
+  .byte  14                      ## DW_FORM_strp
+  .byte  17                      ## DW_AT_low_pc
+  .byte  1                       ## DW_FORM_addr
+  .byte  18                      ## DW_AT_high_pc
+  .byte  6                       ## DW_FORM_data4
+  .byte  0                       ## EOM(1)
+  .byte  0                       ## EOM(2)
+  .byte  0                       ## EOM(3)
+.section  __DWARF,__debug_info,regular,debug
+.set Lset0, Ldebug_info_end0-Ldebug_info_start0 ## Length of Unit
+  .long  Lset0
+Ldebug_info_start0:
+  .short  4                       ## DWARF version number
+.set Lset1, Lsection_abbrev-Lsection_abbrev ## Offset Into Abbrev. Section
+  .long  Lset1
+  .byte  8                       ## Address Size (in bytes)
+  .byte  1                       ## Abbrev [1] 0xb:0x48 DW_TAG_compile_unit
+  .long  0                       ## DW_AT_name
+  .long  9                       ## DW_AT_comp_dir
+  .quad  Lfunc_begin0            ## DW_AT_low_pc
+.set Lset3, Lfunc_end0-Lfunc_begin0     ## DW_AT_high_pc
+  .long  Lset3
+  .byte  0                       ## End Of Children Mark
+Ldebug_info_end0:
+
+.section  __DWARF,__debug_aranges,regular,debug
+ltmp1:
+  .byte 0
+
+.subsections_via_symbols

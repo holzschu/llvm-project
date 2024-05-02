@@ -10,75 +10,36 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Debug.h"
+#include "Shared/Environment.h"
+
 #include "Configuration.h"
+#include "Debug.h"
 #include "Interface.h"
 #include "Mapping.h"
+#include "State.h"
 #include "Types.h"
 
-using namespace _OMP;
+using namespace ompx;
 
-#pragma omp declare target
+#pragma omp begin declare target device_type(nohost)
 
 extern "C" {
 void __assert_assume(bool condition) { __builtin_assume(condition); }
 
-void __assert_fail(const char *assertion, const char *file, unsigned line,
+void __assert_fail(const char *expr, const char *file, unsigned line,
                    const char *function) {
-  PRINTF("%s:%u: %s: Assertion `%s' failed.\n", file, line, function,
-         assertion);
+  __assert_fail_internal(expr, nullptr, file, line, function);
+}
+void __assert_fail_internal(const char *expr, const char *msg, const char *file,
+                            unsigned line, const char *function) {
+  if (msg) {
+    PRINTF("%s:%u: %s: Assertion %s (`%s') failed.\n", file, line, function,
+           msg, expr);
+  } else {
+    PRINTF("%s:%u: %s: Assertion `%s' failed.\n", file, line, function, expr);
+  }
   __builtin_trap();
 }
-
-#pragma omp begin declare variant match(                                       \
-    device = {arch(nvptx, nvptx64)}, implementation = {extension(match_any)})
-int32_t vprintf(const char *, void *);
-namespace impl {
-static int32_t omp_vprintf(const char *Format, void *Arguments, uint32_t) {
-  return vprintf(Format, Arguments);
 }
-} // namespace impl
-#pragma omp end declare variant
-
-// We do not have a vprintf implementation for AMD GPU yet so we use a stub.
-#pragma omp begin declare variant match(device = {arch(amdgcn)})
-namespace impl {
-static int32_t omp_vprintf(const char *Format, void *Arguments, uint32_t) {
-  return -1;
-}
-} // namespace impl
-#pragma omp end declare variant
-
-int32_t __llvm_omp_vprintf(const char *Format, void *Arguments, uint32_t Size) {
-  return impl::omp_vprintf(Format, Arguments, Size);
-}
-}
-
-/// Current indentation level for the function trace. Only accessed by thread 0.
-__attribute__((loader_uninitialized))
-static uint32_t Level;
-#pragma omp allocate(Level) allocator(omp_pteam_mem_alloc)
-
-DebugEntryRAII::DebugEntryRAII(const char *File, const unsigned Line,
-                               const char *Function) {
-  if (config::isDebugMode(config::DebugKind::FunctionTracing) &&
-      mapping::getThreadIdInBlock() == 0 && mapping::getBlockId() == 0) {
-
-    for (int I = 0; I < Level; ++I)
-      PRINTF("%s", "  ");
-
-    PRINTF("%s:%u: Thread %u Entering %s\n", File, Line,
-           mapping::getThreadIdInBlock(), Function);
-    Level++;
-  }
-}
-
-DebugEntryRAII::~DebugEntryRAII() {
-  if (config::isDebugMode(config::DebugKind::FunctionTracing) &&
-      mapping::getThreadIdInBlock() == 0 && mapping::getBlockId() == 0)
-    Level--;
-}
-
-void DebugEntryRAII::init() { Level = 0; }
 
 #pragma omp end declare target

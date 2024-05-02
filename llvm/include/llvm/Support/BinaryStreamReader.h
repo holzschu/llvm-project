@@ -10,7 +10,6 @@
 #define LLVM_SUPPORT_BINARYSTREAMREADER_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/BinaryStreamArray.h"
@@ -18,7 +17,6 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/type_traits.h"
 #include <type_traits>
 
 namespace llvm {
@@ -33,20 +31,14 @@ public:
   BinaryStreamReader() = default;
   explicit BinaryStreamReader(BinaryStreamRef Ref);
   explicit BinaryStreamReader(BinaryStream &Stream);
-  explicit BinaryStreamReader(ArrayRef<uint8_t> Data,
-                              llvm::support::endianness Endian);
-  explicit BinaryStreamReader(StringRef Data, llvm::support::endianness Endian);
+  explicit BinaryStreamReader(ArrayRef<uint8_t> Data, llvm::endianness Endian);
+  explicit BinaryStreamReader(StringRef Data, llvm::endianness Endian);
 
-  BinaryStreamReader(const BinaryStreamReader &Other)
-      : Stream(Other.Stream), Offset(Other.Offset) {}
+  BinaryStreamReader(const BinaryStreamReader &Other) = default;
 
-  BinaryStreamReader &operator=(const BinaryStreamReader &Other) {
-    Stream = Other.Stream;
-    Offset = Other.Offset;
-    return *this;
-  }
+  BinaryStreamReader &operator=(const BinaryStreamReader &Other) = default;
 
-  virtual ~BinaryStreamReader() {}
+  virtual ~BinaryStreamReader() = default;
 
   /// Read as much as possible from the underlying string at the current offset
   /// without invoking a copy, and set \p Buffer to the resulting data slice.
@@ -73,15 +65,14 @@ public:
   /// \returns a success error code if the data was successfully read, otherwise
   /// returns an appropriate error code.
   template <typename T> Error readInteger(T &Dest) {
-    static_assert(std::is_integral<T>::value,
+    static_assert(std::is_integral_v<T>,
                   "Cannot call readInteger with non-integral value!");
 
     ArrayRef<uint8_t> Bytes;
     if (auto EC = readBytes(Bytes, sizeof(T)))
       return EC;
 
-    Dest = llvm::support::endian::read<T, llvm::support::unaligned>(
-        Bytes.data(), Stream.getEndian());
+    Dest = llvm::support::endian::read<T>(Bytes.data(), Stream.getEndian());
     return Error::success();
   }
 

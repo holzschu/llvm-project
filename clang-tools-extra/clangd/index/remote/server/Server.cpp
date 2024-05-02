@@ -22,7 +22,6 @@
 #include "support/ThreadsafeFS.h"
 #include "support/Trace.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/CommandLine.h"
@@ -37,6 +36,7 @@
 #include <grpc++/grpc++.h>
 #include <grpc++/health_check_service_interface.h>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -395,7 +395,8 @@ void hotReload(clangd::SwapIndex &Index, llvm::StringRef IndexPath,
        "{0}, new index was modified at {1}. Attempting to reload.",
        LastStatus.getLastModificationTime(), Status->getLastModificationTime());
   LastStatus = *Status;
-  std::unique_ptr<clang::clangd::SymbolIndex> NewIndex = loadIndex(IndexPath);
+  std::unique_ptr<clang::clangd::SymbolIndex> NewIndex =
+      loadIndex(IndexPath, SymbolOrigin::Static);
   if (!NewIndex) {
     elog("Failed to load new index. Old index will be served.");
     return;
@@ -450,7 +451,7 @@ std::unique_ptr<Logger> makeLogger(llvm::StringRef LogPrefix,
       void log(Level L, const char *Fmt,
                const llvm::formatv_object_base &Message) override {
         if (Context::current().get(CurrentRequest) == nullptr ||
-            llvm::StringRef(Fmt).startswith("[public]"))
+            llvm::StringRef(Fmt).starts_with("[public]"))
           return StreamLogger::log(L, Fmt, Message);
         if (L >= Error)
           return StreamLogger::log(L, Fmt,
@@ -503,7 +504,7 @@ int main(int argc, char *argv[]) {
   auto Logger = makeLogger(LogPrefix.getValue(), llvm::errs());
   clang::clangd::LoggingSession LoggingSession(*Logger);
 
-  llvm::Optional<llvm::raw_fd_ostream> TracerStream;
+  std::optional<llvm::raw_fd_ostream> TracerStream;
   std::unique_ptr<clang::clangd::trace::EventTracer> Tracer;
   if (!TraceFile.empty()) {
     std::error_code EC;
@@ -521,19 +522,20 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  llvm::Optional<clang::clangd::trace::Session> TracingSession;
+  std::optional<clang::clangd::trace::Session> TracingSession;
   if (Tracer)
     TracingSession.emplace(*Tracer);
 
   clang::clangd::RealThreadsafeFS TFS;
-  auto FS = TFS.view(llvm::None);
+  auto FS = TFS.view(std::nullopt);
   auto Status = FS->status(IndexPath);
   if (!Status) {
     elog("{0} does not exist.", IndexPath);
     return Status.getError().value();
   }
 
-  auto SymIndex = clang::clangd::loadIndex(IndexPath);
+  auto SymIndex =
+      clang::clangd::loadIndex(IndexPath, clang::clangd::SymbolOrigin::Static);
   if (!SymIndex) {
     llvm::errs() << "Failed to open the index.\n";
     return -1;

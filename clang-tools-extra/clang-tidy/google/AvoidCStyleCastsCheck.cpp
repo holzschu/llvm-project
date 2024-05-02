@@ -14,10 +14,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace google {
-namespace readability {
+namespace clang::tidy::google::readability {
 
 void AvoidCStyleCastsCheck::registerMatchers(
     ast_matchers::MatchFinder *Finder) {
@@ -26,14 +23,16 @@ void AvoidCStyleCastsCheck::registerMatchers(
           // Filter out (EnumType)IntegerLiteral construct, which is generated
           // for non-type template arguments of enum types.
           // FIXME: Remove this once this is fixed in the AST.
-          unless(hasParent(substNonTypeTemplateParmExpr())),
-          // Avoid matches in template instantiations.
-          unless(isInTemplateInstantiation()))
+          unless(hasParent(substNonTypeTemplateParmExpr())))
           .bind("cast"),
       this);
+
   Finder->addMatcher(
-      cxxFunctionalCastExpr(unless(hasDescendant(cxxConstructExpr())),
-                            unless(hasDescendant(initListExpr())))
+      cxxFunctionalCastExpr(
+          hasDestinationType(hasCanonicalType(anyOf(
+              builtinType(), references(qualType()), pointsTo(qualType())))),
+          unless(
+              hasSourceExpression(anyOf(cxxConstructExpr(), initListExpr()))))
           .bind("cast"),
       this);
 }
@@ -61,15 +60,14 @@ static bool pointedUnqualifiedTypesAreEqual(QualType T1, QualType T2) {
 }
 
 static clang::CharSourceRange getReplaceRange(const ExplicitCastExpr *Expr) {
-  if (const auto *CastExpr = dyn_cast<CStyleCastExpr>(Expr)) {
+  if (const auto *CastExpr = dyn_cast<CStyleCastExpr>(Expr))
     return CharSourceRange::getCharRange(
         CastExpr->getLParenLoc(),
         CastExpr->getSubExprAsWritten()->getBeginLoc());
-  } else if (const auto *CastExpr = dyn_cast<CXXFunctionalCastExpr>(Expr)) {
+  if (const auto *CastExpr = dyn_cast<CXXFunctionalCastExpr>(Expr))
     return CharSourceRange::getCharRange(CastExpr->getBeginLoc(),
                                          CastExpr->getLParenLoc());
-  } else
-    llvm_unreachable("Unsupported CastExpr");
+  llvm_unreachable("Unsupported CastExpr");
 }
 
 static StringRef getDestTypeString(const SourceManager &SM,
@@ -130,7 +128,12 @@ void AvoidCStyleCastsCheck::check(const MatchFinder::MatchResult &Result) {
     // case of overloaded functions, so detection of redundant casts is trickier
     // in this case. Don't emit "redundant cast" warnings for function
     // pointer/reference types.
-    if (SourceTypeAsWritten == DestTypeAsWritten) {
+    QualType Src = SourceTypeAsWritten, Dst = DestTypeAsWritten;
+    if (const auto *ElTy = dyn_cast<ElaboratedType>(Src))
+      Src = ElTy->getNamedType();
+    if (const auto *ElTy = dyn_cast<ElaboratedType>(Dst))
+      Dst = ElTy->getNamedType();
+    if (Src == Dst) {
       diag(CastExpr->getBeginLoc(), "redundant cast to the same type")
           << FixItHint::CreateRemoval(ReplaceRange);
       return;
@@ -147,14 +150,15 @@ void AvoidCStyleCastsCheck::check(const MatchFinder::MatchResult &Result) {
     return;
   // Ignore code in .c files and headers included from them, even if they are
   // compiled as C++.
-  if (getCurrentMainFile().endswith(".c"))
+  if (getCurrentMainFile().ends_with(".c"))
     return;
 
   SourceManager &SM = *Result.SourceManager;
 
   // Ignore code in .c files #included in other files (which shouldn't be done,
   // but people still do this for test and other purposes).
-  if (SM.getFilename(SM.getSpellingLoc(CastExpr->getBeginLoc())).endswith(".c"))
+  if (SM.getFilename(SM.getSpellingLoc(CastExpr->getBeginLoc()))
+          .ends_with(".c"))
     return;
 
   // Leave type spelling exactly as it was (unlike
@@ -225,7 +229,7 @@ void AvoidCStyleCastsCheck::check(const MatchFinder::MatchResult &Result) {
       }
       break;
     }
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case clang::CK_IntegralCast:
     // Convert integral and no-op casts between builtin types and enums to
     // static_cast. A cast from enum to integer may be unnecessary, but it's
@@ -253,7 +257,4 @@ void AvoidCStyleCastsCheck::check(const MatchFinder::MatchResult &Result) {
   Diag << "static_cast/const_cast/reinterpret_cast";
 }
 
-} // namespace readability
-} // namespace google
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::google::readability

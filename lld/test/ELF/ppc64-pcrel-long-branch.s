@@ -6,19 +6,20 @@
 
 # RUN: llvm-mc -filetype=obj -triple=ppc64le %s -o %t.o
 # RUN: ld.lld -T %t.script %t.o -o %t
-# RUN: llvm-objdump -d --no-show-raw-insn --mcpu=pwr10 %t | FileCheck %s
+# RUN: llvm-objdump -d --no-show-raw-insn %t | FileCheck %s
 
 # RUN: llvm-mc -filetype=obj -triple=ppc64le -defsym HIDDEN=1 %s -o %t.o
 # RUN: ld.lld -shared -T %t.script %t.o -o %t.so
-# RUN: llvm-objdump -d --no-show-raw-insn --mcpu=pwr10 %t.so | FileCheck %s
+# RUN: llvm-objdump -d --no-show-raw-insn %t.so | FileCheck %s
 
 # RUN: llvm-mc -filetype=obj -triple=ppc64 %s -o %t.o
 # RUN: ld.lld -T %t.script %t.o -o %t
-# RUN: llvm-objdump -d --no-show-raw-insn --mcpu=pwr10 %t | FileCheck %s
+# RUN: llvm-objdump -d --no-show-raw-insn %t | FileCheck %s
 
 # RUN: llvm-mc -filetype=obj -triple=ppc64 -defsym HIDDEN=1 %s -o %t.o
 # RUN: ld.lld -shared -T %t.script %t.o -o %t.so
-# RUN: llvm-objdump -d --no-show-raw-insn --mcpu=pwr10 %t.so | FileCheck %s
+# RUN: llvm-objdump -d --no-show-raw-insn %t.so | FileCheck %s
+# RUN: llvm-readelf --dynamic %t.so | FileCheck --check-prefix=READELF %s
 
 # CHECK-LABEL: <_start>:
 # CHECK-NEXT:    2000: bl 0x2010
@@ -34,6 +35,8 @@
 
 # CHECK-LABEL: <high>:
 # CHECK-NEXT:    2002000: blr
+
+# READELF: (PPC64_OPT) 0x2
 
 .section .text_low, "ax", %progbits
 .globl _start

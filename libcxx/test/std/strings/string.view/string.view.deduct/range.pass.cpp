@@ -6,7 +6,6 @@
 //
 //===----------------------------------------------------------------------===//
 // UNSUPPORTED: c++03, c++11, c++14, c++17, c++20
-// UNSUPPORTED: libcpp-no-concepts
 
 // <string_view>
 
@@ -20,10 +19,10 @@
 #include "test_iterators.h"
 #include "test_macros.h"
 
-template<class CharT>
+template <class CharT>
 void test() {
   auto val = MAKE_STRING(CharT, "test");
-  auto sv = std::basic_string_view(val);
+  auto sv  = std::basic_string_view(val);
   ASSERT_SAME_TYPE(decltype(sv), std::basic_string_view<CharT>);
   assert(sv.size() == val.size());
   assert(sv.data() == val.data());
@@ -40,11 +39,11 @@ void test() {
   test<char>();
 
   struct Widget {
-    const char16_t *data_ = u"foo";
+    const char16_t* data_ = u"foo";
     contiguous_iterator<const char16_t*> begin() const { return contiguous_iterator<const char16_t*>(data_); }
     contiguous_iterator<const char16_t*> end() const { return contiguous_iterator<const char16_t*>(data_ + 3); }
   };
-  std::basic_string_view bsv = Widget();
+  std::basic_string_view bsv = std::basic_string_view(Widget());
   ASSERT_SAME_TYPE(decltype(bsv), std::basic_string_view<char16_t>);
 }
 
@@ -53,4 +52,3 @@ int main(int, char**) {
 
   return 0;
 }
-

@@ -10,7 +10,8 @@
 
 // shared_ptr
 
-// template<class T, class... Args> shared_ptr<T> make_shared(Args&&... args);
+// template<class T, class... Args>
+// shared_ptr<T> make_shared(Args&&... args);
 
 #include <memory>
 #include <cassert>
@@ -19,7 +20,7 @@
 
 struct S {
 private:
-   S () {};  // ctor is private
+  S() {} // ctor is private
 };
 
 int main(int, char**)

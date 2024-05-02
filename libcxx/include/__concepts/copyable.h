@@ -15,24 +15,26 @@
 #include <__config>
 
 #if !defined(_LIBCPP_HAS_NO_PRAGMA_SYSTEM_HEADER)
-#pragma GCC system_header
+#  pragma GCC system_header
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-#if _LIBCPP_STD_VER > 17 && !defined(_LIBCPP_HAS_NO_CONCEPTS)
+#if _LIBCPP_STD_VER >= 20
 
 // [concepts.object]
 
-template<class _Tp>
+// clang-format off
+template <class _Tp>
 concept copyable =
-  copy_constructible<_Tp> &&
-  movable<_Tp> &&
-  assignable_from<_Tp&, _Tp&> &&
-  assignable_from<_Tp&, const _Tp&> &&
-  assignable_from<_Tp&, const _Tp>;
+    copy_constructible<_Tp> &&
+    movable<_Tp> &&
+    assignable_from<_Tp&, _Tp&> &&
+    assignable_from<_Tp&, const _Tp&> &&
+    assignable_from<_Tp&, const _Tp>;
+// clang-format on
 
-#endif // _LIBCPP_STD_VER > 17 && !defined(_LIBCPP_HAS_NO_CONCEPTS)
+#endif // _LIBCPP_STD_VER >= 20
 
 _LIBCPP_END_NAMESPACE_STD
 

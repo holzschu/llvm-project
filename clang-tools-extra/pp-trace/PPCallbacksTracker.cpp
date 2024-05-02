@@ -123,19 +123,9 @@ void PPCallbacksTracker::FileSkipped(const FileEntryRef &SkippedFile,
                                      const Token &FilenameTok,
                                      SrcMgr::CharacteristicKind FileType) {
   beginCallback("FileSkipped");
-  appendArgument("ParentFile", &SkippedFile.getFileEntry());
+  appendArgument("ParentFile", SkippedFile);
   appendArgument("FilenameTok", FilenameTok);
   appendArgument("FileType", FileType, CharacteristicKindStrings);
-}
-
-// Callback invoked whenever an inclusion directive results in a
-// file-not-found error.
-bool
-PPCallbacksTracker::FileNotFound(llvm::StringRef FileName,
-                                 llvm::SmallVectorImpl<char> &RecoveryPath) {
-  beginCallback("FileNotFound");
-  appendFilePathArgument("FileName", FileName);
-  return false;
 }
 
 // Callback invoked whenever an inclusion directive of
@@ -143,10 +133,11 @@ PPCallbacksTracker::FileNotFound(llvm::StringRef FileName,
 // of whether the inclusion will actually result in an inclusion.
 void PPCallbacksTracker::InclusionDirective(
     SourceLocation HashLoc, const Token &IncludeTok, llvm::StringRef FileName,
-    bool IsAngled, CharSourceRange FilenameRange, const FileEntry *File,
+    bool IsAngled, CharSourceRange FilenameRange, OptionalFileEntryRef File,
     llvm::StringRef SearchPath, llvm::StringRef RelativePath,
     const Module *Imported, SrcMgr::CharacteristicKind FileType) {
   beginCallback("InclusionDirective");
+  appendArgument("HashLoc", HashLoc);
   appendArgument("IncludeTok", IncludeTok);
   appendFilePathArgument("FileName", FileName);
   appendArgument("IsAngled", IsAngled);
@@ -485,7 +476,8 @@ void PPCallbacksTracker::appendArgument(const char *Name, FileID Value) {
     appendArgument(Name, "(invalid)");
     return;
   }
-  const FileEntry *FileEntry = PP.getSourceManager().getFileEntryForID(Value);
+  OptionalFileEntryRef FileEntry =
+      PP.getSourceManager().getFileEntryRefForID(Value);
   if (!FileEntry) {
     appendArgument(Name, "(getFileEntryForID failed)");
     return;
@@ -495,12 +487,16 @@ void PPCallbacksTracker::appendArgument(const char *Name, FileID Value) {
 
 // Append a FileEntry argument to the top trace item.
 void PPCallbacksTracker::appendArgument(const char *Name,
-                                        const FileEntry *Value) {
+                                        OptionalFileEntryRef Value) {
   if (!Value) {
     appendArgument(Name, "(null)");
     return;
   }
-  appendFilePathArgument(Name, Value->getName());
+  appendArgument(Name, *Value);
+}
+
+void PPCallbacksTracker::appendArgument(const char *Name, FileEntryRef Value) {
+  appendFilePathArgument(Name, Value.getName());
 }
 
 // Append a SourceLocation argument to the top trace item.
@@ -606,7 +602,7 @@ void PPCallbacksTracker::appendArgument(const char *Name,
   llvm::raw_string_ostream SS(Str);
   SS << "[";
 
-  // Each argument is is a series of contiguous Tokens, terminated by a eof.
+  // Each argument is a series of contiguous Tokens, terminated by a eof.
   // Go through each argument printing tokens until we reach eof.
   for (unsigned I = 0; I < Value->getNumMacroArguments(); ++I) {
     const Token *Current = Value->getUnexpArgument(I);

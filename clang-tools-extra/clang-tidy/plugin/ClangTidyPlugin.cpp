@@ -14,8 +14,7 @@
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Frontend/MultiplexConsumer.h"
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 
 /// The core clang tidy plugin action. This just provides the AST consumer and
 /// command line flag parsing for using clang-tidy as a clang plugin.
@@ -63,7 +62,7 @@ public:
     // Parse the extra command line args.
     // FIXME: This is very limited at the moment.
     for (StringRef Arg : Args)
-      if (Arg.startswith("-checks="))
+      if (Arg.starts_with("-checks="))
         OverrideOptions.Checks = std::string(Arg.substr(strlen("-checks=")));
 
     auto Options = std::make_unique<FileOptionsProvider>(
@@ -75,8 +74,7 @@ public:
 private:
   std::unique_ptr<ClangTidyContext> Context;
 };
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy
 
 // This anchor is used to force the linker to link in the generated object file
 // and thus register the clang-tidy plugin.

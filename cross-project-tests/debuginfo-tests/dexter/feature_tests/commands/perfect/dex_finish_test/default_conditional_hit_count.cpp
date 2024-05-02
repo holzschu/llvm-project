@@ -1,3 +1,5 @@
+// FIXME: Feature appears to be broken on Windows with dbgeng.
+// XFAIL: system-windows
 // Purpose:
 //      Test that \DexFinishTest can be used with a combination of a hit_count
 //      and a condition, so that the test exits after the line referenced
@@ -5,9 +7,8 @@
 //      given number of times.
 //      Tests using the default controller (no \DexLimitSteps).
 //
-// REQUIRES: system-linux
-//
-// RUN: %dexter_regression_test -- %s | FileCheck %s
+// RUN: %dexter_regression_test_build %s -o %t
+// RUN: %dexter_regression_test_run --binary %t -- %s | FileCheck %s
 // CHECK: default_conditional_hit_count.cpp
 
 int main() {

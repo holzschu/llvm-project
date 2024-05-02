@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "UnusedReturnValueCheck.h"
+#include "../utils/Matchers.h"
 #include "../utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -14,9 +15,7 @@
 using namespace clang::ast_matchers;
 using namespace clang::ast_matchers::internal;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 namespace {
 
@@ -29,7 +28,6 @@ AST_MATCHER_P(FunctionDecl, isInstantiatedFrom, Matcher<FunctionDecl>,
   return InnerMatcher.matches(InstantiatedFrom ? *InstantiatedFrom : Node,
                               Finder, Builder);
 }
-
 } // namespace
 
 UnusedReturnValueCheck::UnusedReturnValueCheck(llvm::StringRef Name,
@@ -126,21 +124,56 @@ UnusedReturnValueCheck::UnusedReturnValueCheck(llvm::StringRef Name,
                                    "::sigismember;"
                                    "::strcasecmp;"
                                    "::strsignal;"
-                                   "::ttyname")) {}
+                                   "::ttyname")),
+      CheckedReturnTypes(utils::options::parseStringList(
+          Options.get("CheckedReturnTypes", "::std::error_code;"
+                                            "::std::error_condition;"
+                                            "::std::errc;"
+                                            "::std::expected;"
+                                            "::boost::system::error_code"))),
+      AllowCastToVoid(Options.get("AllowCastToVoid", false)) {}
+
+UnusedReturnValueCheck::UnusedReturnValueCheck(llvm::StringRef Name,
+                                               ClangTidyContext *Context,
+                                               std::string CheckedFunctions)
+    : UnusedReturnValueCheck(Name, Context, std::move(CheckedFunctions), {},
+                             false) {}
+
+UnusedReturnValueCheck::UnusedReturnValueCheck(
+    llvm::StringRef Name, ClangTidyContext *Context,
+    std::string CheckedFunctions, std::vector<StringRef> CheckedReturnTypes,
+    bool AllowCastToVoid)
+    : ClangTidyCheck(Name, Context),
+      CheckedFunctions(std::move(CheckedFunctions)),
+      CheckedReturnTypes(std::move(CheckedReturnTypes)),
+      AllowCastToVoid(AllowCastToVoid) {}
 
 void UnusedReturnValueCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "CheckedFunctions", CheckedFunctions);
+  Options.store(Opts, "CheckedReturnTypes",
+                utils::options::serializeStringList(CheckedReturnTypes));
+  Options.store(Opts, "AllowCastToVoid", AllowCastToVoid);
 }
 
 void UnusedReturnValueCheck::registerMatchers(MatchFinder *Finder) {
   auto FunVec = utils::options::parseStringList(CheckedFunctions);
-  auto MatchedCallExpr = expr(ignoringImplicit(ignoringParenImpCasts(
-      callExpr(callee(functionDecl(
-                   // Don't match void overloads of checked functions.
-                   unless(returns(voidType())),
-                   isInstantiatedFrom(hasAnyName(
-                       std::vector<StringRef>(FunVec.begin(), FunVec.end()))))))
-          .bind("match"))));
+
+  auto MatchedDirectCallExpr =
+      expr(callExpr(callee(functionDecl(
+                        // Don't match void overloads of checked functions.
+                        unless(returns(voidType())),
+                        anyOf(isInstantiatedFrom(hasAnyName(FunVec)),
+                              returns(hasCanonicalType(hasDeclaration(
+                                  namedDecl(matchers::matchesAnyListedName(
+                                      CheckedReturnTypes)))))))))
+               .bind("match"));
+
+  auto CheckCastToVoid =
+      AllowCastToVoid ? castExpr(unless(hasCastKind(CK_ToVoid))) : castExpr();
+  auto MatchedCallExpr = expr(
+      anyOf(MatchedDirectCallExpr,
+            explicitCastExpr(unless(cxxFunctionalCastExpr()), CheckCastToVoid,
+                             hasSourceExpression(MatchedDirectCallExpr))));
 
   auto UnusedInCompoundStmt =
       compoundStmt(forEach(MatchedCallExpr),
@@ -169,14 +202,17 @@ void UnusedReturnValueCheck::registerMatchers(MatchFinder *Finder) {
 void UnusedReturnValueCheck::check(const MatchFinder::MatchResult &Result) {
   if (const auto *Matched = Result.Nodes.getNodeAs<CallExpr>("match")) {
     diag(Matched->getBeginLoc(),
-         "the value returned by this function should be used")
+         "the value returned by this function should not be disregarded; "
+         "neglecting it may lead to errors")
         << Matched->getSourceRange();
+
+    if (!AllowCastToVoid)
+      return;
+
     diag(Matched->getBeginLoc(),
          "cast the expression to void to silence this warning",
          DiagnosticIDs::Note);
   }
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

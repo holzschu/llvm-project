@@ -5,6 +5,10 @@
 ; RUN:    -experimental-debug-variable-locations=true \
 ; RUN: | FileCheck %s --check-prefixes=CHECK,INSTRREF
 
+; RUN: llc -start-after=codegenprepare -stop-before finalize-isel -o - %s \
+; RUN:    -experimental-debug-variable-locations=false --try-experimental-debuginfo-iterators \
+; RUN: | FileCheck %s --check-prefixes=CHECK,DBGVALUE
+
 ; Test that dbg.values of an SSA variable that's not used in a basic block,
 ; is converted to a DBG_VALUE in that same basic block. We know that %1 is
 ; live from the entry bb to the exit bb, is allocated a vreg because it's
@@ -19,7 +23,7 @@ target triple = "x86_64-unknown-linux-gnu"
 define dso_local i32 @main(i32 %arg0, i32 %arg1) local_unnamed_addr !dbg !11 {
 entry:
 ; CHECK-LABEL: bb.0.entry:
-; INSTRREF: ADD32ri8 {{.*}} debug-instr-number 1
+; INSTRREF: ADD32ri {{.*}} debug-instr-number 1
   %0 = add i32 %arg0, 42, !dbg !26
   %1 = add i32 %arg1, 101, !dbg !26
   %cmp = icmp eq i32 %1, 0
@@ -30,7 +34,7 @@ nextbb:
   %2 = mul i32 %0, %arg1, !dbg !26
 ; CHECK: IMUL32rr
   call void @llvm.dbg.value(metadata i32 %1, metadata !16, metadata !DIExpression()), !dbg !27
-; INSTRREF-NEXT: DBG_INSTR_REF 1, 0
+; INSTRREF-NEXT: DBG_INSTR_REF {{.+}}, dbg-instr-ref(1, 0)
 ; DBGVALUE-NEXT: DBG_VALUE
   br label %exit, !dbg !26
 

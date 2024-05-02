@@ -22,6 +22,7 @@
    number of running threads in the system. */
 
 #include <ntsecapi.h> // UNICODE_STRING
+#undef WIN32_NO_STATUS
 #include <ntstatus.h>
 #include <psapi.h>
 #ifdef _MSC_VER
@@ -78,7 +79,7 @@ struct SYSTEM_THREAD {
 }; // SYSTEM_THREAD
 
 KMP_BUILD_ASSERT(offsetof(SYSTEM_THREAD, KernelTime) == 0);
-#if KMP_ARCH_X86
+#if KMP_ARCH_X86 || KMP_ARCH_ARM
 KMP_BUILD_ASSERT(offsetof(SYSTEM_THREAD, StartAddress) == 28);
 KMP_BUILD_ASSERT(offsetof(SYSTEM_THREAD, State) == 52);
 #else
@@ -108,7 +109,7 @@ typedef SYSTEM_PROCESS_INFORMATION *PSYSTEM_PROCESS_INFORMATION;
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, NextEntryOffset) == 0);
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, CreateTime) == 32);
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, ImageName) == 56);
-#if KMP_ARCH_X86
+#if KMP_ARCH_X86 || KMP_ARCH_ARM
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, ProcessId) == 68);
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, HandleCount) == 76);
 KMP_BUILD_ASSERT(offsetof(SYSTEM_PROCESS_INFORMATION, VMCounters) == 88);
@@ -568,7 +569,8 @@ void __kmp_gtid_set_specific(int gtid) {
   if (__kmp_init_gtid) {
     KA_TRACE(50, ("__kmp_gtid_set_specific: T#%d key:%d\n", gtid,
                   __kmp_gtid_threadprivate_key));
-    if (!TlsSetValue(__kmp_gtid_threadprivate_key, (LPVOID)(gtid + 1)))
+    kmp_intptr_t g = (kmp_intptr_t)gtid;
+    if (!TlsSetValue(__kmp_gtid_threadprivate_key, (LPVOID)(g + 1)))
       KMP_FATAL(TLSSetValueFailed);
   } else {
     KA_TRACE(50, ("__kmp_gtid_set_specific: runtime shutdown, returning\n"));
@@ -607,7 +609,8 @@ void __kmp_affinity_bind_thread(int proc) {
     KMP_DEBUG_ASSERT(__kmp_SetThreadGroupAffinity != NULL);
     if (__kmp_SetThreadGroupAffinity(GetCurrentThread(), &ga, NULL) == 0) {
       DWORD error = GetLastError();
-      if (__kmp_affinity_verbose) { // AC: continue silently if not verbose
+      // AC: continue silently if not verbose
+      if (__kmp_affinity.flags.verbose) {
         kmp_msg_t err_code = KMP_ERR(error);
         __kmp_msg(kmp_ms_warning, KMP_MSG(CantSetThreadAffMask), err_code,
                   __kmp_msg_null);
@@ -934,9 +937,8 @@ void __kmp_terminate_thread(int gtid) {
 }
 
 void __kmp_clear_system_time(void) {
-  BOOL status;
   LARGE_INTEGER time;
-  status = QueryPerformanceCounter(&time);
+  QueryPerformanceCounter(&time);
   __kmp_win32_time = (kmp_int64)time.QuadPart;
 }
 
@@ -960,9 +962,8 @@ void __kmp_initialize_system_tick(void) {
 /* Calculate the elapsed wall clock time for the user */
 
 void __kmp_elapsed(double *t) {
-  BOOL status;
   LARGE_INTEGER now;
-  status = QueryPerformanceCounter(&now);
+  QueryPerformanceCounter(&now);
   *t = ((double)now.QuadPart) * __kmp_win32_tick;
 }
 
@@ -972,11 +973,8 @@ void __kmp_elapsed_tick(double *t) { *t = __kmp_win32_tick; }
 
 void __kmp_read_system_time(double *delta) {
   if (delta != NULL) {
-    BOOL status;
     LARGE_INTEGER now;
-
-    status = QueryPerformanceCounter(&now);
-
+    QueryPerformanceCounter(&now);
     *delta = ((double)(((kmp_int64)now.QuadPart) - __kmp_win32_time)) *
              __kmp_win32_tick;
   }
@@ -1009,7 +1007,7 @@ extern "C" void *__stdcall __kmp_launch_worker(void *arg) {
   __kmp_itt_thread_name(gtid);
 #endif /* USE_ITT_BUILD */
 
-  __kmp_affinity_set_init_mask(gtid, FALSE);
+  __kmp_affinity_bind_init_mask(gtid);
 
 #if KMP_ARCH_X86 || KMP_ARCH_X86_64
   // Set FP control regs to be a copy of the parallel initialization thread's.
@@ -1020,6 +1018,7 @@ extern "C" void *__stdcall __kmp_launch_worker(void *arg) {
 
   if (__kmp_stkoffset > 0 && gtid > 0) {
     padding = KMP_ALLOCA(gtid * __kmp_stkoffset);
+    (void)padding;
   }
 
   KMP_FSYNC_RELEASING(&this_thr->th.th_info.ds.ds_alive);
@@ -1327,16 +1326,18 @@ static void __kmp_reap_common(kmp_info_t *th) {
     // KMP_WAIT to cover this usage also.
     void *obj = NULL;
     kmp_uint32 spins;
+    kmp_uint64 time;
 #if USE_ITT_BUILD
     KMP_FSYNC_SPIN_INIT(obj, (void *)&th->th.th_info.ds.ds_alive);
 #endif /* USE_ITT_BUILD */
     KMP_INIT_YIELD(spins);
+    KMP_INIT_BACKOFF(time);
     do {
 #if USE_ITT_BUILD
       KMP_FSYNC_SPIN_PREPARE(obj);
 #endif /* USE_ITT_BUILD */
       __kmp_is_thread_alive(th, &exit_val);
-      KMP_YIELD_OVERSUB_ELSE_SPIN(spins);
+      KMP_YIELD_OVERSUB_ELSE_SPIN(spins, time);
     } while (exit_val == STILL_ACTIVE && TCR_4(th->th.th_info.ds.ds_alive));
 #if USE_ITT_BUILD
     if (exit_val == STILL_ACTIVE) {
@@ -1352,9 +1353,10 @@ static void __kmp_reap_common(kmp_info_t *th) {
   /* NOTE:  The ExitProcess(code) system call causes all threads to Terminate
      with a exit_val = code.  Because of this we can not rely on exit_val having
      any particular value. */
+  kmp_intptr_t e = (kmp_intptr_t)exit_val;
   if (exit_val == STILL_ACTIVE) {
     KA_TRACE(1, ("__kmp_reap_common: thread still active.\n"));
-  } else if ((void *)exit_val != (void *)th) {
+  } else if ((void *)e != (void *)th) {
     KA_TRACE(1, ("__kmp_reap_common: ExitProcess / TerminateThread used?\n"));
   }
 
@@ -1517,13 +1519,12 @@ void __kmp_thread_sleep(int millis) {
 
 // Determine whether the given address is mapped into the current address space.
 int __kmp_is_address_mapped(void *addr) {
-  DWORD status;
   MEMORY_BASIC_INFORMATION lpBuffer;
   SIZE_T dwLength;
 
   dwLength = sizeof(MEMORY_BASIC_INFORMATION);
 
-  status = VirtualQuery(addr, &lpBuffer, dwLength);
+  VirtualQuery(addr, &lpBuffer, dwLength);
 
   return !(((lpBuffer.State == MEM_RESERVE) || (lpBuffer.State == MEM_FREE)) ||
            ((lpBuffer.Protect == PAGE_NOACCESS) ||
@@ -1635,7 +1636,7 @@ int __kmp_get_load_balance(int max) {
     // threads on all cores. So, we don't consider the running threads of this
     // process.
     if (pid != 0) {
-      for (int i = 0; i < num; ++i) {
+      for (ULONG i = 0; i < num; ++i) {
         THREAD_STATE state = spi->Threads[i].State;
         // Count threads that have Ready or Running state.
         // !!! TODO: Why comment does not match the code???
@@ -1669,7 +1670,7 @@ finish: // Clean up and exit.
 } //__kmp_get_load_balance()
 
 // Find symbol from the loaded modules
-void *__kmp_lookup_symbol(const char *name) {
+void *__kmp_lookup_symbol(const char *name, bool next) {
   HANDLE process = GetCurrentProcess();
   DWORD needed;
   HMODULE *modules = nullptr;
@@ -1681,8 +1682,19 @@ void *__kmp_lookup_symbol(const char *name) {
     free(modules);
     return nullptr;
   }
+  HMODULE curr_module = nullptr;
+  if (next) {
+    // Current module needs to be skipped if next flag is true
+    if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                           (LPCTSTR)&__kmp_lookup_symbol, &curr_module)) {
+      free(modules);
+      return nullptr;
+    }
+  }
   void *proc = nullptr;
   for (uint32_t i = 0; i < num_modules; i++) {
+    if (next && modules[i] == curr_module)
+      continue;
     proc = (void *)GetProcAddress(modules[i], name);
     if (proc)
       break;

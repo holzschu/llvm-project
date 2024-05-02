@@ -38,23 +38,23 @@
 @f = common local_unnamed_addr global i32 0, align 4
 
 @.str = private unnamed_addr constant [9 x i8] c"abcdefgh\00", align 1
-@p = global i8* getelementptr inbounds ([9 x i8], [9 x i8]* @.str, i32 0, i32 0), align 4
+@p = global ptr @.str, align 4
 
 define i8 @foo() {
 entry:
-  %0 = load i8*, i8** @p, align 4
-  %1 = load i8, i8* %0, align 1
+  %0 = load ptr, ptr @p, align 4
+  %1 = load i8, ptr %0, align 1
   ret i8 %1
 }
 
 define i32 @bar() {
 entry:
-  %0 = load i32, i32* @ivar, align 4
-  %1 = load i32, i32* @const_ivar, align 4
+  %0 = load i32, ptr @ivar, align 4
+  %1 = load i32, ptr @const_ivar, align 4
   %add = add nsw i32 %0, %1
-  %2 = load i32, i32* @a, align 4
+  %2 = load i32, ptr @a, align 4
   %add1 = add nsw i32 %add, %2
-  %3 = load i32, i32* @f, align 4
+  %3 = load i32, ptr @f, align 4
   %add2 = add nsw i32 %add1, %3
   ret i32 %add2
 }
@@ -70,16 +70,16 @@ entry:
 ; CHECK-NEXT:         .vbyte  4, 35                           # 0x23
 ; CHECK-NEXT:         .comm   a[RW],4,2
 ; CHECK-NEXT:         .comm   f[RW],4,2
-; CHECK-NEXT:         .csect .rodata.str1.1L...str[RO],2
+; CHECK-NEXT:         .csect L...str[RO],2
 ; CHECK-NEXT:         .string "abcdefgh"
 ; CHECK32:            .csect p[RW],2
 ; CHECK32-NEXT:       .globl  p[RW]
 ; CHECK32-NEXT:       .align  2
-; CHECK32-NEXT:       .vbyte  4, .rodata.str1.1L...str[RO]
+; CHECK32-NEXT:       .vbyte  4, L...str[RO]
 ; CHECK64:            .csect p[RW],3
 ; CHECK64-NEXT:       .globl  p[RW]
 ; CHECK64-NEXT:       .align  3
-; CHECK64-NEXT:       .vbyte  8, .rodata.str1.1L...str[RO]
+; CHECK64-NEXT:       .vbyte  8, L...str[RO]
 ; CHECK:              .toc
 ; CHECK-NEXT: L..C0:
 ; CHECK-NEXT:         .tc p[TC],p[RW]
@@ -93,7 +93,7 @@ entry:
 ; CHECKOBJ:        00000038 (idx: 7) const_ivar[RO]:
 ; CHECKOBJ-NEXT:         38: 00 00 00 23   <unknown>
 ; CHECKOBJ-EMPTY:
-; CHECKOBJ-NEXT:   0000003c (idx: 9) .rodata.str1.1L...str[RO]:
+; CHECKOBJ-NEXT:   0000003c (idx: 9) L...str[RO]:
 ; CHECKOBJ-NEXT:         3c: 61 62 63 64
 ; CHECKOBJ-NEXT:         40: 65 66 67 68
 ; CHECKOBJ-NEXT:         44: 00 00 00 00   <unknown>
@@ -156,7 +156,7 @@ entry:
 ; CHECKSYM:      }
 ; CHECKSYM:    }
 ; CHECKSYM:    Symbol {
-; CHECKSYM:      Name: .rodata.str1.1L...str
+; CHECKSYM:      Name: L...str
 ; CHECKSYM:      Value (RelocatableAddress): 0x3C
 ; CHECKSYM:      Section: .text
 ; CHECKSYM:      Type: 0x0

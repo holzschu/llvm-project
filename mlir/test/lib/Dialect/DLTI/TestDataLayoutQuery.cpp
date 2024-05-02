@@ -20,17 +20,19 @@ namespace {
 /// attributes containing the results of data layout queries for operation
 /// result types.
 struct TestDataLayoutQuery
-    : public PassWrapper<TestDataLayoutQuery, FunctionPass> {
+    : public PassWrapper<TestDataLayoutQuery, OperationPass<func::FuncOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TestDataLayoutQuery)
+
   StringRef getArgument() const final { return "test-data-layout-query"; }
   StringRef getDescription() const final { return "Test data layout queries"; }
-  void runOnFunction() override {
-    FuncOp func = getFunction();
+  void runOnOperation() override {
+    func::FuncOp func = getOperation();
     Builder builder(func.getContext());
     const DataLayoutAnalysis &layouts = getAnalysis<DataLayoutAnalysis>();
 
     func.walk([&](test::DataLayoutQueryOp op) {
       // Skip the ops with already processed in a deeper call.
-      if (op->getAttr("size"))
+      if (op->getDiscardableAttr("size"))
         return;
 
       const DataLayout &layout = layouts.getAbove(op);
@@ -38,11 +40,29 @@ struct TestDataLayoutQuery
       unsigned bitsize = layout.getTypeSizeInBits(op.getType());
       unsigned alignment = layout.getTypeABIAlignment(op.getType());
       unsigned preferred = layout.getTypePreferredAlignment(op.getType());
+      Attribute allocaMemorySpace = layout.getAllocaMemorySpace();
+      Attribute programMemorySpace = layout.getProgramMemorySpace();
+      Attribute globalMemorySpace = layout.getGlobalMemorySpace();
+      unsigned stackAlignment = layout.getStackAlignment();
       op->setAttrs(
           {builder.getNamedAttr("size", builder.getIndexAttr(size)),
            builder.getNamedAttr("bitsize", builder.getIndexAttr(bitsize)),
            builder.getNamedAttr("alignment", builder.getIndexAttr(alignment)),
-           builder.getNamedAttr("preferred", builder.getIndexAttr(preferred))});
+           builder.getNamedAttr("preferred", builder.getIndexAttr(preferred)),
+           builder.getNamedAttr("alloca_memory_space",
+                                allocaMemorySpace == Attribute()
+                                    ? builder.getUI32IntegerAttr(0)
+                                    : allocaMemorySpace),
+           builder.getNamedAttr("program_memory_space",
+                                programMemorySpace == Attribute()
+                                    ? builder.getUI32IntegerAttr(0)
+                                    : programMemorySpace),
+           builder.getNamedAttr("global_memory_space",
+                                globalMemorySpace == Attribute()
+                                    ? builder.getUI32IntegerAttr(0)
+                                    : globalMemorySpace),
+           builder.getNamedAttr("stack_alignment",
+                                builder.getIndexAttr(stackAlignment))});
     });
   }
 };

@@ -17,11 +17,6 @@
 # HELP: USAGE:
 # HELP: : supported targets:{{.*}} elf
 
-# RUN: ld.lld --version 2>&1 | FileCheck -check-prefix=VERSION %s
-# RUN: ld.lld -v 2>&1 | FileCheck -check-prefix=VERSION %s
-# RUN: not ld.lld -v xyz 2>&1 | FileCheck -check-prefix=VERSION %s
-# VERSION: LLD {{.*}} (compatible with GNU linkers)
-
 # RUN: not ld.lld --versin 2>&1 | FileCheck -check-prefix=SPELLVERSION %s
 # SPELLVERSION: unknown argument '--versin', did you mean '--version'
 
@@ -70,7 +65,7 @@
 # ERR10-FATAL: error: unknown -z value: foo
 
 # RUN: not ld.lld %t -z max-page-size 2>&1 | FileCheck -check-prefix=ERR11 %s
-# ERR11: unknown -z value: max-page-size
+# ERR11: error: invalid max-page-size:
 
 ## Attempt to use -r and --export-dynamic together
 # RUN: not ld.lld -r -export-dynamic %t -o /dev/null 2>&1 | FileCheck -check-prefix=ERR12 %s

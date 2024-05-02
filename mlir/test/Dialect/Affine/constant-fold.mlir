@@ -1,7 +1,7 @@
 // RUN: mlir-opt -test-constant-fold -split-input-file %s | FileCheck %s
 
 // CHECK-LABEL: func @affine_apply
-func @affine_apply(%variable : index) -> (index, index, index) {
+func.func @affine_apply(%variable : index) -> (index, index, index) {
   %c177 = arith.constant 177 : index
   %c211 = arith.constant 211 : index
   %N = arith.constant 1075 : index
@@ -24,7 +24,7 @@ func @affine_apply(%variable : index) -> (index, index, index) {
 
 // CHECK: #[[map:.*]] = affine_map<(d0, d1) -> (42, d1)
 
-func @affine_min(%variable: index) -> (index, index) {
+func.func @affine_min(%variable: index) -> (index, index) {
   // CHECK: %[[C42:.*]] = arith.constant 42
   %c42 = arith.constant 42 : index
   %c44 = arith.constant 44 : index
@@ -44,7 +44,7 @@ func @affine_min(%variable: index) -> (index, index) {
 
 // CHECK: #[[map:.*]] = affine_map<(d0, d1) -> (42, d1)
 
-func @affine_min(%variable: index) -> (index, index) {
+func.func @affine_min(%variable: index) -> (index, index) {
   // CHECK: %[[C42:.*]] = arith.constant 42
   %c42 = arith.constant 42 : index
   // CHECK: %[[C44:.*]] = arith.constant 44
@@ -59,4 +59,34 @@ func @affine_min(%variable: index) -> (index, index) {
 
   // CHECK: return %[[r]], %[[C44]]
   return %0, %1 : index, index
+}
+
+// -----
+
+func.func @affine_apply_poison_division_zero() {
+  // This is just for mlir::context to load ub dialect
+  %ub = ub.poison : index
+  %c16 = arith.constant 16 : index
+  %0 = affine.apply affine_map<(d0)[s0] -> (d0 mod (s0 - s0))>(%c16)[%c16]
+  %1 = affine.apply affine_map<(d0)[s0] -> (d0 floordiv (s0 - s0))>(%c16)[%c16]
+  %2 = affine.apply affine_map<(d0)[s0] -> (d0 ceildiv (s0 - s0))>(%c16)[%c16]
+  %alloc = memref.alloc(%0, %1, %2) : memref<?x?x?xi1>
+  %3 = affine.load %alloc[%0, %1, %2] : memref<?x?x?xi1>
+  affine.store %3, %alloc[%0, %1, %2] : memref<?x?x?xi1>
+  return
+}
+
+// CHECK-NOT: affine.apply
+// CHECK: %[[poison:.*]] = ub.poison : index
+// CHECK-NEXT: %[[alloc:.*]] = memref.alloc(%[[poison]], %[[poison]], %[[poison]])
+// CHECK-NEXT: %[[load:.*]] = affine.load %[[alloc]][%[[poison]], %[[poison]], %[[poison]]] : memref<?x?x?xi1>
+// CHECK-NEXT: affine.store %[[load]], %alloc[%[[poison]], %[[poison]], %[[poison]]] : memref<?x?x?xi1>
+
+// -----
+
+// Check that this doesn't crash because the ub dialect is automatically loaded
+func.func @affine_apply_poison_division_zero_2() -> index {
+  %c16 = arith.constant 16 : index
+  %0 = affine.apply affine_map<(d0)[s0] -> (d0 mod (s0 - s0))>(%c16)[%c16]
+  return %0 : index
 }

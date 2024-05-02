@@ -15,8 +15,9 @@
 #include "../../clang-tidy/ClangTidyModule.h"
 #include "../../clang-tidy/ClangTidyModuleRegistry.h"
 #include "AST.h"
-#include "Annotations.h"
+#include "CompileCommands.h"
 #include "Compiler.h"
+#include "Config.h"
 #include "Diagnostics.h"
 #include "Headers.h"
 #include "ParsedAST.h"
@@ -25,19 +26,23 @@
 #include "TestFS.h"
 #include "TestTU.h"
 #include "TidyProvider.h"
+#include "support/Context.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/Basic/FileEntry.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TokenKinds.h"
 #include "clang/Lex/PPCallbacks.h"
-#include "clang/Lex/Token.h"
 #include "clang/Tooling/Syntax/Tokens.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/ScopedPrinter.h"
+#include "llvm/Testing/Annotations/Annotations.h"
+#include "llvm/Testing/Support/Error.h"
 #include "gmock/gmock-matchers.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace clang {
 namespace clangd {
@@ -48,9 +53,8 @@ using ::testing::Contains;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 using ::testing::IsEmpty;
-using ::testing::UnorderedElementsAreArray;
 
-MATCHER_P(DeclNamed, Name, "") {
+MATCHER_P(declNamed, Name, "") {
   if (NamedDecl *ND = dyn_cast<NamedDecl>(arg))
     if (ND->getName() == Name)
       return true;
@@ -61,7 +65,7 @@ MATCHER_P(DeclNamed, Name, "") {
   return false;
 }
 
-MATCHER_P(DeclKind, Kind, "") {
+MATCHER_P(declKind, Kind, "") {
   if (NamedDecl *ND = dyn_cast<NamedDecl>(arg))
     if (ND->getDeclKindName() == llvm::StringRef(Kind))
       return true;
@@ -74,7 +78,7 @@ MATCHER_P(DeclKind, Kind, "") {
 
 // Matches if the Decl has template args equal to ArgName. If the decl is a
 // NamedDecl and ArgName is an empty string it also matches.
-MATCHER_P(WithTemplateArgs, ArgName, "") {
+MATCHER_P(withTemplateArgs, ArgName, "") {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(arg)) {
     if (const auto *Args = FD->getTemplateSpecializationArgs()) {
       std::string SpecializationArgs;
@@ -97,13 +101,9 @@ MATCHER_P(WithTemplateArgs, ArgName, "") {
   return false;
 }
 
-MATCHER_P(RangeIs, R, "") {
-  return arg.beginOffset() == R.Begin && arg.endOffset() == R.End;
-}
+MATCHER_P(pragmaTrivia, P, "") { return arg.Trivia == P; }
 
-MATCHER_P(PragmaTrivia, P, "") { return arg.Trivia == P; }
-
-MATCHER(EqInc, "") {
+MATCHER(eqInc, "") {
   Inclusion Actual = testing::get<0>(arg);
   Inclusion Expected = testing::get<1>(arg);
   return std::tie(Actual.HashLine, Actual.Written) ==
@@ -123,8 +123,8 @@ TEST(ParsedASTTest, TopLevelDecls) {
   auto AST = TU.build();
   EXPECT_THAT(AST.getLocalTopLevelDecls(),
               testing::UnorderedElementsAreArray(
-                  {AllOf(DeclNamed("main"), DeclKind("Function")),
-                   AllOf(DeclNamed("X"), DeclKind("VarTemplate"))}));
+                  {AllOf(declNamed("main"), declKind("Function")),
+                   AllOf(declNamed("X"), declKind("VarTemplate"))}));
 }
 
 TEST(ParsedASTTest, DoesNotGetIncludedTopDecls) {
@@ -144,7 +144,7 @@ TEST(ParsedASTTest, DoesNotGetIncludedTopDecls) {
     }
   )cpp";
   auto AST = TU.build();
-  EXPECT_THAT(AST.getLocalTopLevelDecls(), ElementsAre(DeclNamed("main")));
+  EXPECT_THAT(AST.getLocalTopLevelDecls(), ElementsAre(declNamed("main")));
 }
 
 TEST(ParsedASTTest, DoesNotGetImplicitTemplateTopDecls) {
@@ -159,7 +159,7 @@ TEST(ParsedASTTest, DoesNotGetImplicitTemplateTopDecls) {
 
   auto AST = TU.build();
   EXPECT_THAT(AST.getLocalTopLevelDecls(),
-              ElementsAre(DeclNamed("f"), DeclNamed("s")));
+              ElementsAre(declNamed("f"), declNamed("s")));
 }
 
 TEST(ParsedASTTest,
@@ -193,17 +193,17 @@ TEST(ParsedASTTest,
   auto AST = TU.build();
   EXPECT_THAT(
       AST.getLocalTopLevelDecls(),
-      ElementsAreArray({AllOf(DeclNamed("f"), WithTemplateArgs("")),
-                        AllOf(DeclNamed("f"), WithTemplateArgs("<bool>")),
-                        AllOf(DeclNamed("f"), WithTemplateArgs("<double>")),
-                        AllOf(DeclNamed("V"), WithTemplateArgs("")),
-                        AllOf(DeclNamed("V"), WithTemplateArgs("<T *>")),
-                        AllOf(DeclNamed("V"), WithTemplateArgs("<bool>")),
-                        AllOf(DeclNamed("foo"), WithTemplateArgs("")),
-                        AllOf(DeclNamed("i"), WithTemplateArgs("")),
-                        AllOf(DeclNamed("d"), WithTemplateArgs("")),
-                        AllOf(DeclNamed("foo"), WithTemplateArgs("<T *>")),
-                        AllOf(DeclNamed("foo"), WithTemplateArgs("<bool>"))}));
+      ElementsAreArray({AllOf(declNamed("f"), withTemplateArgs("")),
+                        AllOf(declNamed("f"), withTemplateArgs("<bool>")),
+                        AllOf(declNamed("f"), withTemplateArgs("<double>")),
+                        AllOf(declNamed("V"), withTemplateArgs("")),
+                        AllOf(declNamed("V"), withTemplateArgs("<T *>")),
+                        AllOf(declNamed("V"), withTemplateArgs("<bool>")),
+                        AllOf(declNamed("foo"), withTemplateArgs("")),
+                        AllOf(declNamed("i"), withTemplateArgs("")),
+                        AllOf(declNamed("d"), withTemplateArgs("")),
+                        AllOf(declNamed("foo"), withTemplateArgs("<T *>")),
+                        AllOf(declNamed("foo"), withTemplateArgs("<bool>"))}));
 }
 
 TEST(ParsedASTTest, IgnoresDelayedTemplateParsing) {
@@ -287,7 +287,7 @@ TEST(ParsedASTTest, CanBuildInvocationWithUnknownArgs) {
 }
 
 TEST(ParsedASTTest, CollectsMainFileMacroExpansions) {
-  Annotations TestCase(R"cpp(
+  llvm::Annotations TestCase(R"cpp(
     #define ^MACRO_ARGS(X, Y) X Y
     // - preamble ends
     ^ID(int A);
@@ -340,135 +340,19 @@ TEST(ParsedASTTest, CollectsMainFileMacroExpansions) {
     int D = DEF;
   )cpp";
   ParsedAST AST = TU.build();
-  std::vector<Position> MacroExpansionPositions;
+  std::vector<size_t> MacroExpansionPositions;
   for (const auto &SIDToRefs : AST.getMacros().MacroRefs) {
     for (const auto &R : SIDToRefs.second)
-      MacroExpansionPositions.push_back(R.Rng.start);
+      MacroExpansionPositions.push_back(R.StartOffset);
   }
   for (const auto &R : AST.getMacros().UnknownMacros)
-    MacroExpansionPositions.push_back(R.Rng.start);
-  EXPECT_THAT(MacroExpansionPositions,
-              testing::UnorderedElementsAreArray(TestCase.points()));
+    MacroExpansionPositions.push_back(R.StartOffset);
+  EXPECT_THAT(
+      MacroExpansionPositions,
+      testing::UnorderedElementsAreArray(TestCase.points()));
 }
 
-MATCHER_P(WithFileName, Inc, "") { return arg.FileName == Inc; }
-
-TEST(ParsedASTTest, ReplayPreambleForTidyCheckers) {
-  struct Inclusion {
-    Inclusion(const SourceManager &SM, SourceLocation HashLoc,
-              const Token &IncludeTok, llvm::StringRef FileName, bool IsAngled,
-              CharSourceRange FilenameRange)
-        : HashOffset(SM.getDecomposedLoc(HashLoc).second), IncTok(IncludeTok),
-          IncDirective(IncludeTok.getIdentifierInfo()->getName()),
-          FileNameOffset(SM.getDecomposedLoc(FilenameRange.getBegin()).second),
-          FileName(FileName), IsAngled(IsAngled) {
-      EXPECT_EQ(
-          toSourceCode(SM, FilenameRange.getAsRange()).drop_back().drop_front(),
-          FileName);
-    }
-    size_t HashOffset;
-    syntax::Token IncTok;
-    llvm::StringRef IncDirective;
-    size_t FileNameOffset;
-    llvm::StringRef FileName;
-    bool IsAngled;
-  };
-  static std::vector<Inclusion> Includes;
-  static std::vector<syntax::Token> SkippedFiles;
-  struct ReplayPreamblePPCallback : public PPCallbacks {
-    const SourceManager &SM;
-    explicit ReplayPreamblePPCallback(const SourceManager &SM) : SM(SM) {}
-
-    void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
-                            StringRef FileName, bool IsAngled,
-                            CharSourceRange FilenameRange, const FileEntry *,
-                            StringRef, StringRef, const clang::Module *,
-                            SrcMgr::CharacteristicKind) override {
-      Includes.emplace_back(SM, HashLoc, IncludeTok, FileName, IsAngled,
-                            FilenameRange);
-    }
-
-    void FileSkipped(const FileEntryRef &, const Token &FilenameTok,
-                     SrcMgr::CharacteristicKind) override {
-      SkippedFiles.emplace_back(FilenameTok);
-    }
-  };
-  struct ReplayPreambleCheck : public tidy::ClangTidyCheck {
-    ReplayPreambleCheck(StringRef Name, tidy::ClangTidyContext *Context)
-        : ClangTidyCheck(Name, Context) {}
-    void registerPPCallbacks(const SourceManager &SM, Preprocessor *PP,
-                             Preprocessor *ModuleExpanderPP) override {
-      PP->addPPCallbacks(::std::make_unique<ReplayPreamblePPCallback>(SM));
-    }
-  };
-  struct ReplayPreambleModule : public tidy::ClangTidyModule {
-    void
-    addCheckFactories(tidy::ClangTidyCheckFactories &CheckFactories) override {
-      CheckFactories.registerCheck<ReplayPreambleCheck>(
-          "replay-preamble-check");
-    }
-  };
-
-  static tidy::ClangTidyModuleRegistry::Add<ReplayPreambleModule> X(
-      "replay-preamble-module", "");
-  TestTU TU;
-  // This check records inclusion directives replayed by clangd.
-  TU.ClangTidyProvider = addTidyChecks("replay-preamble-check");
-  llvm::Annotations Test(R"cpp(
-    $hash^#$include[[import]] $filebegin^"$filerange[[bar.h]]"
-    $hash^#$include[[include_next]] $filebegin^"$filerange[[baz.h]]"
-    $hash^#$include[[include]] $filebegin^<$filerange[[a.h]]>)cpp");
-  llvm::StringRef Code = Test.code();
-  TU.Code = Code.str();
-  TU.AdditionalFiles["bar.h"] = "";
-  TU.AdditionalFiles["baz.h"] = "";
-  TU.AdditionalFiles["a.h"] = "";
-  // Since we are also testing #import directives, and they don't make much
-  // sense in c++ (also they actually break on windows), just set language to
-  // obj-c.
-  TU.ExtraArgs = {"-isystem.", "-xobjective-c"};
-
-  const auto &AST = TU.build();
-  const auto &SM = AST.getSourceManager();
-
-  auto HashLocs = Test.points("hash");
-  ASSERT_EQ(HashLocs.size(), Includes.size());
-  auto IncludeRanges = Test.ranges("include");
-  ASSERT_EQ(IncludeRanges.size(), Includes.size());
-  auto FileBeginLocs = Test.points("filebegin");
-  ASSERT_EQ(FileBeginLocs.size(), Includes.size());
-  auto FileRanges = Test.ranges("filerange");
-  ASSERT_EQ(FileRanges.size(), Includes.size());
-
-  ASSERT_EQ(SkippedFiles.size(), Includes.size());
-  for (size_t I = 0; I < Includes.size(); ++I) {
-    const auto &Inc = Includes[I];
-
-    EXPECT_EQ(Inc.HashOffset, HashLocs[I]);
-
-    auto IncRange = IncludeRanges[I];
-    EXPECT_THAT(Inc.IncTok.range(SM), RangeIs(IncRange));
-    EXPECT_EQ(Inc.IncTok.kind(), tok::identifier);
-    EXPECT_EQ(Inc.IncDirective,
-              Code.substr(IncRange.Begin, IncRange.End - IncRange.Begin));
-
-    EXPECT_EQ(Inc.FileNameOffset, FileBeginLocs[I]);
-    EXPECT_EQ(Inc.IsAngled, Code[FileBeginLocs[I]] == '<');
-
-    auto FileRange = FileRanges[I];
-    EXPECT_EQ(Inc.FileName,
-              Code.substr(FileRange.Begin, FileRange.End - FileRange.Begin));
-
-    EXPECT_EQ(SM.getDecomposedLoc(SkippedFiles[I].location()).second,
-              Inc.FileNameOffset);
-    // This also contains quotes/angles so increment the range by one from both
-    // sides.
-    EXPECT_EQ(
-        SkippedFiles[I].text(SM),
-        Code.substr(FileRange.Begin - 1, FileRange.End - FileRange.Begin + 2));
-    EXPECT_EQ(SkippedFiles[I].kind(), tok::header_name);
-  }
-}
+MATCHER_P(withFileName, Inc, "") { return arg.FileName == Inc; }
 
 TEST(ParsedASTTest, PatchesAdditionalIncludes) {
   llvm::StringLiteral ModifiedContents = R"cpp(
@@ -507,12 +391,11 @@ TEST(ParsedASTTest, PatchesAdditionalIncludes) {
   auto PatchedAST = ParsedAST::build(testPath("foo.cpp"), Inputs, std::move(CI),
                                      {}, EmptyPreamble);
   ASSERT_TRUE(PatchedAST);
-  ASSERT_FALSE(PatchedAST->getDiagnostics());
 
   // Ensure source location information is correct, including resolved paths.
   EXPECT_THAT(PatchedAST->getIncludeStructure().MainFileIncludes,
               testing::Pointwise(
-                  EqInc(), ExpectedAST.getIncludeStructure().MainFileIncludes));
+                  eqInc(), ExpectedAST.getIncludeStructure().MainFileIncludes));
   // Ensure file proximity signals are correct.
   auto &SM = PatchedAST->getSourceManager();
   auto &FM = SM.getFileManager();
@@ -556,19 +439,19 @@ TEST(ParsedASTTest, PatchesDeletedIncludes) {
   // Ensure source location information is correct.
   EXPECT_THAT(PatchedAST->getIncludeStructure().MainFileIncludes,
               testing::Pointwise(
-                  EqInc(), ExpectedAST.getIncludeStructure().MainFileIncludes));
+                  eqInc(), ExpectedAST.getIncludeStructure().MainFileIncludes));
   // Ensure file proximity signals are correct.
   auto &SM = ExpectedAST.getSourceManager();
   auto &FM = SM.getFileManager();
   // Copy so that we can getOrCreateID().
   IncludeStructure Includes = ExpectedAST.getIncludeStructure();
-  auto MainFE = FM.getFile(testPath("foo.cpp"));
-  ASSERT_TRUE(MainFE);
+  auto MainFE = FM.getFileRef(testPath("foo.cpp"));
+  ASSERT_THAT_EXPECTED(MainFE, llvm::Succeeded());
   auto MainID = Includes.getOrCreateID(*MainFE);
   auto &PatchedFM = PatchedAST->getSourceManager().getFileManager();
   IncludeStructure PatchedIncludes = PatchedAST->getIncludeStructure();
-  auto PatchedMainFE = PatchedFM.getFile(testPath("foo.cpp"));
-  ASSERT_TRUE(PatchedMainFE);
+  auto PatchedMainFE = PatchedFM.getFileRef(testPath("foo.cpp"));
+  ASSERT_THAT_EXPECTED(PatchedMainFE, llvm::Succeeded());
   auto PatchedMainID = PatchedIncludes.getOrCreateID(*PatchedMainFE);
   EXPECT_EQ(Includes.includeDepth(MainID)[MainID],
             PatchedIncludes.includeDepth(PatchedMainID)[PatchedMainID]);
@@ -588,13 +471,13 @@ std::string once(llvm::StringRef Code) {
 
 bool mainIsGuarded(const ParsedAST &AST) {
   const auto &SM = AST.getSourceManager();
-  const FileEntry *MainFE = SM.getFileEntryForID(SM.getMainFileID());
+  OptionalFileEntryRef MainFE = SM.getFileEntryRefForID(SM.getMainFileID());
   return AST.getPreprocessor()
       .getHeaderSearchInfo()
-      .isFileMultipleIncludeGuarded(MainFE);
+      .isFileMultipleIncludeGuarded(*MainFE);
 }
 
-MATCHER_P(Diag, Desc, "") {
+MATCHER_P(diag, Desc, "") {
   return llvm::StringRef(arg.Message).contains(Desc);
 }
 
@@ -639,6 +522,13 @@ TEST(ParsedASTTest, HeaderGuards) {
 //   size is part of the lookup key for HeaderFileInfo, and we don't want to
 //   rely on the preamble's HFI being looked up when parsing the main file.
 TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
+  // Disable include cleaner diagnostics to prevent them from interfering with
+  // other diagnostics.
+  Config Cfg;
+  Cfg.Diagnostics.MissingIncludes = Config::IncludesPolicy::None;
+  Cfg.Diagnostics.UnusedIncludes = Config::IncludesPolicy::None;
+  WithContextValue Ctx(Config::Key, std::move(Cfg));
+
   TestTU TU;
   TU.ImplicitHeaderGuard = false;
   TU.Filename = "self.h";
@@ -648,8 +538,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     ;
   )cpp";
   auto AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_FALSE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -657,7 +547,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #include "self.h" // error-ok
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), ElementsAre(Diag("nested too deeply")));
+  EXPECT_THAT(AST.getDiagnostics(), ElementsAre(diag("nested too deeply")));
   EXPECT_FALSE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -666,7 +556,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     ;
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -675,7 +565,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #include "self.h"
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -684,7 +574,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #include "self.h"
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -695,8 +585,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     ;
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_TRUE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -707,7 +597,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #endif
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
 
   // Guarded too late...
@@ -719,8 +609,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #endif
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_FALSE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -731,8 +621,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #endif
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_FALSE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -743,7 +633,7 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #endif
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_FALSE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -752,8 +642,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     ;
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_TRUE(mainIsGuarded(AST));
 
   TU.Code = R"cpp(
@@ -762,8 +652,8 @@ TEST(ParsedASTTest, HeaderGuardsSelfInclude) {
     #pragma once
   )cpp";
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("recursively when building a preamble")));
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("recursively when building a preamble")));
   EXPECT_TRUE(mainIsGuarded(AST));
 }
 
@@ -797,13 +687,13 @@ TEST(ParsedASTTest, HeaderGuardsImplIface) {
   TU.Code = guard(Interface);
   TU.AdditionalFiles = {{"impl.h", Implementation}};
   auto AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
   // Slightly harder: the `#pragma once` is part of the preamble, and we
   // need to transfer it to the main file's HeaderFileInfo.
   TU.Code = once(Interface);
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(), IsEmpty());
+  EXPECT_THAT(AST.getDiagnostics(), IsEmpty());
   EXPECT_TRUE(mainIsGuarded(AST));
 
   // Editing the implementation file, which is not include guarded.
@@ -813,15 +703,15 @@ TEST(ParsedASTTest, HeaderGuardsImplIface) {
   AST = TU.build();
   // The diagnostic is unfortunate in this case, but correct per our model.
   // Ultimately the include is skipped and the code is parsed correctly though.
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("in included file: main file cannot be included "
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("in included file: main file cannot be included "
                                "recursively when building a preamble")));
   EXPECT_FALSE(mainIsGuarded(AST));
   // Interface is pragma once guarded, same thing.
   TU.AdditionalFiles = {{"iface.h", once(Interface)}};
   AST = TU.build();
-  EXPECT_THAT(*AST.getDiagnostics(),
-              ElementsAre(Diag("in included file: main file cannot be included "
+  EXPECT_THAT(AST.getDiagnostics(),
+              ElementsAre(diag("in included file: main file cannot be included "
                                "recursively when building a preamble")));
   EXPECT_FALSE(mainIsGuarded(AST));
 }
@@ -842,9 +732,40 @@ TEST(ParsedASTTest, DiscoversPragmaMarks) {
   )cpp";
   auto AST = TU.build();
 
-  EXPECT_THAT(AST.getMarks(), ElementsAre(PragmaTrivia(" In Preamble"),
-                                          PragmaTrivia(" - Something Impl"),
-                                          PragmaTrivia(" End")));
+  EXPECT_THAT(AST.getMarks(), ElementsAre(pragmaTrivia(" In Preamble"),
+                                          pragmaTrivia(" - Something Impl"),
+                                          pragmaTrivia(" End")));
+}
+
+TEST(ParsedASTTest, GracefulFailureOnAssemblyFile) {
+  std::string Filename = "TestTU.S";
+  std::string Code = R"S(
+main:
+    # test comment
+    bx lr
+  )S";
+
+  // The rest is a simplified version of TestTU::build().
+  // Don't call TestTU::build() itself because it would assert on
+  // failure to build an AST.
+  MockFS FS;
+  std::string FullFilename = testPath(Filename);
+  FS.Files[FullFilename] = Code;
+  ParseInputs Inputs;
+  auto &Argv = Inputs.CompileCommand.CommandLine;
+  Argv = {"clang"};
+  Argv.push_back(FullFilename);
+  Inputs.CompileCommand.Filename = FullFilename;
+  Inputs.CompileCommand.Directory = testRoot();
+  Inputs.Contents = Code;
+  Inputs.TFS = &FS;
+  StoreDiags Diags;
+  auto CI = buildCompilerInvocation(Inputs, Diags);
+  assert(CI && "Failed to build compilation invocation.");
+  auto AST = ParsedAST::build(FullFilename, Inputs, std::move(CI), {}, nullptr);
+
+  EXPECT_FALSE(AST.has_value())
+      << "Should not try to build AST for assembly source file";
 }
 
 } // namespace

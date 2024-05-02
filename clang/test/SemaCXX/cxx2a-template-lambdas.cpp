@@ -11,19 +11,19 @@ struct DummyTemplate { };
 
 void func() {
   auto L0 = []<typename T>(T arg) {
-    static_assert(is_same<T, int>); // expected-error {{static_assert failed}}
+    static_assert(is_same<T, int>); // expected-error {{static assertion failed}}
   };
   L0(0);
   L0(0.0); // expected-note {{in instantiation}}
 
   auto L1 = []<int I> {
-    static_assert(I == 5); // expected-error {{static_assert failed}}
+    static_assert(I == 5); // expected-error {{static assertion failed}}
   };
   L1.operator()<5>();
   L1.operator()<6>(); // expected-note {{in instantiation}}
 
   auto L2 = []<template<typename> class T, class U>(T<U> &&arg) {
-    static_assert(is_same<T<U>, DummyTemplate<float>>); // // expected-error {{static_assert failed}}
+    static_assert(is_same<T<U>, DummyTemplate<float>>); // // expected-error {{static assertion failed}}
   };
   L2(DummyTemplate<float>());
   L2(DummyTemplate<double>()); // expected-note {{in instantiation}}
@@ -43,3 +43,47 @@ constexpr T outer() {
 }
 static_assert(outer<int>() == 123);
 template int *outer<int *>(); // expected-note {{in instantiation}}
+
+
+namespace GH62611 {
+template <auto A = [](auto x){}>
+struct C {
+  static constexpr auto B = A;
+};
+
+int test() {
+  C<>::B(42);
+}
+
+namespace AutoParam
+{
+template <auto A = [](auto x) { return x;}>
+auto B = A;
+static_assert(B<>(42) == 42);
+}
+
+namespace TypeParam
+{
+template <typename T = decltype([](auto x) {return x;})>
+auto B = T{};
+static_assert(B<>(42) == 42);
+}
+
+}
+
+namespace GH64689 {
+void f();
+void foo() {
+  []<typename T>(int)
+    noexcept(requires(int t) { f(); })
+    -> decltype(requires(int t) { f(); })
+    requires requires(int t) { f(); }
+  {return {};}.operator()<int>(0);
+  [](auto)
+    noexcept(requires(int t) { f(); })
+    -> decltype(requires(int t) { f(); })
+    requires requires(int t) { f(); }
+  {return {};}(1);
+}
+
+}

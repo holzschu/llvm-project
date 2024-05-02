@@ -56,17 +56,17 @@ public:
   lldb_private::CommandObject *GetPluginCommandObject() override;
 
   // Creating a new process, or attaching to an existing one
-  lldb_private::Status WillLaunch(lldb_private::Module *module) override;
+  lldb_private::Status DoWillLaunch(lldb_private::Module *module) override;
 
   lldb_private::Status
   DoLaunch(lldb_private::Module *exe_module,
            lldb_private::ProcessLaunchInfo &launch_info) override;
 
-  lldb_private::Status WillAttachToProcessWithID(lldb::pid_t pid) override;
+  lldb_private::Status DoWillAttachToProcessWithID(lldb::pid_t pid) override;
 
   lldb_private::Status
-  WillAttachToProcessWithName(const char *process_name,
-                              bool wait_for_launch) override;
+  DoWillAttachToProcessWithName(const char *process_name,
+                                bool wait_for_launch) override;
 
   lldb_private::Status DoConnectRemote(llvm::StringRef remote_url) override;
 
@@ -124,13 +124,6 @@ public:
   lldb_private::Status
   DisableBreakpointSite(lldb_private::BreakpointSite *bp_site) override;
 
-  // Process Watchpoints
-  lldb_private::Status EnableWatchpoint(lldb_private::Watchpoint *wp,
-                                        bool notify = true) override;
-
-  lldb_private::Status DisableWatchpoint(lldb_private::Watchpoint *wp,
-                                         bool notify = true) override;
-
   CommunicationKDP &GetCommunication() { return m_comm; }
 
 protected:
@@ -179,7 +172,7 @@ protected:
 
   void StopAsyncThread();
 
-  static void *AsyncThread(void *arg);
+  void *AsyncThread();
 
 private:
   // For ProcessKDP only

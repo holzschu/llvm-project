@@ -18,7 +18,6 @@ subroutine s
   !ERROR: Cannot call function 'f' like a subroutine
   call f
   !ERROR: Cannot call subroutine 's' like a function
-  !ERROR: Function result characteristics are not known
   i = s()
 contains
   function f()
@@ -71,8 +70,6 @@ subroutine s4
     import, none
     integer :: i
     !ERROR: 'm' is not a callable procedure
-    i = m()
-    !ERROR: 'm' is not a callable procedure
     call m()
   end block
 end
@@ -112,4 +109,23 @@ subroutine a8()
 end
 function b8()
   b8 = 0.0
+end
+
+subroutine s9
+  type t
+    procedure(), nopass, pointer :: p1, p2
+  end type
+  type(t) x
+  print *, x%p1()
+  call x%p2
+  !ERROR: Cannot call function 'p1' like a subroutine
+  call x%p1
+  !ERROR: Cannot call subroutine 'p2' like a function
+  print *, x%p2()
+end subroutine
+
+subroutine s10
+  call a10
+  !ERROR: Actual argument for 'a=' may not be a procedure
+  print *, abs(a10)
 end

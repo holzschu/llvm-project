@@ -8,7 +8,9 @@
 
 #include "lld/Common/Timer.h"
 #include "lld/Common/ErrorHandler.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Format.h"
+#include <ratio>
 
 using namespace lld;
 using namespace llvm;

@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-coroutines
 
 // <coroutine>
 
@@ -36,9 +35,9 @@ void do_test() {
     assert(c.address() == &dummy);
   }
   {
-    C::from_address((int*)nullptr);
-    C::from_address((void*)nullptr);
-    C::from_address((char*)nullptr);
+    TEST_IGNORE_NODISCARD C::from_address((int*)nullptr);
+    TEST_IGNORE_NODISCARD C::from_address((void*)nullptr);
+    TEST_IGNORE_NODISCARD C::from_address((char*)nullptr);
   }
   {
     char dummy = 42;

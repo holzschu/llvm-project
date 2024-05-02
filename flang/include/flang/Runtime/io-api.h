@@ -14,6 +14,7 @@
 #include "flang/Common/uint128.h"
 #include "flang/Runtime/entry-names.h"
 #include "flang/Runtime/iostat.h"
+#include "flang/Runtime/magic-numbers.h"
 #include <cinttypes>
 #include <cstddef>
 
@@ -23,12 +24,15 @@ class Descriptor;
 
 namespace Fortran::runtime::io {
 
+struct NonTbpDefinedIoTable;
 class NamelistGroup;
 class IoStatementState;
 using Cookie = IoStatementState *;
 using ExternalUnit = int;
 using AsynchronousId = int;
-static constexpr ExternalUnit DefaultUnit{-1}; // READ(*), WRITE(*), PRINT
+
+static constexpr ExternalUnit DefaultOutputUnit{FORTRAN_DEFAULT_OUTPUT_UNIT};
+static constexpr ExternalUnit DefaultInputUnit{FORTRAN_DEFAULT_INPUT_UNIT};
 
 // INQUIRE specifiers are encoded as simple base-26 packings of
 // the spellings of their keywords.
@@ -56,9 +60,12 @@ extern "C" {
 
 // These functions initiate data transfer statements (READ, WRITE, PRINT).
 // Example: PRINT *, 666 is implemented as the series of calls:
-//   Cookie cookie{BeginExternalListOutput(DefaultUnit,__FILE__,__LINE__)};
+//   Cookie cookie{BeginExternalListOutput(DefaultOutputUnit,
+//                                         __FILE__, __LINE__)};
 //   OutputInteger32(cookie, 666);
 //   EndIoStatement(cookie);
+// Formatted I/O with explicit formats can supply the format as a
+// const char * pointer with a length, or with a descriptor.
 
 // Internal I/O initiation
 // Internal I/O can loan the runtime library an optional block of memory
@@ -84,11 +91,13 @@ Cookie IONAME(BeginInternalArrayListInput)(const Descriptor &,
     void **scratchArea = nullptr, std::size_t scratchBytes = 0,
     const char *sourceFile = nullptr, int sourceLine = 0);
 Cookie IONAME(BeginInternalArrayFormattedOutput)(const Descriptor &,
-    const char *format, std::size_t formatLength, void **scratchArea = nullptr,
+    const char *format, std::size_t formatLength,
+    const Descriptor *formatDescriptor = nullptr, void **scratchArea = nullptr,
     std::size_t scratchBytes = 0, const char *sourceFile = nullptr,
     int sourceLine = 0);
 Cookie IONAME(BeginInternalArrayFormattedInput)(const Descriptor &,
-    const char *format, std::size_t formatLength, void **scratchArea = nullptr,
+    const char *format, std::size_t formatLength,
+    const Descriptor *formatDescriptor = nullptr, void **scratchArea = nullptr,
     std::size_t scratchBytes = 0, const char *sourceFile = nullptr,
     int sourceLine = 0);
 
@@ -104,38 +113,55 @@ Cookie IONAME(BeginInternalListInput)(const char *internal,
     int sourceLine = 0);
 Cookie IONAME(BeginInternalFormattedOutput)(char *internal,
     std::size_t internalLength, const char *format, std::size_t formatLength,
-    void **scratchArea = nullptr, std::size_t scratchBytes = 0,
-    const char *sourceFile = nullptr, int sourceLine = 0);
+    const Descriptor *formatDescriptor = nullptr, void **scratchArea = nullptr,
+    std::size_t scratchBytes = 0, const char *sourceFile = nullptr,
+    int sourceLine = 0);
 Cookie IONAME(BeginInternalFormattedInput)(const char *internal,
     std::size_t internalLength, const char *format, std::size_t formatLength,
-    void **scratchArea = nullptr, std::size_t scratchBytes = 0,
+    const Descriptor *formatDescriptor = nullptr, void **scratchArea = nullptr,
+    std::size_t scratchBytes = 0, const char *sourceFile = nullptr,
+    int sourceLine = 0);
+
+// External unit numbers must fit in default integers. When the integer
+// provided as UNIT is of a wider type than the default integer, it could
+// overflow when converted to a default integer.
+// CheckUnitNumberInRange should be called to verify that a unit number of a
+// wide integer type can fit in a default integer. Since it should be called
+// before the BeginXXX(unit, ...) call, it has its own error handling interface.
+// If handleError is false, and the unit number is out of range, the program
+// will be terminated. Otherwise, if unit is out of range, a nonzero Iostat
+// code is returned and ioMsg is set if it is not a nullptr.
+enum Iostat IONAME(CheckUnitNumberInRange64)(std::int64_t unit,
+    bool handleError, char *ioMsg = nullptr, std::size_t ioMsgLength = 0,
+    const char *sourceFile = nullptr, int sourceLine = 0);
+enum Iostat IONAME(CheckUnitNumberInRange128)(common::int128_t unit,
+    bool handleError, char *ioMsg = nullptr, std::size_t ioMsgLength = 0,
     const char *sourceFile = nullptr, int sourceLine = 0);
 
 // External synchronous I/O initiation
-Cookie IONAME(BeginExternalListOutput)(ExternalUnit = DefaultUnit,
+Cookie IONAME(BeginExternalListOutput)(ExternalUnit = DefaultOutputUnit,
     const char *sourceFile = nullptr, int sourceLine = 0);
-Cookie IONAME(BeginExternalListInput)(ExternalUnit = DefaultUnit,
+Cookie IONAME(BeginExternalListInput)(ExternalUnit = DefaultInputUnit,
     const char *sourceFile = nullptr, int sourceLine = 0);
 Cookie IONAME(BeginExternalFormattedOutput)(const char *format, std::size_t,
-    ExternalUnit = DefaultUnit, const char *sourceFile = nullptr,
+    const Descriptor *formatDescriptor = nullptr,
+    ExternalUnit = DefaultOutputUnit, const char *sourceFile = nullptr,
     int sourceLine = 0);
 Cookie IONAME(BeginExternalFormattedInput)(const char *format, std::size_t,
-    ExternalUnit = DefaultUnit, const char *sourceFile = nullptr,
+    const Descriptor *formatDescriptor = nullptr,
+    ExternalUnit = DefaultInputUnit, const char *sourceFile = nullptr,
     int sourceLine = 0);
-Cookie IONAME(BeginUnformattedOutput)(ExternalUnit = DefaultUnit,
+Cookie IONAME(BeginUnformattedOutput)(ExternalUnit = DefaultOutputUnit,
     const char *sourceFile = nullptr, int sourceLine = 0);
-Cookie IONAME(BeginUnformattedInput)(ExternalUnit = DefaultUnit,
+Cookie IONAME(BeginUnformattedInput)(ExternalUnit = DefaultInputUnit,
     const char *sourceFile = nullptr, int sourceLine = 0);
 
-// Asynchronous I/O is supported (at most) for unformatted direct access
-// block transfers.
-AsynchronousId IONAME(BeginAsynchronousOutput)(ExternalUnit, std::int64_t REC,
-    const char *, std::size_t, const char *sourceFile = nullptr,
-    int sourceLine = 0);
-AsynchronousId IONAME(BeginAsynchronousInput)(ExternalUnit, std::int64_t REC,
-    char *, std::size_t, const char *sourceFile = nullptr, int sourceLine = 0);
-Cookie IONAME(BeginWait)(ExternalUnit, AsynchronousId);
-Cookie IONAME(BeginWaitAll)(ExternalUnit);
+// WAIT(ID=)
+Cookie IONAME(BeginWait)(ExternalUnit, AsynchronousId,
+    const char *sourceFile = nullptr, int sourceLine = 0);
+// WAIT(no ID=)
+Cookie IONAME(BeginWaitAll)(
+    ExternalUnit, const char *sourceFile = nullptr, int sourceLine = 0);
 
 // Other I/O statements
 Cookie IONAME(BeginClose)(
@@ -170,7 +196,7 @@ Cookie IONAME(BeginInquireIoLength)(
 // This call makes the runtime library defer those particular error/end
 // conditions to the EndIoStatement() call rather than terminating
 // the image.  E.g., for READ(*,*,END=666) A, B, (C(J),J=1,N)
-//   Cookie cookie{BeginExternalListInput(DefaultUnit,__FILE__,__LINE__)};
+//   Cookie cookie{BeginExternalListInput(DefaultInputUnit,__FILE__,__LINE__)};
 //   EnableHandlers(cookie, false, false, true /*END=*/, false);
 //   if (InputReal64(cookie, &A)) {
 //     if (InputReal64(cookie, &B)) {
@@ -182,6 +208,10 @@ Cookie IONAME(BeginInquireIoLength)(
 //   if (EndIoStatement(cookie) == FORTRAN_RUTIME_IOSTAT_END) goto label666;
 void IONAME(EnableHandlers)(Cookie, bool hasIoStat = false, bool hasErr = false,
     bool hasEnd = false, bool hasEor = false, bool hasIoMsg = false);
+
+// ASYNCHRONOUS='YES' or 'NO' on READ/WRITE/OPEN
+// Use GetAsynchronousId() to handle ID=.
+bool IONAME(SetAsynchronous)(Cookie, const char *, std::size_t);
 
 // Control list options.  These return false on a error that the
 // Begin...() call has specified will be handled by the caller.
@@ -220,19 +250,12 @@ bool IONAME(SetSign)(Cookie, const char *, std::size_t);
 // and avoid the following items when they might crash.
 bool IONAME(OutputDescriptor)(Cookie, const Descriptor &);
 bool IONAME(InputDescriptor)(Cookie, const Descriptor &);
-// Contiguous transfers for unformatted I/O
-bool IONAME(OutputUnformattedBlock)(
-    Cookie, const char *, std::size_t, std::size_t elementBytes);
-bool IONAME(InputUnformattedBlock)(
-    Cookie, char *, std::size_t, std::size_t elementBytes);
 // Formatted (including list directed) I/O data items
 bool IONAME(OutputInteger8)(Cookie, std::int8_t);
 bool IONAME(OutputInteger16)(Cookie, std::int16_t);
 bool IONAME(OutputInteger32)(Cookie, std::int32_t);
 bool IONAME(OutputInteger64)(Cookie, std::int64_t);
-#ifdef __SIZEOF_INT128__
 bool IONAME(OutputInteger128)(Cookie, common::int128_t);
-#endif
 bool IONAME(InputInteger)(Cookie, std::int64_t &, int kind = 8);
 bool IONAME(OutputReal32)(Cookie, float);
 bool IONAME(InputReal32)(Cookie, float &);
@@ -254,16 +277,28 @@ bool IONAME(InputLogical)(Cookie, bool &);
 bool IONAME(OutputNamelist)(Cookie, const NamelistGroup &);
 bool IONAME(InputNamelist)(Cookie, const NamelistGroup &);
 
+// When an I/O list item has a derived type with a specific defined
+// I/O subroutine of the appropriate generic kind for the active
+// I/O data transfer statement (read/write, formatted/unformatted)
+// that pertains to the type or its components, and those subroutines
+// are dynamic or neither type-bound nor defined with interfaces
+// in the same scope as the derived type (or an IMPORT statement has
+// made such a generic interface inaccessible), these data item transfer
+// APIs enable the I/O runtime to make the right calls to defined I/O
+// subroutines.
+bool IONAME(OutputDerivedType)(
+    Cookie, const Descriptor &, const NonTbpDefinedIoTable *);
+bool IONAME(InputDerivedType)(
+    Cookie, const Descriptor &, const NonTbpDefinedIoTable *);
+
 // Additional specifier interfaces for the connection-list of
 // on OPEN statement (only).  SetBlank(), SetDecimal(),
-// SetDelim(), GetIoMsg(), SetPad(), SetRound(), & SetSign()
-// are also acceptable for OPEN.
+// SetDelim(), GetIoMsg(), SetPad(), SetRound(), SetSign(),
+// & SetAsynchronous() are also acceptable for OPEN.
 // ACCESS=SEQUENTIAL, DIRECT, STREAM
 bool IONAME(SetAccess)(Cookie, const char *, std::size_t);
 // ACTION=READ, WRITE, or READWRITE
 bool IONAME(SetAction)(Cookie, const char *, std::size_t);
-// ASYNCHRONOUS=YES, NO
-bool IONAME(SetAsynchronous)(Cookie, const char *, std::size_t);
 // CARRIAGECONTROL=LIST, FORTRAN, NONE
 bool IONAME(SetCarriagecontrol)(Cookie, const char *, std::size_t);
 // CONVERT=NATIVE, LITTLE_ENDIAN, BIG_ENDIAN, or SWAP
@@ -295,6 +330,9 @@ std::size_t IONAME(GetIoLength)(Cookie);
 // GetIoMsg() does not modify its argument unless an error or
 // end-of-record/file condition is present.
 void IONAME(GetIoMsg)(Cookie, char *, std::size_t); // IOMSG=
+
+// Defines ID= on READ/WRITE(ASYNCHRONOUS='YES')
+int IONAME(GetAsynchronousId)(Cookie);
 
 // INQUIRE() specifiers are mostly identified by their NUL-terminated
 // case-insensitive names.

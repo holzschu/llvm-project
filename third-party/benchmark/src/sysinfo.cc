@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(_MSC_VER)
+// FIXME: This must be defined before any other includes to disable deprecation
+// warnings for use of codecvt from C++17. We should remove our reliance on
+// the deprecated functionality instead.
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
+
 #include "internal_macros.h"
 
 #ifdef BENCHMARK_OS_WINDOWS
@@ -442,6 +449,8 @@ std::string GetSystemName() {
 #define HOST_NAME_MAX 154
 #elif defined(BENCHMARK_OS_RTEMS)
 #define HOST_NAME_MAX 256
+#elif defined(BENCHMARK_OS_ZOS)
+#define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
 #else
 #pragma message("HOST_NAME_MAX not defined. using 64")
 #define HOST_NAME_MAX 64

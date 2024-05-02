@@ -1,4 +1,4 @@
-// REQUIRES: !asan, lldb
+// REQUIRES: !asan, compiler-rt, lldb
 // UNSUPPORTED: system-windows
 //           Zorg configures the ASAN stage2 bots to not build the asan
 //           compiler-rt. Only run this test on non-asanified configurations.
@@ -8,10 +8,9 @@
 // lldb-8, even outside of dexter, will sometimes trigger an asan fault in
 // the debugged process and generally freak out.
 
+// RUN: %clang -std=gnu++11 -O1 -glldb -fsanitize=address -arch x86_64 %s -o %t
 // RUN: %dexter --fail-lt 1.0 -w \
-// RUN:     --builder 'clang' --debugger 'lldb' \
-// RUN:     --cflags "-O1 -glldb -fsanitize=address -arch x86_64" \
-// RUN:     --ldflags="-fsanitize=address" -- %s
+// RUN:     --binary %t --debugger 'lldb' -- %s
 #include <deque>
 
 struct A {

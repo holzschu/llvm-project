@@ -116,7 +116,7 @@ private:
   LogicalResult
   processSpecConstantOperationOp(spirv::SpecConstantOperationOp op);
 
-  /// SPIR-V dialect supports OpUndef using spv.UndefOp that produces a SSA
+  /// SPIR-V dialect supports OpUndef using spirv.UndefOp that produces a SSA
   /// value to use with other operations. The SPIR-V spec recommends that
   /// OpUndef be generated at module level. The serialization generates an
   /// OpUndef for each type needed at module level.
@@ -127,6 +127,7 @@ private:
 
   /// Processes a SPIR-V function op.
   LogicalResult processFuncOp(spirv::FuncOp op);
+  LogicalResult processFuncParameter(spirv::FuncOp op);
 
   LogicalResult processVariableOp(spirv::VariableOp op);
 
@@ -134,6 +135,8 @@ private:
   LogicalResult processGlobalVariableOp(spirv::GlobalVariableOp varOp);
 
   /// Process attributes that translate to decorations on the result <id>
+  LogicalResult processDecorationAttr(Location loc, uint32_t resultID,
+                                      Decoration decoration, Attribute attr);
   LogicalResult processDecoration(Location loc, uint32_t resultID,
                                   NamedAttribute attr);
 
@@ -156,7 +159,7 @@ private:
 
   Type getVoidType() { return mlirBuilder.getNoneType(); }
 
-  bool isVoidType(Type type) const { return type.isa<NoneType>(); }
+  bool isVoidType(Type type) const { return isa<NoneType>(type); }
 
   /// Returns true if the given type is a pointer type to a struct in some
   /// interface storage class.
@@ -297,7 +300,8 @@ private:
   /// Serializes an operation in the SPIR-V dialect that is a mirror of an
   /// instruction in the SPIR-V spec. This is auto generated if hasOpcode == 1
   /// and autogenSerialization == 1 in ODS.
-  template <typename OpTy> LogicalResult processOp(OpTy op) {
+  template <typename OpTy>
+  LogicalResult processOp(OpTy op) {
     return op.emitError("unsupported op serialization");
   }
 
@@ -423,10 +427,10 @@ private:
   ///   ...
   /// ^parent1:
   ///   ...
-  ///   spv.Branch ^phi(%val0: i32)
+  ///   spirv.Branch ^phi(%val0: i32)
   /// ^parent2:
   ///   ...
-  ///   spv.Branch ^phi(%val1: i32)
+  ///   spirv.Branch ^phi(%val1: i32)
   /// ```
   ///
   /// When we are serializing the `^phi` block, we need to emit at the beginning

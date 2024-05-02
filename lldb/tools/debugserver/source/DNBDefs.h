@@ -54,6 +54,7 @@ typedef uint32_t nub_event_t;
 typedef uint32_t nub_bool_t;
 
 #define INVALID_NUB_PROCESS ((nub_process_t)0)
+#define INVALID_NUB_PROCESS_ARCH ((nub_process_t)-1)
 #define INVALID_NUB_THREAD ((nub_thread_t)0)
 #define INVALID_NUB_WATCH_ID ((nub_watch_t)0)
 #define INVALID_NUB_HW_INDEX UINT32_MAX
@@ -233,7 +234,8 @@ enum DNBThreadStopType {
   eStopTypeInvalid = 0,
   eStopTypeSignal,
   eStopTypeException,
-  eStopTypeExec
+  eStopTypeExec,
+  eStopTypeWatchpoint
 };
 
 enum DNBMemoryPermissions {
@@ -263,6 +265,37 @@ struct DNBThreadStopInfo {
       nub_size_t data_count;
       nub_addr_t data[DNB_THREAD_STOP_INFO_MAX_EXC_DATA];
     } exception;
+
+    // eStopTypeWatchpoint
+    struct {
+      // The trigger address from the mach exception
+      // (likely the contents of the FAR register)
+      nub_addr_t mach_exception_addr;
+
+      // The trigger address, adjusted to be the start
+      // address of one of the existing watchpoints for
+      // lldb's benefit.
+      nub_addr_t addr;
+
+      // The watchpoint hardware index.
+      uint32_t hw_idx;
+
+      // If the esr_fields bitfields have been filled in.
+      bool esr_fields_set;
+      struct {
+        uint32_t
+            iss; // "ISS encoding for an exception from a Watchpoint exception"
+        uint32_t wpt;  // Watchpoint number
+        bool wptv;     // Watchpoint number Valid
+        bool wpf;      // Watchpoint might be false-positive
+        bool fnp;      // FAR not Precise
+        bool vncr;     // watchpoint from use of VNCR_EL2 reg by EL1
+        bool fnv;      // FAR not Valid
+        bool cm;       // Cache maintenance
+        bool wnr;      // Write not Read
+        uint32_t dfsc; // Data Fault Status Code
+      } esr_fields;
+    } watchpoint;
   } details;
 };
 

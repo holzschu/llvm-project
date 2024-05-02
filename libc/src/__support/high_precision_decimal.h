@@ -6,20 +6,24 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LIBC_SRC_SUPPORT_HIGH_PRECISION_DECIMAL_H
-#define LIBC_SRC_SUPPORT_HIGH_PRECISION_DECIMAL_H
+#ifndef LLVM_LIBC_SRC___SUPPORT_HIGH_PRECISION_DECIMAL_H
+#define LLVM_LIBC_SRC___SUPPORT_HIGH_PRECISION_DECIMAL_H
 
 #include "src/__support/ctype_utils.h"
 #include "src/__support/str_to_integer.h"
 #include <stdint.h>
 
-namespace __llvm_libc {
+namespace LIBC_NAMESPACE {
 namespace internal {
 
 struct LShiftTableEntry {
   uint32_t new_digits;
   char const *power_of_five;
 };
+
+// This is used in both this file and in the main str_to_float.h.
+// TODO: Figure out where to put this.
+enum class RoundDirection { Up, Down, Nearest };
 
 // This is based on the HPD data structure described as part of the Simple
 // Decimal Conversion algorithm by Nigel Tao, described at this link:
@@ -111,14 +115,26 @@ class HighPrecisionDecimal {
   uint8_t digits[MAX_NUM_DIGITS];
 
 private:
-  bool should_round_up(uint32_t roundToDigit) {
-    if (roundToDigit < 0 || roundToDigit >= this->num_digits) {
+  bool should_round_up(int32_t roundToDigit, RoundDirection round) {
+    if (roundToDigit < 0 ||
+        static_cast<uint32_t>(roundToDigit) >= this->num_digits) {
       return false;
     }
 
+    // The above condition handles all cases where all of the trailing digits
+    // are zero. In that case, if the rounding mode is up, then this number
+    // should be rounded up. Similarly, if the rounding mode is down, then it
+    // should always round down.
+    if (round == RoundDirection::Up) {
+      return true;
+    } else if (round == RoundDirection::Down) {
+      return false;
+    }
+    // Else round to nearest.
+
     // If we're right in the middle and there are no extra digits
     if (this->digits[roundToDigit] == 5 &&
-        roundToDigit + 1 == this->num_digits) {
+        static_cast<uint32_t>(roundToDigit + 1) == this->num_digits) {
 
       // Round up if we've truncated (since that means the result is slightly
       // higher than what's represented.)
@@ -127,6 +143,9 @@ private:
       }
 
       // If this exactly halfway, round to even.
+      if (roundToDigit == 0)
+        // When the input is ".5".
+        return false;
       return this->digits[roundToDigit - 1] % 2 != 0;
     }
     // If there are digits after roundToDigit, they must be non-zero since we
@@ -281,12 +300,15 @@ public:
   // handle leading spaces.
   HighPrecisionDecimal(const char *__restrict numString) {
     bool saw_dot = false;
+    // This counts the digits in the number, even if there isn't space to store
+    // them all.
+    uint32_t total_digits = 0;
     while (isdigit(*numString) || *numString == '.') {
       if (*numString == '.') {
         if (saw_dot) {
           break;
         }
-        this->decimal_point = this->num_digits;
+        this->decimal_point = total_digits;
         saw_dot = true;
       } else {
         if (*numString == '0' && this->num_digits == 0) {
@@ -294,8 +316,10 @@ public:
           ++numString;
           continue;
         }
+        ++total_digits;
         if (this->num_digits < MAX_NUM_DIGITS) {
-          this->digits[this->num_digits] = *numString - '0';
+          this->digits[this->num_digits] =
+              static_cast<uint8_t>(*numString - '0');
           ++this->num_digits;
         } else if (*numString != '0') {
           this->truncated = true;
@@ -304,20 +328,30 @@ public:
       ++numString;
     }
 
-    if (!saw_dot) {
-      this->decimal_point = this->num_digits;
-    }
+    if (!saw_dot)
+      this->decimal_point = total_digits;
 
     if ((*numString | 32) == 'e') {
       ++numString;
       if (isdigit(*numString) || *numString == '+' || *numString == '-') {
-        int32_t add_to_exp = strtointeger<int32_t>(numString, nullptr, 10);
-        if (add_to_exp > 100000) {
-          add_to_exp = 100000;
-        } else if (add_to_exp < -100000) {
-          add_to_exp = -100000;
+        auto result = strtointeger<int32_t>(numString, 10);
+        if (result.has_error()) {
+          // TODO: handle error
         }
-        this->decimal_point += add_to_exp;
+        int32_t add_to_exponent = result.value;
+
+        // Here we do this operation as int64 to avoid overflow.
+        int64_t temp_exponent = static_cast<int64_t>(this->decimal_point) +
+                                static_cast<int64_t>(add_to_exponent);
+
+        // Theoretically these numbers should be MAX_BIASED_EXPONENT for long
+        // double, but that should be ~16,000 which is much less than 1 << 30.
+        if (temp_exponent > (1 << 30)) {
+          temp_exponent = (1 << 30);
+        } else if (temp_exponent < -(1 << 30)) {
+          temp_exponent = -(1 << 30);
+        }
+        this->decimal_point = static_cast<int32_t>(temp_exponent);
       }
     }
 
@@ -349,7 +383,8 @@ public:
 
   // Round the number represented to the closest value of unsigned int type T.
   // This is done ignoring overflow.
-  template <class T> T round_to_integer_type() {
+  template <class T>
+  T round_to_integer_type(RoundDirection round = RoundDirection::Nearest) {
     T result = 0;
     uint32_t cur_digit = 0;
 
@@ -364,10 +399,7 @@ public:
       result *= 10;
       ++cur_digit;
     }
-    if (this->should_round_up(this->decimal_point)) {
-      ++result;
-    }
-    return result;
+    return result + this->should_round_up(this->decimal_point, round);
   }
 
   // Extra functions for testing.
@@ -379,6 +411,6 @@ public:
 };
 
 } // namespace internal
-} // namespace __llvm_libc
+} // namespace LIBC_NAMESPACE
 
-#endif // LIBC_SRC_SUPPORT_HIGH_PRECISION_DECIMAL_H
+#endif // LLVM_LIBC_SRC___SUPPORT_HIGH_PRECISION_DECIMAL_H

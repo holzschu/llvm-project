@@ -12,7 +12,6 @@
 #include "Target.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/BinaryFormat/ELF.h"
-#include "llvm/Object/ELF.h"
 #include "llvm/Support/Endian.h"
 
 using namespace llvm;
@@ -30,6 +29,7 @@ public:
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
   RelType getDynRel(RelType type) const override;
+  int64_t getImplicitAddend(const uint8_t *buf, RelType type) const override;
   void relocate(uint8_t *loc, const Relocation &rel,
                 uint64_t val) const override;
   void writePltHeader(uint8_t *buf) const override;
@@ -60,12 +60,12 @@ Hexagon::Hexagon() {
 }
 
 uint32_t Hexagon::calcEFlags() const {
-  assert(!objectFiles.empty());
+  assert(!ctx.objectFiles.empty());
 
   // The architecture revision must always be equal to or greater than
   // greatest revision in the list of inputs.
   uint32_t ret = 0;
-  for (InputFile *f : objectFiles) {
+  for (InputFile *f : ctx.objectFiles) {
     uint32_t eflags = cast<ObjFile<ELF32LE>>(f)->getObj().getHeader().e_flags;
     if (eflags > ret)
       ret = eflags;
@@ -146,7 +146,6 @@ RelExpr Hexagon::getRelExpr(RelType type, const Symbol &s,
   case R_HEX_IE_GOT_32_6_X:
   case R_HEX_IE_GOT_HI16:
   case R_HEX_IE_GOT_LO16:
-    config->hasTlsIe = true;
     return R_GOTPLT;
   case R_HEX_TPREL_11_X:
   case R_HEX_TPREL_16:
@@ -386,6 +385,25 @@ RelType Hexagon::getDynRel(RelType type) const {
   if (type == R_HEX_32)
     return type;
   return R_HEX_NONE;
+}
+
+int64_t Hexagon::getImplicitAddend(const uint8_t *buf, RelType type) const {
+  switch (type) {
+  case R_HEX_NONE:
+  case R_HEX_GLOB_DAT:
+  case R_HEX_JMP_SLOT:
+    return 0;
+  case R_HEX_32:
+  case R_HEX_RELATIVE:
+  case R_HEX_DTPMOD_32:
+  case R_HEX_DTPREL_32:
+  case R_HEX_TPREL_32:
+    return SignExtend64<32>(read32(buf));
+  default:
+    internalLinkerError(getErrorLocation(buf),
+                        "cannot read addend for relocation " + toString(type));
+    return 0;
+  }
 }
 
 TargetInfo *elf::getHexagonTargetInfo() {

@@ -1,4 +1,4 @@
-if (MLIR_ENABLE_CUDA_CONVERSIONS)
+if ("NVPTX" IN_LIST LLVM_TARGETS_TO_BUILD)
   set(NVPTX_LIBS
     NVPTXCodeGen
     NVPTXDesc
@@ -9,6 +9,7 @@ endif()
 if (MLIR_ENABLE_ROCM_CONVERSIONS)
   set(AMDGPU_LIBS
     IRReader
+    IPO
     linker
     MCParser
     AMDGPUAsmParser
@@ -19,36 +20,52 @@ if (MLIR_ENABLE_ROCM_CONVERSIONS)
   )
 endif()
 
-add_mlir_dialect_library(MLIRGPUOps
+add_mlir_dialect_library(MLIRGPUDialect
   IR/GPUDialect.cpp
+  IR/InferIntRangeInterfaceImpls.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/GPU
 
   DEPENDS
   MLIRGPUOpsIncGen
+  MLIRGPUOpsAttributesIncGen
   MLIRGPUOpsEnumsGen
   MLIRGPUOpInterfacesIncGen
+  MLIRGPUCompilationAttrInterfacesIncGen
 
   LINK_LIBS PUBLIC
-  MLIRArithmetic
-  MLIRDLTI
+  MLIRArithDialect
+  MLIRDLTIDialect
+  MLIRControlFlowInterfaces
+  MLIRFunctionInterfaces
+  MLIRInferIntRangeInterface
   MLIRIR
-  MLIRMemRef
+  MLIRMemRefDialect
   MLIRSideEffectInterfaces
   MLIRSupport
-  MLIRLLVMIR
   )
 
 add_mlir_dialect_library(MLIRGPUTransforms
   Transforms/AllReduceLowering.cpp
   Transforms/AsyncRegionRewriter.cpp
+  Transforms/BufferDeallocationOpInterfaceImpl.cpp
+  Transforms/DecomposeMemrefs.cpp
+  Transforms/EliminateBarriers.cpp
+  Transforms/GlobalIdRewriter.cpp
   Transforms/KernelOutlining.cpp
   Transforms/MemoryPromotion.cpp
+  Transforms/ModuleToBinary.cpp
+  Transforms/NVVMAttachTarget.cpp
   Transforms/ParallelLoopMapper.cpp
+  Transforms/ROCDLAttachTarget.cpp
   Transforms/SerializeToBlob.cpp
   Transforms/SerializeToCubin.cpp
   Transforms/SerializeToHsaco.cpp
+  Transforms/ShuffleRewriter.cpp
+  Transforms/SPIRVAttachTarget.cpp
+  Transforms/SubgroupReduceLowering.cpp
+  Transforms/Utils.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/GPU
@@ -56,29 +73,42 @@ add_mlir_dialect_library(MLIRGPUTransforms
   LINK_COMPONENTS
   Core
   MC
+  Target
   ${NVPTX_LIBS}
   ${AMDGPU_LIBS}
 
   DEPENDS
   MLIRGPUPassIncGen
-  MLIRParallelLoopMapperAttrGen
   MLIRParallelLoopMapperEnumsGen
 
   LINK_LIBS PUBLIC
-  MLIRArithmetic
-  MLIRAsync
+  MLIRAffineUtils
+  MLIRArithDialect
+  MLIRAsyncDialect
+  MLIRBufferizationDialect
+  MLIRBuiltinToLLVMIRTranslation
   MLIRDataLayoutInterfaces
-  MLIRGPUOps
+  MLIRExecutionEngineUtils
+  MLIRGPUDialect
   MLIRIR
-  MLIRLLVMIR
+  MLIRIndexDialect
+  MLIRLLVMDialect
+  MLIRGPUToLLVMIRTranslation
   MLIRLLVMToLLVMIRTranslation
-  MLIRMemRef
+  MLIRMemRefDialect
+  MLIRNVVMTarget
   MLIRPass
-  MLIRSCF
-  MLIRStandard
+  MLIRSCFDialect
+  MLIRSideEffectInterfaces
+  MLIRSPIRVTarget
   MLIRSupport
+  MLIRROCDLTarget
   MLIRTransformUtils
+  MLIRVectorDialect
   )
+
+add_subdirectory(TransformOps)
+add_subdirectory(Pipelines)
 
 if(MLIR_ENABLE_CUDA_RUNNER)
   if(NOT MLIR_ENABLE_CUDA_CONVERSIONS)
@@ -109,25 +139,23 @@ if(MLIR_ENABLE_CUDA_RUNNER)
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   )
 
-  find_library(CUDA_DRIVER_LIBRARY cuda)
+  # Add link path for the cuda driver library.
+  find_library(CUDA_DRIVER_LIBRARY cuda HINTS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES} REQUIRED)
+  get_filename_component(CUDA_DRIVER_LIBRARY_PATH "${CUDA_DRIVER_LIBRARY}" DIRECTORY)
+  target_link_directories(MLIRGPUTransforms PRIVATE ${CUDA_DRIVER_LIBRARY_PATH})
 
   target_link_libraries(MLIRGPUTransforms
     PRIVATE
     MLIRNVVMToLLVMIRTranslation
-    ${CUDA_DRIVER_LIBRARY}
+    cuda
   )
 
 endif()
 
-if(MLIR_ENABLE_ROCM_RUNNER)
+if(MLIR_ENABLE_ROCM_CONVERSIONS)
   if (NOT ("AMDGPU" IN_LIST LLVM_TARGETS_TO_BUILD))
     message(SEND_ERROR
       "Building mlir with ROCm support requires the AMDGPU backend")
-  endif()
-
-  # Ensure lld is enabled.
-  if (NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
-    message(SEND_ERROR "lld is not enabled. Please revise LLVM_ENABLE_PROJECTS")
   endif()
 
   set(DEFAULT_ROCM_PATH "/opt/rocm" CACHE PATH "Fallback path to search for ROCm installs")
@@ -137,21 +165,8 @@ if(MLIR_ENABLE_ROCM_RUNNER)
     MLIR_GPU_TO_HSACO_PASS_ENABLE=1
   )
 
-  target_include_directories(obj.MLIRGPUTransforms
+  target_link_libraries(MLIRGPUTransforms
     PRIVATE
-    ${MLIR_SOURCE_DIR}/../lld/include
-  )
-
-  target_link_libraries(MLIRGPUOps
-    PRIVATE
-    lldELF
-    MLIRExecutionEngine
     MLIRROCDLToLLVMIRTranslation
   )
-
-  # Link lldELF also to libmlir.so. Create an alias that starts with LLVM
-  # because LINK_COMPONENTS elements are implicitly prefixed with LLVM.
-  add_library(LLVMAliasTolldELF ALIAS lldELF)
-  set_property(GLOBAL APPEND PROPERTY MLIR_LLVM_LINK_COMPONENTS AliasTolldELF)
-
 endif()

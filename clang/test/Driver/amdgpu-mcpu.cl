@@ -92,6 +92,9 @@
 // RUN: %clang -### -target amdgcn -mcpu=gfx909 %s 2>&1 | FileCheck --check-prefix=GFX909 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx90a %s 2>&1 | FileCheck --check-prefix=GFX90A %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx90c %s 2>&1 | FileCheck --check-prefix=GFX90C %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx940 %s 2>&1 | FileCheck --check-prefix=GFX940 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx941 %s 2>&1 | FileCheck --check-prefix=GFX941 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx942 %s 2>&1 | FileCheck --check-prefix=GFX942 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx1010 %s 2>&1 | FileCheck --check-prefix=GFX1010 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx1011 %s 2>&1 | FileCheck --check-prefix=GFX1011 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx1012 %s 2>&1 | FileCheck --check-prefix=GFX1012 %s
@@ -102,6 +105,15 @@
 // RUN: %clang -### -target amdgcn -mcpu=gfx1033 %s 2>&1 | FileCheck --check-prefix=GFX1033 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx1034 %s 2>&1 | FileCheck --check-prefix=GFX1034 %s
 // RUN: %clang -### -target amdgcn -mcpu=gfx1035 %s 2>&1 | FileCheck --check-prefix=GFX1035 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1036 %s 2>&1 | FileCheck --check-prefix=GFX1036 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1100 %s 2>&1 | FileCheck --check-prefix=GFX1100 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1101 %s 2>&1 | FileCheck --check-prefix=GFX1101 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1102 %s 2>&1 | FileCheck --check-prefix=GFX1102 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1103 %s 2>&1 | FileCheck --check-prefix=GFX1103 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1150 %s 2>&1 | FileCheck --check-prefix=GFX1150 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1151 %s 2>&1 | FileCheck --check-prefix=GFX1151 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1200 %s 2>&1 | FileCheck --check-prefix=GFX1200 %s
+// RUN: %clang -### -target amdgcn -mcpu=gfx1201 %s 2>&1 | FileCheck --check-prefix=GFX1201 %s
 
 // GCNDEFAULT-NOT: -target-cpu
 // GFX600:    "-target-cpu" "gfx600"
@@ -126,6 +138,9 @@
 // GFX909:    "-target-cpu" "gfx909"
 // GFX90A:    "-target-cpu" "gfx90a"
 // GFX90C:    "-target-cpu" "gfx90c"
+// GFX940:    "-target-cpu" "gfx940"
+// GFX941:    "-target-cpu" "gfx941"
+// GFX942:    "-target-cpu" "gfx942"
 // GFX1010:   "-target-cpu" "gfx1010"
 // GFX1011:   "-target-cpu" "gfx1011"
 // GFX1012:   "-target-cpu" "gfx1012"
@@ -136,3 +151,12 @@
 // GFX1033:   "-target-cpu" "gfx1033"
 // GFX1034:   "-target-cpu" "gfx1034"
 // GFX1035:   "-target-cpu" "gfx1035"
+// GFX1036:   "-target-cpu" "gfx1036"
+// GFX1100:   "-target-cpu" "gfx1100"
+// GFX1101:   "-target-cpu" "gfx1101"
+// GFX1102:   "-target-cpu" "gfx1102"
+// GFX1103:   "-target-cpu" "gfx1103"
+// GFX1150:   "-target-cpu" "gfx1150"
+// GFX1151:   "-target-cpu" "gfx1151"
+// GFX1200:   "-target-cpu" "gfx1200"
+// GFX1201:   "-target-cpu" "gfx1201"

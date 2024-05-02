@@ -39,13 +39,21 @@ Getting Started with libc++
    BuildingLibcxx
    TestingLibcxx
    Contributing
+   ImplementationDefinedBehavior
+   Modules
+   Hardening
+   ReleaseProcedure
    Status/Cxx14
    Status/Cxx17
    Status/Cxx20
-   Status/Cxx2b
+   Status/Cxx23
+   Status/Cxx2c
    Status/Format
+   Status/Parallelism
+   Status/PSTL
    Status/Ranges
    Status/Spaceship
+   Status/Zip
 
 
 .. toctree::
@@ -92,6 +100,10 @@ reasons, but some of the major ones are:
   Further, both projects are apparently abandoned: STLport 5.2.1 was
   released in Oct'08, and STDCXX 4.2.1 in May'08.
 
+..
+  LLVM RELEASE bump version
+
+.. _SupportedPlatforms:
 
 Platform and Compiler Support
 =============================
@@ -103,23 +115,25 @@ velocity, libc++ drops support for older compilers as newer ones are released.
 ============ =============== ========================== =====================
 Compiler     Versions        Restrictions               Support policy
 ============ =============== ========================== =====================
-Clang        12, 13                                     latest two stable releases per `LLVM's release page <https://releases.llvm.org>`_
-AppleClang   12                                         latest stable release per `Xcode's release page <https://developer.apple.com/documentation/xcode-release-notes>`_
+Clang        16, 17, 18-git                             latest two stable releases per `LLVM's release page <https://releases.llvm.org>`_ and the development version
+AppleClang   15                                         latest stable release per `Xcode's release page <https://developer.apple.com/documentation/xcode-release-notes>`_
 Open XL      17.1 (AIX)                                 latest stable release per `Open XL's documentation page <https://www.ibm.com/docs/en/openxl-c-and-cpp-aix>`_
-GCC          11              In C++11 or later only     latest stable release per `GCC's release page <https://gcc.gnu.org/releases.html>`_
+GCC          13              In C++11 or later only     latest stable release per `GCC's release page <https://gcc.gnu.org/releases.html>`_
 ============ =============== ========================== =====================
 
 Libc++ also supports common platforms and architectures:
 
-=============== ========================= ============================
-Target platform Target architecture       Notes
-=============== ========================= ============================
-macOS 10.9+     i386, x86_64, arm64       Building the shared library itself requires targetting macOS 10.11+
-FreeBSD 10+     i386, x86_64, arm
-Linux           i386, x86_64, arm, arm64
-Windows         x86_64                    Both MSVC and MinGW style environments
-AIX             powerpc, powerpc64
-=============== ========================= ============================
+===================== ========================= ============================
+Target platform       Target architecture       Notes
+===================== ========================= ============================
+macOS 10.13+          i386, x86_64, arm64
+FreeBSD 12+           i386, x86_64, arm
+Linux                 i386, x86_64, arm, arm64  Only glibc-2.24 and later and no other libc is officially supported
+Android 5.0+          i386, x86_64, arm, arm64
+Windows               i386, x86_64              Both MSVC and MinGW style environments, ABI in MSVC environments is :doc:`unstable <DesignDocs/ABIVersioning>`
+AIX 7.2TL5+           powerpc, powerpc64
+Embedded (picolibc)   arm
+===================== ========================= ============================
 
 Generally speaking, libc++ should work on any platform that provides a fairly complete
 C Standard Library. It is also possible to turn off parts of the library for use on
@@ -142,7 +156,8 @@ C++ Dialect Support
 * :ref:`C++14 - Complete <cxx14-status>`
 * :ref:`C++17 - In Progress <cxx17-status>`
 * :ref:`C++20 - In Progress <cxx20-status>`
-* :ref:`C++2b - In Progress <cxx2b-status>`
+* :ref:`C++23 - In Progress <cxx23-status>`
+* :ref:`C++2c - In Progress <cxx2c-status>`
 * :ref:`C++ Feature Test Macro Status <feature-status>`
 
 
@@ -157,7 +172,7 @@ This list contains known issues with libc++
 
 A full list of currently open libc++ bugs can be `found here`__.
 
-.. __:  https://bugs.llvm.org/buglist.cgi?component=All%20Bugs&product=libc%2B%2B&query_format=advanced&resolution=---&order=changeddate%20DESC%2Cassigned_to%20DESC%2Cbug_status%2Cpriority%2Cbug_id&list_id=74184
+.. __:  https://github.com/llvm/llvm-project/labels/libc%2B%2B
 
 
 Design Documents
@@ -169,23 +184,26 @@ Design Documents
    DesignDocs/ABIVersioning
    DesignDocs/AtomicDesign
    DesignDocs/CapturingConfigInfo
-   DesignDocs/DebugMode
    DesignDocs/ExperimentalFeatures
    DesignDocs/ExtendedCXX03Support
    DesignDocs/FeatureTestMacros
    DesignDocs/FileTimeType
+   DesignDocs/HeaderRemovalPolicy
    DesignDocs/NoexceptPolicy
+   DesignDocs/PSTLIntegration
    DesignDocs/ThreadingSupportAPI
    DesignDocs/UniquePtrTrivialAbi
    DesignDocs/UnspecifiedBehaviorRandomization
    DesignDocs/VisibilityMacros
+   DesignDocs/TimeZone
 
 
 Build Bots and Test Coverage
 ============================
 
+* `Github Actions CI pipeline <https://github.com/llvm/llvm-project/actions/workflows/libcxx-build-and-test.yaml>`_
 * `Buildkite CI pipeline <https://buildkite.com/llvm-project/libcxx-ci>`_
-* `LLVM Buildbot Builders <http://lab.llvm.org:8011>`_
+* `LLVM Buildbot Builders <https://lab.llvm.org/buildbot>`_
 * :ref:`Adding New CI Jobs <AddingNewCIJobs>`
 
 
@@ -198,26 +216,25 @@ and `Getting started with LLVM <https://llvm.org/docs/GettingStarted.html>`__.
 **Bug Reports**
 
 If you think you've found a bug in libc++, please report it using
-the `LLVM Bugzilla`_. If you're not sure, you
-can post a message to the `libcxx-dev mailing list`_ or on IRC.
+the `LLVM bug tracker`_. If you're not sure, you
+can ask for support on the `libcxx forum`_ or on IRC.
 
 **Patches**
 
 If you want to contribute a patch to libc++, the best place for that is
 `Phabricator <https://llvm.org/docs/Phabricator.html>`_. Please add `libcxx-commits` as a subscriber.
-Also make sure you are subscribed to the `libcxx-commits mailing list <http://lists.llvm.org/mailman/listinfo/libcxx-commits>`_.
+Also make sure you are subscribed to the `libcxx-commits mailing list`_.
 
 **Discussion and Questions**
 
-Send discussions and questions to the
-`libcxx-dev mailing list <http://lists.llvm.org/mailman/listinfo/libcxx-dev>`_.
+Send discussions and questions to the `libcxx forum`_.
 
 
 Quick Links
 ===========
 * `LLVM Homepage <https://llvm.org/>`_
 * `libc++abi Homepage <http://libcxxabi.llvm.org/>`_
-* `LLVM bug tracker <https://github.com/llvm/llvm-project/labels/libc++/>`_
-* `libcxx-commits Mailing List`_
-* `libcxx-dev Mailing List`_
+* `LLVM Bug Tracker <https://github.com/llvm/llvm-project/labels/libc++/>`_
+* `libcxx-commits Mailing List <http://lists.llvm.org/mailman/listinfo/libcxx-commits>`_
+* `libcxx Forum <https://discourse.llvm.org/c/runtimes/libcxx/>`_
 * `Browse libc++ Sources <https://github.com/llvm/llvm-project/tree/main/libcxx/>`_

@@ -50,6 +50,18 @@ std::string NativeTrait::getFullyQualifiedTraitName() const {
                               : (cppNamespace + "::" + trait).str();
 }
 
+bool NativeTrait::isStructuralOpTrait() const {
+  return def->isSubClassOf("StructuralOpTrait");
+}
+
+StringRef NativeTrait::getExtraConcreteClassDeclaration() const {
+  return def->getValueAsString("extraConcreteClassDeclaration");
+}
+
+StringRef NativeTrait::getExtraConcreteClassDefinition() const {
+  return def->getValueAsString("extraConcreteClassDefinition");
+}
+
 //===----------------------------------------------------------------------===//
 // InternalTrait
 //===----------------------------------------------------------------------===//

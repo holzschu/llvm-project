@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Analysis/CallGraph.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/Pass/Pass.h"
 
 using namespace mlir;
@@ -19,13 +20,15 @@ using namespace mlir;
 namespace {
 struct TestCallGraphPass
     : public PassWrapper<TestCallGraphPass, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(TestCallGraphPass)
+
   StringRef getArgument() const final { return "test-print-callgraph"; }
   StringRef getDescription() const final {
     return "Print the contents of a constructed callgraph.";
   }
   void runOnOperation() override {
-    llvm::errs() << "Testing : " << getOperation()->getAttr("test.name")
-                 << "\n";
+    llvm::errs() << "Testing : "
+                 << getOperation()->getDiscardableAttr("test.name") << "\n";
     getAnalysis<CallGraph>().print(llvm::errs());
   }
 };

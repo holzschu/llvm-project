@@ -150,7 +150,7 @@ define <4 x i32> @insert_v4i32_01x3(<4 x i32> %a) {
 define <8 x i32> @insert_v8i32_x12345x7(<8 x i32> %a) {
 ; SSE2-LABEL: insert_v8i32_x12345x7:
 ; SSE2:       # %bb.0:
-; SSE2-NEXT:    movss {{.*#+}} xmm2 = mem[0],zero,zero,zero
+; SSE2-NEXT:    movss {{.*#+}} xmm2 = [NaN,0.0E+0,0.0E+0,0.0E+0]
 ; SSE2-NEXT:    movss {{.*#+}} xmm0 = xmm2[0],xmm0[1,2,3]
 ; SSE2-NEXT:    movl $-1, %eax
 ; SSE2-NEXT:    movd %eax, %xmm2
@@ -160,7 +160,7 @@ define <8 x i32> @insert_v8i32_x12345x7(<8 x i32> %a) {
 ;
 ; SSE3-LABEL: insert_v8i32_x12345x7:
 ; SSE3:       # %bb.0:
-; SSE3-NEXT:    movss {{.*#+}} xmm2 = mem[0],zero,zero,zero
+; SSE3-NEXT:    movss {{.*#+}} xmm2 = [NaN,0.0E+0,0.0E+0,0.0E+0]
 ; SSE3-NEXT:    movss {{.*#+}} xmm0 = xmm2[0],xmm0[1,2,3]
 ; SSE3-NEXT:    movl $-1, %eax
 ; SSE3-NEXT:    movd %eax, %xmm2
@@ -170,7 +170,7 @@ define <8 x i32> @insert_v8i32_x12345x7(<8 x i32> %a) {
 ;
 ; SSSE3-LABEL: insert_v8i32_x12345x7:
 ; SSSE3:       # %bb.0:
-; SSSE3-NEXT:    movss {{.*#+}} xmm2 = mem[0],zero,zero,zero
+; SSSE3-NEXT:    movss {{.*#+}} xmm2 = [NaN,0.0E+0,0.0E+0,0.0E+0]
 ; SSSE3-NEXT:    movss {{.*#+}} xmm0 = xmm2[0],xmm0[1,2,3]
 ; SSSE3-NEXT:    movl $-1, %eax
 ; SSSE3-NEXT:    movd %eax, %xmm2
@@ -280,7 +280,8 @@ define <16 x i16> @insert_v16i16_x12345x789ABCDEx(<16 x i16> %a) {
 ;
 ; AVX1-LABEL: insert_v16i16_x12345x789ABCDEx:
 ; AVX1:       # %bb.0:
-; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
+; AVX1-NEXT:    vmovaps {{.*#+}} xmm1 = [65535,0,0,0]
+; AVX1-NEXT:    vorps %ymm1, %ymm0, %ymm0
 ; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
 ; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
 ; AVX1-NEXT:    retq
@@ -384,13 +385,11 @@ define <32 x i8> @insert_v32i8_x123456789ABCDEzGHIJKLMNOPQRSTxx(<32 x i8> %a) {
 ;
 ; AVX1-LABEL: insert_v32i8_x123456789ABCDEzGHIJKLMNOPQRSTxx:
 ; AVX1:       # %bb.0:
-; AVX1-NEXT:    movl $255, %eax
-; AVX1-NEXT:    vpinsrb $0, %eax, %xmm0, %xmm1
-; AVX1-NEXT:    vpinsrb $15, %eax, %xmm1, %xmm1
-; AVX1-NEXT:    vextractf128 $1, %ymm0, %xmm0
-; AVX1-NEXT:    vpinsrb $14, %eax, %xmm0, %xmm0
-; AVX1-NEXT:    vpinsrb $15, %eax, %xmm0, %xmm0
-; AVX1-NEXT:    vinsertf128 $1, %xmm0, %ymm1, %ymm0
+; AVX1-NEXT:    vmovaps {{.*#+}} xmm1 = [255,0,0,0]
+; AVX1-NEXT:    vorps %ymm1, %ymm0, %ymm0
+; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
+; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
+; AVX1-NEXT:    vorps {{\.?LCPI[0-9]+_[0-9]+}}(%rip), %ymm0, %ymm0
 ; AVX1-NEXT:    retq
 ;
 ; AVX2-LABEL: insert_v32i8_x123456789ABCDEzGHIJKLMNOPQRSTxx:

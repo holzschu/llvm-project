@@ -2,18 +2,18 @@
 //     This ensures that DW_OP_deref is inserted when necessary, such as when
 //     NRVO of a string object occurs in C++.
 //
-// REQUIRES: !asan, lldb
+// REQUIRES: !asan, compiler-rt, lldb
 // UNSUPPORTED: system-windows
 //           Zorg configures the ASAN stage2 bots to not build the asan
 //           compiler-rt. Only run this test on non-asanified configurations.
 //
+// RUN: %clang -std=gnu++11 -O0 -glldb -fno-exceptions %s -o %t
 // RUN: %dexter --fail-lt 1.0 -w \
-// RUN:     --builder 'clang' --debugger 'lldb' \
-// RUN:     --cflags "-O0 -glldb -fno-exceptions" -- %s
+// RUN:     --binary %t --debugger 'lldb' -- %s
 //
+// RUN: %clang -std=gnu++11 -O1 -glldb -fno-exceptions %s -o %t
 // RUN: %dexter --fail-lt 1.0 -w \
-// RUN:     --builder 'clang' --debugger 'lldb' \
-// RUN:     --cflags "-O1 -glldb -fno-exceptions" -- %s
+// RUN:     --binary %t --debugger 'lldb' -- %s
 //
 // PR34513
 volatile int sideeffect = 0;

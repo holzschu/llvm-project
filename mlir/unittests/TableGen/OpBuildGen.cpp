@@ -77,8 +77,8 @@ protected:
     verifyOp(std::move(op), {i32Ty}, {*cstI32, *cstI32}, noAttrs);
 
     // Test collective params build method.
-    op =
-        builder.create<OpTy>(loc, TypeRange{i32Ty}, ValueRange{*cstI32, *cstI32});
+    op = builder.create<OpTy>(loc, TypeRange{i32Ty},
+                              ValueRange{*cstI32, *cstI32});
     verifyOp(std::move(op), {i32Ty}, {*cstI32, *cstI32}, noAttrs);
 
     // Test build method with no result types, default value of attributes.
@@ -131,7 +131,7 @@ TEST_F(OpBuildGenTest, BasicBuildMethods) {
 /// single variadic arg x
 /// {single variadic result, non-variadic result, multiple variadic results}
 ///
-/// Specifically to test that that ODS framework does not generate ambiguous
+/// Specifically to test that ODS framework does not generate ambiguous
 /// build() methods that fail to compile.
 
 /// Test build methods for an Op with a single varadic arg and a single
@@ -204,7 +204,7 @@ TEST_F(OpBuildGenTest,
   verifyOp(op, {i32Ty, f32Ty}, {*cstI32}, attrs);
 }
 
-// The next 2 tests test supression of ambiguous build methods for ops that
+// The next test checks supression of ambiguous build methods for ops that
 // have a single variadic input, and single non-variadic result, and which
 // support the SameOperandsAndResultType trait and and optionally the
 // InferOpTypeInterface interface. For such ops, the ODS framework generates
@@ -213,14 +213,8 @@ TEST_F(OpBuildGenTest, BuildMethodsSameOperandsAndResultTypeSuppression) {
   testSingleVariadicInputInferredType<test::TableGenBuildOp4>();
 }
 
-TEST_F(
-    OpBuildGenTest,
-    BuildMethodsSameOperandsAndResultTypeAndInferOpTypeInterfaceSuppression) {
-  testSingleVariadicInputInferredType<test::TableGenBuildOp5>();
-}
-
 TEST_F(OpBuildGenTest, BuildMethodsRegionsAndInferredType) {
-  auto op = builder.create<test::TableGenBuildOp6>(
+  auto op = builder.create<test::TableGenBuildOp5>(
       loc, ValueRange{*cstI32, *cstF32}, /*attributes=*/noAttrs);
   ASSERT_EQ(op->getNumRegions(), 1u);
   verifyOp(op, {i32Ty}, {*cstI32, *cstF32}, noAttrs);

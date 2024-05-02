@@ -38,8 +38,8 @@ def ArmNeon_Dialect : Dialect {
 // intrinsic.
 class ArmNeon_IntrOp<string mnemonic, list<int> overloadedResults,
                      list<int> overloadedOperands, int numResults,
-                     list<OpTrait> traits = [], bit requiresAccessGroup = 0,
-                     bit requiresAliasScope = 0>
+                     list<Trait> traits = [], bit requiresAccessGroup = 0,
+                     bit requiresAliasAnalysis = 0>
     : LLVM_IntrOpBase</*dialect=*/ArmNeon_Dialect,
                       /*opName=*/"intr." # mnemonic,
                       /*enumName=*/"aarch64_neon_" # !subst(".", "_", mnemonic),
@@ -48,27 +48,27 @@ class ArmNeon_IntrOp<string mnemonic, list<int> overloadedResults,
                       /*traits=*/traits,
                       /*numResults=*/numResults,
                       /*requiresAccessGroup=*/requiresAccessGroup,
-                      /*requiresAliasScope=*/requiresAliasScope>;
+                      /*requiresAliasAnalysis=*/requiresAliasAnalysis>;
 
 // ArmNeon dialect op that corresponds to an LLVM IR intrinsic with one
 // overloaded result.
 class ArmNeon_OverloadedOneResultIntrOp<string mnemonic,
-                                        list<OpTrait> traits = []>
+                                        list<Trait> traits = []>
   : ArmNeon_IntrOp<mnemonic, [0], [], 1, traits>;
 
 // ArmNeon dialect op that corresponds to an LLVM IR intrinsic with one
 // overloaded result and overloaded operands list.
 class ArmNeon_OverloadedOperandsWithOneResultIntrOp<string mnemonic,
                                                     list<int> overloadedOperands,
-                                                    list<OpTrait> traits = []>
+                                                    list<Trait> traits = []>
   : ArmNeon_IntrOp<mnemonic, [0], overloadedOperands, 1, traits>;
 
 def SMullOp : ArmNeon_OverloadedOneResultIntrOp<"smull", [
-       NoSideEffect,
+       Pure,
        AllTypesMatch<["a", "b"]>,
        TypesMatchWith<
          "res has same vector shape and element bitwidth scaled by 2 as a",
-         "a", "res", "$_self.cast<VectorType>().scaleElementBitwidth(2)">
+         "a", "res", "::llvm::cast<VectorType>($_self).scaleElementBitwidth(2)">
     ]> {
   let summary = "smull roundscale op";
   let description = [{
@@ -93,12 +93,12 @@ def SMullOp : ArmNeon_OverloadedOneResultIntrOp<"smull", [
 }
 
 def SdotOp : ArmNeon_OverloadedOperandsWithOneResultIntrOp<"sdot",[1], [
-      NoSideEffect,
+      Pure,
       AllTypesMatch<["b", "c"]>,
       AllTypesMatch<["a", "res"]>,
       TypesMatchWith<"res has the same number of elements as operand b",
                      "b", "res",
-                     "VectorType::get({$_self.cast<VectorType>().getShape()[0] / 4},"
+                     "VectorType::get({::llvm::cast<VectorType>($_self).getShape()[0] / 4},"
                      "IntegerType::get($_self.getContext(), 32))">]> {
   let summary = "sdot op";
   let description = [{
@@ -120,30 +120,30 @@ def SdotOp : ArmNeon_OverloadedOperandsWithOneResultIntrOp<"sdot",[1], [
     "$a `,` $b `,` $c attr-dict `:` type($b) `,` type($c) `to` type($res)";
   }
 
-class ArmNeon_2dOp<string mnemonic, list<OpTrait> traits = []>
+class ArmNeon_2dOp<string mnemonic, list<Trait> traits = []>
     : Op</*dialect=*/ArmNeon_Dialect,
          /*opName=*/"2d." # mnemonic,
          /*traits=*/traits>;
 
 def Sdot2dOp : ArmNeon_2dOp<"sdot", [
-      NoSideEffect,
+      Pure,
       AllTypesMatch<["b", "c"]>,
       AllTypesMatch<["a", "res"]>,
       PredOpTrait<
         "operand `a` should be 1-dimensional",
-        CPred<"a().getType().cast<VectorType>().getShape().size() == 1">
+        CPred<"::llvm::cast<VectorType>(getA().getType()).getShape().size() == 1">
       >,
       PredOpTrait<
         "operand `b` should be 2-dimensional",
-        CPred<"b().getType().cast<VectorType>().getShape().size() == 2">
+        CPred<"::llvm::cast<VectorType>(getB().getType()).getShape().size() == 2">
       >,
       PredOpTrait<
         "operand `b` should have 4 columns",
-        CPred<"b().getType().cast<VectorType>().getShape()[1] == 4">
+        CPred<"::llvm::cast<VectorType>(getB().getType()).getShape()[1] == 4">
       >,
       PredOpTrait<
         "operand `b` should have as many rows as the size of operand `a`",
-        CPred<"b().getType().cast<VectorType>().getShape()[0] == a().getType().cast<VectorType>().getShape()[0]">
+        CPred<"::llvm::cast<VectorType>(getB().getType()).getShape()[0] == ::llvm::cast<VectorType>(getA().getType()).getShape()[0]">
       >,
       ]
   > {

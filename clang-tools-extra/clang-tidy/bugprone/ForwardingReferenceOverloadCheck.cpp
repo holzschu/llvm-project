@@ -13,9 +13,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace bugprone {
+namespace clang::tidy::bugprone {
 
 namespace {
 // Check if the given type is related to std::enable_if.
@@ -44,11 +42,12 @@ AST_MATCHER(QualType, isEnableIf) {
   if (CheckTemplate(BaseType->getAs<TemplateSpecializationType>()))
     return true; // Case: enable_if_t< >.
   if (const auto *Elaborated = BaseType->getAs<ElaboratedType>()) {
-    if (const auto *Qualifier = Elaborated->getQualifier()->getAsType()) {
-      if (CheckTemplate(Qualifier->getAs<TemplateSpecializationType>())) {
-        return true; // Case: enable_if< >::type.
+    if (const auto *Q = Elaborated->getQualifier())
+      if (const auto *Qualifier = Q->getAsType()) {
+        if (CheckTemplate(Qualifier->getAs<TemplateSpecializationType>())) {
+          return true; // Case: enable_if< >::type.
+        }
       }
-    }
   }
   return false;
 }
@@ -56,6 +55,9 @@ AST_MATCHER_P(TemplateTypeParmDecl, hasDefaultArgument,
               clang::ast_matchers::internal::Matcher<QualType>, TypeMatcher) {
   return Node.hasDefaultArgument() &&
          TypeMatcher.matches(Node.getDefaultArgument(), Finder, Builder);
+}
+AST_MATCHER(TemplateDecl, hasAssociatedConstraints) {
+  return Node.hasAssociatedConstraints();
 }
 } // namespace
 
@@ -75,6 +77,9 @@ void ForwardingReferenceOverloadCheck::registerMatchers(MatchFinder *Finder) {
               // No warning: enable_if as constructor parameter.
               parmVarDecl(hasType(isEnableIf())))),
           unless(hasParent(functionTemplateDecl(anyOf(
+              // No warning: has associated constraints (like requires
+              // expression).
+              hasAssociatedConstraints(),
               // No warning: enable_if as type parameter.
               has(templateTypeParmDecl(hasDefaultArgument(isEnableIf()))),
               // No warning: enable_if as non-type template parameter.
@@ -112,9 +117,8 @@ void ForwardingReferenceOverloadCheck::check(
 
   // Every parameter after the first must have a default value.
   const auto *Ctor = Result.Nodes.getNodeAs<CXXConstructorDecl>("ctor");
-  for (auto *Iter = Ctor->param_begin() + 1; Iter != Ctor->param_end();
-       ++Iter) {
-    if (!(*Iter)->hasDefaultArg())
+  for (const auto *Param : llvm::drop_begin(Ctor->parameters())) {
+    if (!Param->hasDefaultArg())
       return;
   }
   bool EnabledCopy = false, DisabledCopy = false, EnabledMove = false,
@@ -145,6 +149,4 @@ void ForwardingReferenceOverloadCheck::check(
   }
 }
 
-} // namespace bugprone
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::bugprone

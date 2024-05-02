@@ -24,7 +24,7 @@ target triple = "thumbv7m-arm-none-eabi"
 ;   return 1 + a * (a + b) / (c + d);
 ; }
 
-@_ZTIi = external dso_local constant i8*
+@_ZTIi = external dso_local constant ptr
 
 define hidden i32 @_Z1hii(i32 %a, i32 %b) local_unnamed_addr #0 {
 entry:
@@ -32,10 +32,9 @@ entry:
   br i1 %cmp, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry
-  %exception = tail call i8* @__cxa_allocate_exception(i32 4) #1
-  %0 = bitcast i8* %exception to i32*
-  store i32 1, i32* %0, align 8
-  tail call void @__cxa_throw(i8* %exception, i8* bitcast (i8** @_ZTIi to i8*), i8* null) #2
+  %exception = tail call ptr @__cxa_allocate_exception(i32 4) #1
+  store i32 1, ptr %exception, align 8
+  tail call void @__cxa_throw(ptr %exception, ptr @_ZTIi, ptr null) #2
   unreachable
 
 if.end:                                           ; preds = %entry
@@ -44,8 +43,6 @@ if.end:                                           ; preds = %entry
 }
 
 ; CHECK-LABEL: _Z1hii:
-; ...
-; CHECK:    bxgt    lr
 ; ...
 ; CHECK:    pac    r12, lr, sp
 ; CHECK-NEXT:    .save    {r7, lr}
@@ -62,12 +59,12 @@ if.end:                                           ; preds = %entry
 ; CHECK-NEXT:    .cfi_def_cfa_offset 16
 ; ...
 ; CHECK-NOT: pac
-; CHECK-NOT: aut
+; CHECK: aut
 ; CHECK:     .cfi_endproc
 
-declare dso_local i8* @__cxa_allocate_exception(i32) local_unnamed_addr
+declare dso_local ptr @__cxa_allocate_exception(i32) local_unnamed_addr
 
-declare dso_local void @__cxa_throw(i8*, i8*, i8*) local_unnamed_addr
+declare dso_local void @__cxa_throw(ptr, ptr, ptr) local_unnamed_addr
 
 define hidden i32 @_Z1fiiii(i32 %a, i32 %b, i32 %c, i32 %d) local_unnamed_addr #0 {
 entry:
@@ -90,8 +87,6 @@ return:                                           ; preds = %entry, %if.end
 
 ; CHECK-LABEL: _Z1fiiii:
 ; ...
-; CHECK:    bmi    .L[[B:[a-zA-Z0-9]*]]
-; ...
 ; CHECK:    pac    r12, lr, sp
 ; CHECK-NEXT:    .save    {r4, r5, r6, lr}
 ; CHECK-NEXT:    push    {r4, r5, r6, lr}
@@ -108,15 +103,13 @@ return:                                           ; preds = %entry, %if.end
 ; CHECK-NEXT:    sub    sp, #4
 ; CHECK-NEXT:    .cfi_def_cfa_offset 24
 ; ...
+; CHECK:    bl	OUTLINED_FUNCTION_0
+; ...
 ; CHECK:    add    sp, #4
 ; CHECK-NEXT:    ldr    r12, [sp], #4
 ; CHECK-NEXT:    pop.w    {r4, r5, r6, lr}
 ; CHECK-NEXT:    aut    r12, lr, sp
 ; CHECK-NEXT:    bx    lr
-; ...
-; CHECK: .L[[B]]
-; ...
-; CHECK:    bx    lr
 
 
 
@@ -141,8 +134,6 @@ return:                                           ; preds = %entry, %if.end
 
 ; CHECK-LABEL: _Z1giiii:
 ; ...
-; CHECK:    bmi    .L[[B:[a-zA-Z0-9]*]]
-; ...
 ; CHECK:    pac    r12, lr, sp
 ; CHECK-NEXT:    .save    {r4, r5, r6, lr}
 ; CHECK-NEXT:    push    {r4, r5, r6, lr}
@@ -159,15 +150,13 @@ return:                                           ; preds = %entry, %if.end
 ; CHECK-NEXT:    sub    sp, #4
 ; CHECK-NEXT:    .cfi_def_cfa_offset 24
 ; ...
+; CHECK:    bl	OUTLINED_FUNCTION_0
+; ...
 ; CHECK:    add    sp, #4
 ; CHECK-NEXT:    ldr    r12, [sp], #4
 ; CHECK-NEXT:    pop.w    {r4, r5, r6, lr}
 ; CHECK-NEXT:    aut    r12, lr, sp
 ; CHECK-NEXT:    bx    lr
-; ...
-; CHECK: .L[[B]]
-; ...
-; CHECK:    bx    lr
 
 
 ; CHEK-LABEL: OUTLINED_FUNCTION_0:
@@ -182,9 +171,9 @@ attributes #2 = { noreturn }
 
 !llvm.module.flags = !{!0, !1, !2}
 
-!0 = !{i32 1, !"branch-target-enforcement", i32 0}
-!1 = !{i32 1, !"sign-return-address", i32 1}
-!2 = !{i32 1, !"sign-return-address-all", i32 0}
+!0 = !{i32 8, !"branch-target-enforcement", i32 0}
+!1 = !{i32 8, !"sign-return-address", i32 1}
+!2 = !{i32 8, !"sign-return-address-all", i32 0}
 
 
 ; UNWIND-LABEL: FunctionAddress: 0x0
@@ -195,25 +184,25 @@ attributes #2 = { noreturn }
 ; UNWIND-NEXT:  0xB0      ; finish
 ; UNWIND-NEXT:  0xB0      ; finish
 
-; UNWIND-LABEL: FunctionAddress: 0x2C
+; UNWIND-LABEL: FunctionAddress: 0x3C
 ; UNWIND:       Opcodes
 ; UNWIND-NEXT:  0x00      ; vsp = vsp + 4
 ; UNWIND-NEXT:  0xB4      ; pop ra_auth_code
 ; UNWIND-NEXT:  0xAA      ; pop {r4, r5, r6, lr}
 
-; UNWIND-LABEL: FunctionAddress: 0x62
+; UNWIND-LABEL: FunctionAddress: 0x72
 ; UNWIND:       Opcodes
 ; UNWIND-NEXT:  0x00      ; vsp = vsp + 4
 ; UNWIND-NEXT:  0xB4      ; pop ra_auth_code
 ; UNWIND-NEXT:  0xAA      ; pop {r4, r5, r6, lr}
 
-; UNWIND-LABEL: FunctionAddress: 0x98
+; UNWIND-LABEL: FunctionAddress: 0xA8
 ; UNWIND:       Opcodes
 ; UNWIND-NEXT:  0xB0      ; finish
 ; UNWIND-NEXT:  0xB0      ; finish
 ; UNWIND-NEXT:  0xB0      ; finish
 
-; UNWIND: 00000099 {{.*}} OUTLINED_FUNCTION_0
-; UWNIND: 0000002d {{.*}} _Z1fiiii
-; UWNIND: 00000063 {{.*}} _Z1giiii
+; UNWIND: 000000a9 {{.*}} OUTLINED_FUNCTION_0
 ; UWNIND: 00000001 {{.*}} _Z1hii
+; UWNIND: 0000003d {{.*}} _Z1fiiii
+; UWNIND: 00000073 {{.*}} _Z1giiii

@@ -25,6 +25,9 @@ static inline void __kmp_node_deref(kmp_info_t *thread, kmp_depnode_t *node) {
   kmp_int32 n = KMP_ATOMIC_DEC(&node->dn.nrefs) - 1;
   KMP_DEBUG_ASSERT(n >= 0);
   if (n == 0) {
+#if USE_ITT_BUILD && USE_ITT_NOTIFY
+    __itt_sync_destroy(node);
+#endif
     KMP_ASSERT(node->dn.nrefs == 0);
 #if USE_FAST_MEMORY
     __kmp_fast_free(thread, node);
@@ -89,6 +92,23 @@ static inline void __kmp_dephash_free(kmp_info_t *thread, kmp_dephash_t *h) {
 extern void __kmpc_give_task(kmp_task_t *ptask, kmp_int32 start);
 
 static inline void __kmp_release_deps(kmp_int32 gtid, kmp_taskdata_t *task) {
+
+#if OMPX_TASKGRAPH
+  if (task->is_taskgraph && !(__kmp_tdg_is_recording(task->tdg->tdg_status))) {
+    kmp_node_info_t *TaskInfo = &(task->tdg->record_map[task->td_task_id]);
+
+    for (int i = 0; i < TaskInfo->nsuccessors; i++) {
+      kmp_int32 successorNumber = TaskInfo->successors[i];
+      kmp_node_info_t *successor = &(task->tdg->record_map[successorNumber]);
+      kmp_int32 npredecessors = KMP_ATOMIC_DEC(&successor->npredecessors_counter) - 1;
+      if (successor->task != nullptr && npredecessors == 0) {
+        __kmp_omp_task(gtid, successor->task, false);
+      }
+    }
+    return;
+  }
+#endif
+
   kmp_info_t *thread = __kmp_threads[gtid];
   kmp_depnode_t *node = task->td_depnode;
 
@@ -117,19 +137,29 @@ static inline void __kmp_release_deps(kmp_int32 gtid, kmp_taskdata_t *task) {
                 gtid, task));
 
   KMP_ACQUIRE_DEPNODE(gtid, node);
-  node->dn.task =
-      NULL; // mark this task as finished, so no new dependencies are generated
+#if OMPX_TASKGRAPH
+  if (!task->is_taskgraph ||
+      (task->is_taskgraph && !__kmp_tdg_is_recording(task->tdg->tdg_status)))
+#endif
+    node->dn.task =
+        NULL; // mark this task as finished, so no new dependencies are generated
   KMP_RELEASE_DEPNODE(gtid, node);
 
   kmp_depnode_list_t *next;
   kmp_taskdata_t *next_taskdata;
   for (kmp_depnode_list_t *p = node->dn.successors; p; p = next) {
     kmp_depnode_t *successor = p->node;
+#if USE_ITT_BUILD && USE_ITT_NOTIFY
+    __itt_sync_releasing(successor);
+#endif
     kmp_int32 npredecessors = KMP_ATOMIC_DEC(&successor->dn.npredecessors) - 1;
 
     // successor task can be NULL for wait_depends or because deps are still
     // being processed
     if (npredecessors == 0) {
+#if USE_ITT_BUILD && USE_ITT_NOTIFY
+      __itt_sync_acquired(successor);
+#endif
       KMP_MB();
       if (successor->dn.task) {
         KA_TRACE(20, ("__kmp_release_deps: T#%d successor %p of %p scheduled "

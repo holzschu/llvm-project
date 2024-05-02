@@ -6,24 +6,27 @@ from lldbsuite.test.decorators import *
 from lldbsuite.test.lldbtest import *
 from lldbsuite.test import lldbutil
 
+
 class TestCase(TestBase):
-
-    mydir = TestBase.compute_mydir(__file__)
-
     def assertComplete(self, typename):
-        """ Asserts that the type with the given name is complete. """
+        """Asserts that the type with the given name is complete."""
         found_type = self.target().FindFirstType(typename)
         self.assertTrue(found_type.IsValid())
         self.assertTrue(found_type.IsTypeComplete())
 
+    def assertIsNotPresent(self, typename):
+        """Asserts that the type with the given name is not found."""
+        found_type = self.target().FindFirstType(typename)
+        self.assertFalse(found_type.IsValid())
+
     def assertCompleteWithVar(self, typename):
-        """ Asserts that the type with the given name is complete. """
+        """Asserts that the type with the given name is complete."""
         found_type = self.target().FindFirstType(typename)
         self.assertTrue(found_type.IsValid())
         self.assertTrue(found_type.IsTypeComplete())
 
     def assertPointeeIncomplete(self, typename, variable):
-        """ Asserts that the pointee type behind the type with the given name
+        """Asserts that the pointee type behind the type with the given name
         is not complete. The variable is used to find the type."""
         found_type = self.target().FindFirstType(typename)
         found_type = self.expect_expr(variable, result_type=typename).GetType()
@@ -34,7 +37,7 @@ class TestCase(TestBase):
 
     @no_debug_info_test
     def test_forward_declarations(self):
-        """ Tests types of declarations that can be forward declared. """
+        """Tests types of declarations that can be forward declared."""
         self.build()
         self.createTestTarget()
 
@@ -43,11 +46,12 @@ class TestCase(TestBase):
         self.assertCompleteWithVar("DefinedClass")
         self.assertCompleteWithVar("DefinedClassTypedef")
         self.assertCompleteWithVar("DefinedTemplateClass<int>")
+        self.assertIsNotPresent("DefinedTemplateClass<long>")
 
         # Record types without a defining declaration are not complete.
         self.assertPointeeIncomplete("FwdClass *", "fwd_class")
         self.assertPointeeIncomplete("FwdClassTypedef *", "fwd_class_typedef")
-        self.assertPointeeIncomplete("FwdTemplateClass<> *", "fwd_template_class")
+        self.assertPointeeIncomplete("FwdTemplateClass<int> *", "fwd_template_class")
 
         # A pointer type is complete even when it points to an incomplete type.
         fwd_class_ptr = self.expect_expr("fwd_class", result_type="FwdClass *")
@@ -55,7 +59,7 @@ class TestCase(TestBase):
 
     @no_debug_info_test
     def test_builtin_types(self):
-        """ Tests builtin types and types derived from them. """
+        """Tests builtin types and types derived from them."""
         self.build()
         self.createTestTarget()
 

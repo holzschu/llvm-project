@@ -11,6 +11,8 @@
 #define FORTRAN_RUNTIME_SUPPORT_H_
 
 #include "flang/Runtime/entry-names.h"
+#include <cstddef>
+#include <cstdint>
 
 namespace Fortran::runtime {
 
@@ -19,7 +21,7 @@ class Descriptor;
 extern "C" {
 
 // Predicate: is the storage described by a Descriptor contiguous in memory?
-bool RTNAME(IsContiguous)(const Descriptor &);
+bool RTDECL(IsContiguous)(const Descriptor &);
 
 } // extern "C"
 } // namespace Fortran::runtime

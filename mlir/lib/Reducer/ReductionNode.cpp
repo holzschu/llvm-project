@@ -15,7 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Reducer/ReductionNode.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/IR/IRMapping.h"
 #include "llvm/ADT/STLExtras.h"
 
 #include <algorithm>
@@ -38,7 +38,7 @@ ReductionNode::ReductionNode(
 LogicalResult ReductionNode::initialize(ModuleOp parentModule,
                                         Region &targetRegion) {
   // Use the mapper help us find the corresponding region after module clone.
-  BlockAndValueMapping mapper;
+  IRMapping mapper;
   module = cast<ModuleOp>(parentModule->clone(mapper));
   // Use the first block of targetRegion to locate the cloned region.
   Block *block = mapper.lookup(&*targetRegion.begin());
@@ -62,8 +62,8 @@ ArrayRef<ReductionNode *> ReductionNode::generateNewVariants() {
   if (variants.empty() && getRanges().size() > 1) {
     for (const Range &range : getRanges()) {
       std::vector<Range> subRanges = getRanges();
-      llvm::erase_value(subRanges, range);
-      variants.push_back(createNewNode(std::move(subRanges)));
+      llvm::erase(subRanges, range);
+      variants.push_back(createNewNode(subRanges));
     }
 
     return getVariants().drop_front(oldNumVariant);
@@ -91,7 +91,7 @@ ArrayRef<ReductionNode *> ReductionNode::generateNewVariants() {
   *subRangesIter = std::make_pair(maxRange.first, half);
   variants.push_back(createNewNode(subRanges));
   *subRangesIter = std::make_pair(half, maxRange.second);
-  variants.push_back(createNewNode(std::move(subRanges)));
+  variants.push_back(createNewNode(subRanges));
 
   auto it = ranges.insert(maxElement, std::make_pair(half, maxRange.second));
   it = ranges.insert(it, std::make_pair(maxRange.first, half));

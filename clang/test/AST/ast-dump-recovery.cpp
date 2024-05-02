@@ -121,6 +121,16 @@ void test(int x) {
   foo->func(x);
 }
 
+void AccessIncompleteClass() {
+  struct Forward;
+  Forward* ptr;
+  // CHECK:      CallExpr {{.*}} '<dependent type>'
+  // CHECK-NEXT: `-CXXDependentScopeMemberExpr {{.*}} '<dependent type>'
+  // CHECK-NEXT:   `-RecoveryExpr {{.*}} '<dependent type>' contains-errors
+  // CHECK-NEXT:     `-DeclRefExpr {{.*}} 'Forward *'
+  ptr->method();
+}
+
 struct Foo2 {
   double func();
   class ForwardClass;
@@ -135,7 +145,7 @@ void test2(Foo2 f) {
   // CHECK-NEXT:   | `-DeclRefExpr {{.*}} 'f'
   // CHECK-NEXT: `-IntegerLiteral {{.*}} 'int' 1
   f.func(1);
-  // CHECK:      RecoveryExpr {{.*}} 'Foo2::ForwardClass'
+  // CHECK:      RecoveryExpr {{.*}} 'ForwardClass':'Foo2::ForwardClass'
   // CHECK-NEXT: `-MemberExpr {{.*}} '<bound member function type>' .createFwd
   // CHECK-NEXT:   `-DeclRefExpr {{.*}} 'f'
   f.createFwd();
@@ -390,4 +400,50 @@ void returnInitListFromVoid() {
   // CHECK-NEXT: `-RecoveryExpr {{.*}} '<dependent type>'
   // CHECK-NEXT:   |-IntegerLiteral {{.*}} 'int' 7
   // CHECK-NEXT:   `-IntegerLiteral {{.*}} 'int' 8
+}
+
+void RecoveryExprForInvalidDecls(Unknown InvalidDecl) {
+  InvalidDecl + 1;
+  // CHECK:      BinaryOperator {{.*}}
+  // CHECK-NEXT: |-RecoveryExpr {{.*}} '<dependent type>'
+  // CHECK-NEXT: | | `-DeclRefExpr {{.*}} 'InvalidDecl' 'int'
+  // CHECK-NEXT: `-IntegerLiteral {{.*}} 'int' 1
+  InvalidDecl();
+  // CHECK:      CallExpr {{.*}}
+  // CHECK-NEXT: `-RecoveryExpr {{.*}} '<dependent type>'
+}
+
+void RecoverToAnInvalidDecl() {
+  Unknown* foo; // invalid decl
+  goo; // the typo was correct to the invalid foo.
+  // Verify that RecoveryExpr has an inner DeclRefExpr.
+  // CHECK:      RecoveryExpr {{.*}} '<dependent type>' contains-errors lvalue
+  // CHECK-NEXT: `-DeclRefExpr {{.*}} 'foo' 'int *'
+}
+
+void RecoveryToDoWhileStmtCond() {
+  // CHECK:       FunctionDecl {{.*}} RecoveryToDoWhileStmtCond
+  // CHECK:       `-DoStmt {{.*}}
+  // CHECK-NEXT:    |-CompoundStmt {{.*}}
+  // CHECK-NEXT:    `-BinaryOperator {{.*}} '<dependent type>' contains-errors '<'
+  // CHECK-NEXT:      |-BinaryOperator {{.*}} '<dependent type>' contains-errors '+'
+  // CHECK-NEXT:      | |-RecoveryExpr {{.*}} '<dependent type>' contains-errors lvalue
+  // CHECK-NEXT:      | `-IntegerLiteral {{.*}} 'int' 1
+  // CHECK-NEXT:      `-IntegerLiteral {{.*}} 'int' 10
+  do {} while (some_invalid_val + 1 < 10);
+}
+
+void RecoveryForStmtCond() {
+  // CHECK:FunctionDecl {{.*}} RecoveryForStmtCond
+  // CHECK-NEXT:`-CompoundStmt {{.*}}
+  // CHECK-NEXT:  `-ForStmt {{.*}}
+  // CHECK-NEXT:    |-DeclStmt {{.*}}
+  // CHECK-NEXT:    | `-VarDecl {{.*}}
+  // CHECK-NEXT:    |   `-IntegerLiteral {{.*}} <col:16> 'int' 0
+  // CHECK-NEXT:    |-<<<NULL>>>
+  // CHECK-NEXT:    |-RecoveryExpr {{.*}} 'bool' contains-errors
+  // CHECK-NEXT:    |-UnaryOperator {{.*}} 'int' lvalue prefix '++'
+  // CHECK-NEXT:    | `-DeclRefExpr {{.*}} 'int' lvalue Var {{.*}} 'i' 'int'
+  // CHECK-NEXT:    `-CompoundStmt {{.*}}
+  for (int i = 0; i < invalid; ++i) {}
 }

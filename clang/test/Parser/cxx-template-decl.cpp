@@ -1,12 +1,12 @@
-// RUN: %clang_cc1 -fsyntax-only -verify=expected,cpp14 %s
-// RUN: %clang_cc1 -fsyntax-only -verify=expected,cpp14 %s -fdelayed-template-parsing -DDELAYED_TEMPLATE_PARSING
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,cpp14 -std=gnu++14 %s
+// RUN: %clang_cc1 -fsyntax-only -verify=expected,cpp14 -std=gnu++14 %s -fdelayed-template-parsing -DDELAYED_TEMPLATE_PARSING
 // RUN: %clang_cc1 -fsyntax-only -verify=expected,cpp17 -std=gnu++1z %s
 
 
 
 // Errors
 export class foo { };   // expected-error {{expected template}}
-template  x;            // expected-error {{C++ requires a type specifier for all declarations}} \
+template  x;            // expected-error {{a type specifier is required for all declarations}} \
                         // expected-error {{does not refer}}
 export template x;      // expected-error {{expected '<' after 'template'}}
 export template<class T> class x0; // expected-warning {{exported templates are unsupported}}
@@ -62,7 +62,7 @@ template <int> class NTP0;
 template <int N> class NTP1;
 template <int N = 5> class NTP2;
 template <int = 10> class NTP3;
-template <unsigned int N = 12u> class NTP4; 
+template <unsigned int N = 12u> class NTP4;
 template <unsigned int = 12u> class NTP5;
 template <unsigned = 15u> class NTP6;
 template <typename T, T Obj> class NTP7;
@@ -86,7 +86,6 @@ class T { // expected-error{{declaration of 'T' shadows template parameter}}
 template<int Size> // expected-note{{template parameter is declared here}}
 void shadow3(int Size); // expected-error{{declaration of 'Size' shadows template parameter}}
 
-// <rdar://problem/6952203>
 template<typename T> // expected-note{{here}}
 struct shadow4 {
   int T; // expected-error{{shadows}}
@@ -111,11 +110,11 @@ template<template<typename> class T> struct shadow8 { // expected-note{{template
 };
 
 // Non-type template parameters in scope
-template<int Size> 
+template<int Size>
 void f(int& i) {
   i = Size;
  #ifdef DELAYED_TEMPLATE_PARSING
-  Size = i; 
+  Size = i;
  #else
   Size = i; // expected-error{{expression is not assignable}}
  #endif
@@ -144,7 +143,7 @@ namespace PR6184 {
     template <typename T>
     void bar(typename T::x);
   }
-  
+
   template <typename T>
   void N::bar(typename T::x) { }
 }
@@ -198,7 +197,7 @@ struct L {
   struct O {
     template <typename U>
     static oneT Fun(U);
-    
+
   };
 };
 template <int k>
@@ -212,8 +211,8 @@ template<typename U>
 oneT L<0>::O<char>::Fun(U) { return one; }
 
 
-void Instantiate() { 
-  sassert(sizeof(L<0>::O<int>::Fun(0)) == sizeof(one)); 
+void Instantiate() {
+  sassert(sizeof(L<0>::O<int>::Fun(0)) == sizeof(one));
   sassert(sizeof(L<0>::O<char>::Fun(0)) == sizeof(one));
 }
 

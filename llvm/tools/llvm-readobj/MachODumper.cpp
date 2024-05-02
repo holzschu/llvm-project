@@ -16,6 +16,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Object/MachO.h"
+#include "llvm/Support/BinaryStreamReader.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ScopedPrinter.h"
 
@@ -34,9 +35,15 @@ public:
   void printRelocations() override;
   void printUnwindInfo() override;
   void printStackMap() const override;
+  void printCGProfile() override;
 
   void printNeededLibraries() override;
 
+  bool canCompareSymbols() const override { return true; }
+  bool compareSymbolsByName(object::SymbolRef LHS,
+                            object::SymbolRef RHS) const override;
+  bool compareSymbolsByType(object::SymbolRef LHS,
+                            object::SymbolRef RHS) const override;
   // MachO-specific.
   void printMachODataInCode() override;
   void printMachOVersionMin() override;
@@ -49,8 +56,14 @@ private:
   template<class MachHeader>
   void printFileHeaders(const MachHeader &Header);
 
-  void printSymbols() override;
+  StringRef getSymbolName(const SymbolRef &Symbol) const;
+  uint8_t getSymbolType(const SymbolRef &Symbol) const;
+
+  void printSymbols(bool ExtraSymInfo) override;
+  void printSymbols(std::optional<SymbolComparator> SymComp) override;
   void printDynamicSymbols() override;
+  void printDynamicSymbols(std::optional<SymbolComparator> SymComp) override;
+  void printSymbol(const SymbolRef &Symbol, ScopedPrinter &W);
   void printSymbol(const SymbolRef &Symbol);
 
   void printRelocation(const RelocationRef &Reloc);
@@ -418,36 +431,36 @@ void MachODumper::printFileHeaders() {
 
 template<class MachHeader>
 void MachODumper::printFileHeaders(const MachHeader &Header) {
-  W.printEnum("Magic", Header.magic, makeArrayRef(MachOMagics));
-  W.printEnum("CpuType", Header.cputype, makeArrayRef(MachOHeaderCpuTypes));
+  W.printEnum("Magic", Header.magic, ArrayRef(MachOMagics));
+  W.printEnum("CpuType", Header.cputype, ArrayRef(MachOHeaderCpuTypes));
   uint32_t subtype = Header.cpusubtype & ~MachO::CPU_SUBTYPE_MASK;
   switch (Header.cputype) {
   case MachO::CPU_TYPE_X86:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesX86));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesX86));
     break;
   case MachO::CPU_TYPE_X86_64:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesX64));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesX64));
     break;
   case MachO::CPU_TYPE_ARM:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesARM));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesARM));
     break;
   case MachO::CPU_TYPE_POWERPC:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesPPC));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesPPC));
     break;
   case MachO::CPU_TYPE_SPARC:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesSPARC));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesSPARC));
     break;
   case MachO::CPU_TYPE_ARM64:
-    W.printEnum("CpuSubType", subtype, makeArrayRef(MachOHeaderCpuSubtypesARM64));
+    W.printEnum("CpuSubType", subtype, ArrayRef(MachOHeaderCpuSubtypesARM64));
     break;
   case MachO::CPU_TYPE_POWERPC64:
   default:
     W.printHex("CpuSubtype", subtype);
   }
-  W.printEnum("FileType", Header.filetype, makeArrayRef(MachOHeaderFileTypes));
+  W.printEnum("FileType", Header.filetype, ArrayRef(MachOHeaderFileTypes));
   W.printNumber("NumOfLoadCommands", Header.ncmds);
   W.printNumber("SizeOfLoadCommands", Header.sizeofcmds);
-  W.printFlags("Flags", Header.flags, makeArrayRef(MachOHeaderFlags));
+  W.printFlags("Flags", Header.flags, ArrayRef(MachOHeaderFlags));
 }
 
 void MachODumper::printSectionHeaders() { return printSectionHeaders(Obj); }
@@ -477,10 +490,9 @@ void MachODumper::printSectionHeaders(const MachOObjectFile *Obj) {
     W.printNumber("Alignment", MOSection.Alignment);
     W.printHex("RelocationOffset", MOSection.RelocationTableOffset);
     W.printNumber("RelocationCount", MOSection.NumRelocationTableEntries);
-    W.printEnum("Type", MOSection.Flags & 0xFF,
-                makeArrayRef(MachOSectionTypes));
+    W.printEnum("Type", MOSection.Flags & 0xFF, ArrayRef(MachOSectionTypes));
     W.printFlags("Attributes", MOSection.Flags >> 8,
-                 makeArrayRef(MachOSectionAttributes));
+                 ArrayRef(MachOSectionAttributes));
     W.printHex("Reserved1", MOSection.Reserved1);
     W.printHex("Reserved2", MOSection.Reserved2);
     if (Obj->is64Bit())
@@ -551,10 +563,7 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
   if (IsExtern) {
     symbol_iterator Symbol = Reloc.getSymbol();
     if (Symbol != Obj->symbol_end()) {
-      Expected<StringRef> TargetNameOrErr = Symbol->getName();
-      if (!TargetNameOrErr)
-        reportError(TargetNameOrErr.takeError(), Obj->getFileName());
-      TargetName = *TargetNameOrErr;
+      TargetName = getSymbolName(*Symbol);
     }
   } else if (!IsScattered) {
     section_iterator SecI = Obj->getRelocationSection(DR);
@@ -601,26 +610,61 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
   }
 }
 
-void MachODumper::printSymbols() {
-  ListScope Group(W, "Symbols");
+StringRef MachODumper::getSymbolName(const SymbolRef &Symbol) const {
+  Expected<StringRef> SymbolNameOrErr = Symbol.getName();
+  if (!SymbolNameOrErr) {
+    reportError(SymbolNameOrErr.takeError(), Obj->getFileName());
+  }
+  return *SymbolNameOrErr;
+}
 
-  for (const SymbolRef &Symbol : Obj->symbols()) {
-    printSymbol(Symbol);
+uint8_t MachODumper::getSymbolType(const SymbolRef &Symbol) const {
+  return Obj->is64Bit()
+      ? Obj->getSymbol64TableEntry(Symbol.getRawDataRefImpl()).n_type
+      : Obj->getSymbolTableEntry(Symbol.getRawDataRefImpl()).n_type;
+}
+
+bool MachODumper::compareSymbolsByName(SymbolRef LHS, SymbolRef RHS) const {
+  return getSymbolName(LHS).str().compare(getSymbolName(RHS).str()) < 0;
+}
+
+bool MachODumper::compareSymbolsByType(SymbolRef LHS, SymbolRef RHS) const {
+  return getSymbolType(LHS) < getSymbolType(RHS);
+}
+
+void MachODumper::printSymbols(bool /*ExtraSymInfo*/) {
+  printSymbols(std::nullopt);
+}
+
+void MachODumper::printSymbols(std::optional<SymbolComparator> SymComp) {
+  ListScope Group(W, "Symbols");
+  if (SymComp) {
+    auto SymbolRange = Obj->symbols();
+    std::vector<SymbolRef> SortedSymbols(SymbolRange.begin(),
+                                         SymbolRange.end());
+    llvm::stable_sort(SortedSymbols, *SymComp);
+    for (SymbolRef Symbol : SortedSymbols)
+      printSymbol(Symbol);
+  } else {
+    for (const SymbolRef &Symbol : Obj->symbols()) {
+      printSymbol(Symbol);
+    }
   }
 }
 
 void MachODumper::printDynamicSymbols() {
   ListScope Group(W, "DynamicSymbols");
 }
+void MachODumper::printDynamicSymbols(std::optional<SymbolComparator> SymComp) {
+  ListScope Group(W, "DynamicSymbols");
+}
 
 void MachODumper::printSymbol(const SymbolRef &Symbol) {
-  StringRef SymbolName;
-  Expected<StringRef> SymbolNameOrErr = Symbol.getName();
-  if (!SymbolNameOrErr) {
-    // TODO: Actually report errors helpfully.
-    consumeError(SymbolNameOrErr.takeError());
-  } else
-    SymbolName = *SymbolNameOrErr;
+  printSymbol(Symbol, W);
+}
+
+void MachODumper::printSymbol(const SymbolRef &Symbol, ScopedPrinter &W) {
+  StringRef SymbolName = getSymbolName(Symbol);
 
   MachOSymbol MOSymbol;
   getSymbol(Obj, Symbol.getRawDataRefImpl(), MOSymbol);
@@ -651,13 +695,13 @@ void MachODumper::printSymbol(const SymbolRef &Symbol) {
     if (MOSymbol.Type & MachO::N_EXT)
       W.startLine() << "Extern\n";
     W.printEnum("Type", uint8_t(MOSymbol.Type & MachO::N_TYPE),
-                makeArrayRef(MachOSymbolTypes));
+                ArrayRef(MachOSymbolTypes));
   }
   W.printHex("Section", SectionName, MOSymbol.SectionIndex);
   W.printEnum("RefType", static_cast<uint16_t>(MOSymbol.Flags & 0x7),
-              makeArrayRef(MachOSymbolRefTypes));
+              ArrayRef(MachOSymbolRefTypes));
   W.printFlags("Flags", static_cast<uint16_t>(MOSymbol.Flags & ~0x7),
-               makeArrayRef(MachOSymbolFlags));
+               ArrayRef(MachOSymbolFlags));
   W.printHex("Value", MOSymbol.Value);
 }
 
@@ -690,10 +734,52 @@ void MachODumper::printStackMap() const {
 
   if (Obj->isLittleEndian())
     prettyPrintStackMap(
-        W, StackMapParser<support::little>(StackMapContentsArray));
+        W, StackMapParser<llvm::endianness::little>(StackMapContentsArray));
   else
     prettyPrintStackMap(
-        W, StackMapParser<support::big>(StackMapContentsArray));
+        W, StackMapParser<llvm::endianness::big>(StackMapContentsArray));
+}
+
+void MachODumper::printCGProfile() {
+  object::SectionRef CGProfileSection;
+  for (auto Sec : Obj->sections()) {
+    StringRef Name;
+    if (Expected<StringRef> NameOrErr = Sec.getName())
+      Name = *NameOrErr;
+    else
+      consumeError(NameOrErr.takeError());
+
+    if (Name == "__cg_profile") {
+      CGProfileSection = Sec;
+      break;
+    }
+  }
+  if (CGProfileSection == object::SectionRef())
+    return;
+
+  StringRef CGProfileContents =
+      unwrapOrError(Obj->getFileName(), CGProfileSection.getContents());
+  BinaryStreamReader Reader(CGProfileContents, Obj->isLittleEndian()
+                                                   ? llvm::endianness::little
+                                                   : llvm::endianness::big);
+
+  ListScope L(W, "CGProfile");
+  while (!Reader.empty()) {
+    uint32_t FromIndex, ToIndex;
+    uint64_t Count;
+    if (Error Err = Reader.readInteger(FromIndex))
+      reportError(std::move(Err), Obj->getFileName());
+    if (Error Err = Reader.readInteger(ToIndex))
+      reportError(std::move(Err), Obj->getFileName());
+    if (Error Err = Reader.readInteger(Count))
+      reportError(std::move(Err), Obj->getFileName());
+    DictScope D(W, "CGProfileEntry");
+    W.printNumber("From", getSymbolName(*Obj->getSymbolByIndex(FromIndex)),
+                  FromIndex);
+    W.printNumber("To", getSymbolName(*Obj->getSymbolByIndex(ToIndex)),
+                  ToIndex);
+    W.printNumber("Weight", Count);
+  }
 }
 
 void MachODumper::printNeededLibraries() {

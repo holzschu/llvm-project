@@ -8,6 +8,7 @@
 
 #include "WriterUtils.h"
 #include "lld/Common/ErrorHandler.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/LEB128.h"
@@ -50,7 +51,7 @@ std::string toString(const WasmSignature &sig) {
     s += "void";
   else
     s += toString(sig.Returns[0]);
-  return std::string(s.str());
+  return std::string(s);
 }
 
 std::string toString(const WasmGlobalType &type) {
@@ -110,12 +111,12 @@ void writeU8(raw_ostream &os, uint8_t byte, const Twine &msg) {
 
 void writeU32(raw_ostream &os, uint32_t number, const Twine &msg) {
   debugWrite(os.tell(), msg + "[0x" + utohexstr(number) + "]");
-  support::endian::write(os, number, support::little);
+  support::endian::write(os, number, llvm::endianness::little);
 }
 
 void writeU64(raw_ostream &os, uint64_t number, const Twine &msg) {
   debugWrite(os.tell(), msg + "[0x" + utohexstr(number) + "]");
-  support::endian::write(os, number, support::little);
+  support::endian::write(os, number, llvm::endianness::little);
 }
 
 void writeValueType(raw_ostream &os, ValType type, const Twine &msg) {
@@ -159,6 +160,11 @@ void writeMemArg(raw_ostream &os, uint32_t alignment, uint64_t offset) {
 }
 
 void writeInitExpr(raw_ostream &os, const WasmInitExpr &initExpr) {
+  assert(!initExpr.Extended);
+  writeInitExprMVP(os, initExpr.Inst);
+}
+
+void writeInitExprMVP(raw_ostream &os, const WasmInitExprMVP &initExpr) {
   writeU8(os, initExpr.Opcode, "opcode");
   switch (initExpr.Opcode) {
   case WASM_OPCODE_I32_CONST:

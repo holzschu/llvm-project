@@ -14,8 +14,8 @@
 namespace Fortran::runtime::io {
 
 std::size_t ConnectionState::RemainingSpaceInRecord() const {
-  auto recl{recordLength.value_or(
-      executionEnvironment.listDirectedOutputLineLengthLimit)};
+  auto recl{recordLength.value_or(openRecl.value_or(
+      executionEnvironment.listDirectedOutputLineLengthLimit))};
   return positionInRecord >= recl ? 0 : recl - positionInRecord;
 }
 
@@ -25,6 +25,10 @@ bool ConnectionState::NeedAdvance(std::size_t width) const {
 
 bool ConnectionState::IsAtEOF() const {
   return endfileRecordNumber && currentRecordNumber >= *endfileRecordNumber;
+}
+
+bool ConnectionState::IsAfterEndfile() const {
+  return endfileRecordNumber && currentRecordNumber > *endfileRecordNumber;
 }
 
 void ConnectionState::HandleAbsolutePosition(std::int64_t n) {
@@ -42,13 +46,15 @@ SavedPosition::SavedPosition(IoStatementState &io) : io_{io} {
 }
 
 SavedPosition::~SavedPosition() {
-  ConnectionState &conn{io_.GetConnectionState()};
-  while (conn.currentRecordNumber > saved_.currentRecordNumber) {
-    io_.BackspaceRecord();
+  if (!cancelled_) {
+    ConnectionState &conn{io_.GetConnectionState()};
+    while (conn.currentRecordNumber > saved_.currentRecordNumber) {
+      io_.BackspaceRecord();
+    }
+    conn.leftTabLimit = saved_.leftTabLimit;
+    conn.furthestPositionInRecord = saved_.furthestPositionInRecord;
+    conn.positionInRecord = saved_.positionInRecord;
+    conn.pinnedFrame = saved_.pinnedFrame;
   }
-  conn.leftTabLimit = saved_.leftTabLimit;
-  conn.furthestPositionInRecord = saved_.furthestPositionInRecord;
-  conn.positionInRecord = saved_.positionInRecord;
-  conn.pinnedFrame = saved_.pinnedFrame;
 }
 } // namespace Fortran::runtime::io

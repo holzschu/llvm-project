@@ -14,16 +14,16 @@ struct stret one = {{1}};
 void foo(id o, id p) {
   [o method];
   // CHECK: @llvm.lifetime.start
-  // CHECK: call void bitcast {{.*}} @objc_msgSend
+  // CHECK: call void @objc_msgSend
   // CHECK: @llvm.lifetime.end
   // CHECK-NOT: call void @llvm.memset
 
   [o methodConsuming:p];
-  // ARC: [[T0:%.*]] = icmp eq i8*
+  // ARC: [[T0:%.*]] = icmp eq ptr
   // ARC: br i1 [[T0]]
 
   // CHECK: @llvm.lifetime.start
-  // CHECK: call void bitcast {{.*}} @objc_msgSend
+  // CHECK: call void @objc_msgSend
   // CHECK: @llvm.lifetime.end
   // ARC: br label
 

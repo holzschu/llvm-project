@@ -218,7 +218,6 @@ void test_null_resettable(NSResettable *r, int *ip) {
 }
 @end
 
-// rdar://problem/19814852
 @interface MultiProp
 @property (nullable, copy) id a, b, c;
 @property (nullable, copy) MultiProp *d, *(^e)(int);
@@ -231,7 +230,7 @@ void testMultiProp(MultiProp *foo) {
   ip = foo.e; // expected-error{{incompatible type 'MultiProp *(^ _Nullable)(int)'}}
 }
 
-void testBlockLiterals() {
+void testBlockLiterals(void) {
   (void)(^id(void) { return 0; });
   (void)(^id _Nullable (void) { return 0; });
   (void)(^ _Nullable id(void) { return 0; });
@@ -301,5 +300,5 @@ void test(ArraysInMethods *obj) {
 @end
 
 void testMessageSendResultType(C0 * _Nullable c0) {
-  int *p = [c0 count]; // expected-warning {{incompatible integer to pointer conversion initializing 'int *' with an expression of type 'int'}}
+  int *p = [c0 count]; // expected-error {{incompatible integer to pointer conversion initializing 'int *' with an expression of type 'int'}}
 }

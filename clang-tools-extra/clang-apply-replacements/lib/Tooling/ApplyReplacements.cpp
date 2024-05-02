@@ -23,11 +23,12 @@
 #include "clang/Tooling/DiagnosticsYaml.h"
 #include "clang/Tooling/ReplacementsYaml.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <optional>
 
 using namespace llvm;
 using namespace clang;
@@ -37,8 +38,10 @@ static void eatDiagnostics(const SMDiagnostic &, void *) {}
 namespace clang {
 namespace replace {
 
-std::error_code collectReplacementsFromDirectory(
-    const llvm::StringRef Directory, TUReplacements &TUs,
+namespace detail {
+template <typename TranslationUnits>
+static std::error_code collectReplacementsFromDirectory(
+    const llvm::StringRef Directory, TranslationUnits &TUs,
     TUReplacementFiles &TUFiles, clang::DiagnosticsEngine &Diagnostics) {
   using namespace llvm::sys::fs;
   using namespace llvm::sys::path;
@@ -67,7 +70,7 @@ std::error_code collectReplacementsFromDirectory(
     }
 
     yaml::Input YIn(Out.get()->getBuffer(), nullptr, &eatDiagnostics);
-    tooling::TranslationUnitReplacements TU;
+    typename TranslationUnits::value_type TU;
     YIn >> TU;
     if (YIn.error()) {
       // File doesn't appear to be a header change description. Ignore it.
@@ -80,49 +83,22 @@ std::error_code collectReplacementsFromDirectory(
 
   return ErrorCode;
 }
+} // namespace detail
 
+template <>
+std::error_code collectReplacementsFromDirectory(
+    const llvm::StringRef Directory, TUReplacements &TUs,
+    TUReplacementFiles &TUFiles, clang::DiagnosticsEngine &Diagnostics) {
+  return detail::collectReplacementsFromDirectory(Directory, TUs, TUFiles,
+                                                  Diagnostics);
+}
+
+template <>
 std::error_code collectReplacementsFromDirectory(
     const llvm::StringRef Directory, TUDiagnostics &TUs,
     TUReplacementFiles &TUFiles, clang::DiagnosticsEngine &Diagnostics) {
-  using namespace llvm::sys::fs;
-  using namespace llvm::sys::path;
-
-  std::error_code ErrorCode;
-
-  for (recursive_directory_iterator I(Directory, ErrorCode), E;
-       I != E && !ErrorCode; I.increment(ErrorCode)) {
-    if (filename(I->path())[0] == '.') {
-      // Indicate not to descend into directories beginning with '.'
-      I.no_push();
-      continue;
-    }
-
-    if (extension(I->path()) != ".yaml")
-      continue;
-
-    TUFiles.push_back(I->path());
-
-    ErrorOr<std::unique_ptr<MemoryBuffer>> Out =
-        MemoryBuffer::getFile(I->path());
-    if (std::error_code BufferError = Out.getError()) {
-      errs() << "Error reading " << I->path() << ": " << BufferError.message()
-             << "\n";
-      continue;
-    }
-
-    yaml::Input YIn(Out.get()->getBuffer(), nullptr, &eatDiagnostics);
-    tooling::TranslationUnitDiagnostics TU;
-    YIn >> TU;
-    if (YIn.error()) {
-      // File doesn't appear to be a header change description. Ignore it.
-      continue;
-    }
-
-    // Only keep files that properly parse.
-    TUs.push_back(TU);
-  }
-
-  return ErrorCode;
+  return detail::collectReplacementsFromDirectory(Directory, TUs, TUFiles,
+                                                  Diagnostics);
 }
 
 /// Extract replacements from collected TranslationUnitReplacements and
@@ -137,11 +113,11 @@ std::error_code collectReplacementsFromDirectory(
 ///
 /// \returns A map mapping FileEntry to a set of Replacement targeting that
 /// file.
-static llvm::DenseMap<const FileEntry *, std::vector<tooling::Replacement>>
+static llvm::DenseMap<FileEntryRef, std::vector<tooling::Replacement>>
 groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
                   const clang::SourceManager &SM) {
-  std::set<StringRef> Warned;
-  llvm::DenseMap<const FileEntry *, std::vector<tooling::Replacement>>
+  llvm::StringSet<> Warned;
+  llvm::DenseMap<FileEntryRef, std::vector<tooling::Replacement>>
       GroupedReplacements;
 
   // Deduplicate identical replacements in diagnostics unless they are from the
@@ -154,13 +130,17 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
 
   auto AddToGroup = [&](const tooling::Replacement &R,
                         const tooling::TranslationUnitDiagnostics *SourceTU,
-                        const llvm::Optional<std::string> BuildDir) {
+                        const std::optional<std::string> BuildDir) {
     // Use the file manager to deduplicate paths. FileEntries are
-    // automatically canonicalized.
-    auto PrevWorkingDir = SM.getFileManager().getFileSystemOpts().WorkingDir;
+    // automatically canonicalized. Since relative paths can come from different
+    // build directories, make them absolute immediately.
+    SmallString<128> Path = R.getFilePath();
     if (BuildDir)
-      SM.getFileManager().getFileSystemOpts().WorkingDir = std::move(*BuildDir);
-    if (auto Entry = SM.getFileManager().getFile(R.getFilePath())) {
+      llvm::sys::fs::make_absolute(*BuildDir, Path);
+    else
+      SM.getFileManager().makeAbsolutePath(Path);
+
+    if (auto Entry = SM.getFileManager().getOptionalFileRef(Path)) {
       if (SourceTU) {
         auto &Replaces = DiagReplacements[*Entry];
         auto It = Replaces.find(R);
@@ -171,11 +151,10 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
           return;
       }
       GroupedReplacements[*Entry].push_back(R);
-    } else if (Warned.insert(R.getFilePath()).second) {
+    } else if (Warned.insert(Path).second) {
       errs() << "Described file '" << R.getFilePath()
              << "' doesn't exist. Ignoring...\n";
     }
-    SM.getFileManager().getFileSystemOpts().WorkingDir = PrevWorkingDir;
   };
 
   for (const auto &TU : TUs)
@@ -193,8 +172,7 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
   // Sort replacements per file to keep consistent behavior when
   // clang-apply-replacements run on differents machine.
   for (auto &FileAndReplacements : GroupedReplacements) {
-    llvm::sort(FileAndReplacements.second.begin(),
-               FileAndReplacements.second.end());
+    llvm::sort(FileAndReplacements.second);
   }
 
   return GroupedReplacements;
@@ -202,17 +180,17 @@ groupReplacements(const TUReplacements &TUs, const TUDiagnostics &TUDs,
 
 bool mergeAndDeduplicate(const TUReplacements &TUs, const TUDiagnostics &TUDs,
                          FileToChangesMap &FileChanges,
-                         clang::SourceManager &SM) {
+                         clang::SourceManager &SM, bool IgnoreInsertConflict) {
   auto GroupedReplacements = groupReplacements(TUs, TUDs, SM);
   bool ConflictDetected = false;
 
   // To report conflicting replacements on corresponding file, all replacements
   // are stored into 1 big AtomicChange.
   for (const auto &FileAndReplacements : GroupedReplacements) {
-    const FileEntry *Entry = FileAndReplacements.first;
+    FileEntryRef Entry = FileAndReplacements.first;
     const SourceLocation BeginLoc =
         SM.getLocForStartOfFile(SM.getOrCreateFileID(Entry, SrcMgr::C_User));
-    tooling::AtomicChange FileChange(Entry->getName(), Entry->getName());
+    tooling::AtomicChange FileChange(Entry.getName(), Entry.getName());
     for (const auto &R : FileAndReplacements.second) {
       llvm::Error Err =
           FileChange.replace(SM, BeginLoc.getLocWithOffset(R.getOffset()),
@@ -231,7 +209,24 @@ bool mergeAndDeduplicate(const TUReplacements &TUs, const TUDiagnostics &TUDs,
         // For now, printing directly the error reported by `AtomicChange` is
         // the easiest solution.
         errs() << llvm::toString(std::move(Err)) << "\n";
-        ConflictDetected = true;
+        if (IgnoreInsertConflict) {
+          tooling::Replacements &Replacements = FileChange.getReplacements();
+          unsigned NewOffset =
+              Replacements.getShiftedCodePosition(R.getOffset());
+          unsigned NewLength = Replacements.getShiftedCodePosition(
+                                   R.getOffset() + R.getLength()) -
+                               NewOffset;
+          if (NewLength == R.getLength()) {
+            tooling::Replacement RR = tooling::Replacement(
+                R.getFilePath(), NewOffset, NewLength, R.getReplacementText());
+            Replacements = Replacements.merge(tooling::Replacements(RR));
+          } else {
+            llvm::errs()
+                << "Can't resolve conflict, skipping the replacement.\n";
+            ConflictDetected = true;
+          }
+        } else
+          ConflictDetected = true;
       }
     }
     FileChanges.try_emplace(Entry,

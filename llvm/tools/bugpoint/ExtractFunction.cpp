@@ -113,7 +113,7 @@ BugDriver::deleteInstructionFromProgram(const Instruction *I,
     TheInst->replaceAllUsesWith(Constant::getNullValue(TheInst->getType()));
 
   // Remove the instruction from the program.
-  TheInst->getParent()->getInstList().erase(TheInst);
+  TheInst->eraseFromParent();
 
   // Spiff up the output a little bit.
   std::vector<std::string> Passes;
@@ -141,7 +141,6 @@ BugDriver::performFinalCleanups(std::unique_ptr<Module> M,
     I->setLinkage(GlobalValue::ExternalLinkage);
 
   std::vector<std::string> CleanupPasses;
-  CleanupPasses.push_back("globaldce");
 
   if (MayModifySemantics)
     CleanupPasses.push_back("deadarghaX0r");

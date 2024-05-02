@@ -11,7 +11,6 @@
 #define MLIR_C_DIALECT_LLVM_H
 
 #include "mlir-c/IR.h"
-#include "mlir-c/Registration.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +19,7 @@ extern "C" {
 MLIR_DECLARE_CAPI_DIALECT_REGISTRATION(LLVM, llvm);
 
 /// Creates an llvm.ptr type.
-MLIR_CAPI_EXPORTED MlirType mlirLLVMPointerTypeGet(MlirType pointee,
+MLIR_CAPI_EXPORTED MlirType mlirLLVMPointerTypeGet(MlirContext ctx,
                                                    unsigned addressSpace);
 
 /// Creates an llmv.void type.

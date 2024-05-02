@@ -21,7 +21,7 @@ body:             |
 ...
 
 # RELOC:       Relocation {{[{][[:space:]] *}}Virtual Address: 0x8
-# RELOC-NEXT:    Symbol: .text ([[#TXT_INDX:]])
+# RELOC-NEXT:    Symbol:  ([[#TXT_INDX:]])
 # RELOC-NEXT:    IsSigned: No
 # RELOC-NEXT:    FixupBitValue: 0
 # RELOC-NEXT:    Length: 32
@@ -36,7 +36,7 @@ body:             |
 # RELOC-NEXT:    Type: R_NEG (0x1)
 # RELOC-NEXT:  }
 
-# SYM:       Symbol {{[{][[:space:]] *}}Index: [[#TXT_INDX]]{{[[:space:]] *}}Name: .text
+# SYM:       Symbol {{[{][[:space:]] *}}Index: [[#TXT_INDX]]{{[[:space:]] *}}Name: 
 # SYM-NEXT:    Value (RelocatableAddress): 0x0
 # SYM-NEXT:    Section: .text
 # SYM-NEXT:    Type: 0x0
@@ -47,7 +47,7 @@ body:             |
 # SYM-NEXT:      SectionLen: 8
 # SYM-NEXT:      ParameterHashIndex: 0x0
 # SYM-NEXT:      TypeChkSectNum: 0x0
-# SYM-NEXT:      SymbolAlignmentLog2: 4
+# SYM-NEXT:      SymbolAlignmentLog2: 5
 # SYM-NEXT:      SymbolType: XTY_SD (0x1)
 # SYM-NEXT:      StorageMappingClass: XMC_PR (0x0)
 # SYM-NEXT:      StabInfoIndex: 0x0
@@ -75,7 +75,7 @@ body:             |
 
 # DIS:      Disassembly of section .text:
 # DIS-EMPTY:
-# DIS-NEXT: 00000000 <.text>:
+# DIS-NEXT: 00000000 <.foo>:
 # DIS-NEXT:        0: 80 62 00 00                   lwz 3, 0(2)
 # DIS-NEXT:        4: 4e 80 00 20                   blr
 # DIS-EMPTY:

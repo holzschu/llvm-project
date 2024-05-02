@@ -25,6 +25,7 @@ add_lld_library(lldCOFF
   LINK_COMPONENTS
   ${LLVM_TARGETS_TO_BUILD}
   BinaryFormat
+  BitWriter
   Core
   DebugInfoCodeView
   DebugInfoDWARF
@@ -38,11 +39,14 @@ add_lld_library(lldCOFF
   Option
   Passes
   Support
+  TargetParser
+  WindowsDriver
   WindowsManifest
 
   LINK_LIBS
   lldCommon
   ${LLVM_PTHREAD_LIB}
+  ${LLVM_ATOMIC_LIB}
 
   DEPENDS
   COFFOptionsTableGen

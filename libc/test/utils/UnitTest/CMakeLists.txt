@@ -1,4 +1,8 @@
-add_libc_testsuite(libc_unittest_tests)
+if(LIBC_TARGET_ARCHITECTURE_IS_GPU)
+  return()
+endif()
+
+add_custom_target(libc_unittest_tests)
 
 add_libc_unittest(
   testfilter_test
@@ -7,5 +11,7 @@ add_libc_unittest(
   SRCS
     testfilter_test.cpp
   DEPENDS
-    libc.src.__support.CPP.standalone_cpp
+    # TODO(michaelrj): Remove this dependancy. It's only here because all unit 
+    # tests must have at least one dependancy.
+    libc.src.__support.CPP.bit 
 )

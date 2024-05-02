@@ -2163,7 +2163,6 @@ void __kmp_join_barrier(int gtid) {
 
   kmp_info_t *this_thr = __kmp_threads[gtid];
   kmp_team_t *team;
-  kmp_uint nproc;
   int tid;
 #ifdef KMP_DEBUG
   int team_id;
@@ -2176,12 +2175,14 @@ void __kmp_join_barrier(int gtid) {
     itt_sync_obj = __kmp_itt_barrier_object(gtid, bs_forkjoin_barrier);
 #endif
 #endif /* USE_ITT_BUILD */
+#if ((USE_ITT_BUILD && USE_ITT_NOTIFY) || defined KMP_DEBUG)
+  int nproc = this_thr->th.th_team_nproc;
+#endif
   KMP_MB();
 
   // Get current info
   team = this_thr->th.th_team;
-  nproc = this_thr->th.th_team_nproc;
-  KMP_DEBUG_ASSERT((int)nproc == team->t.t_nproc);
+  KMP_DEBUG_ASSERT(nproc == team->t.t_nproc);
   tid = __kmp_tid_from_gtid(gtid);
 #ifdef KMP_DEBUG
   team_id = team->t.t_id;
@@ -2354,7 +2355,7 @@ void __kmp_join_barrier(int gtid) {
           // Set arrive time to zero to be able to check it in
           // __kmp_invoke_task(); the same is done inside the loop below
           this_thr->th.th_bar_arrive_time = 0;
-          for (kmp_uint i = 1; i < nproc; ++i) {
+          for (int i = 1; i < nproc; ++i) {
             delta += (cur_time - other_threads[i]->th.th_bar_arrive_time);
             other_threads[i]->th.th_bar_arrive_time = 0;
           }
@@ -2402,11 +2403,11 @@ void __kmp_fork_barrier(int gtid, int tid) {
 #if USE_ITT_BUILD
   void *itt_sync_obj = NULL;
 #endif /* USE_ITT_BUILD */
+#ifdef KMP_DEBUG
   if (team)
-
-  KA_TRACE(10, ("__kmp_fork_barrier: T#%d(%d:%d) has arrived\n", gtid,
-                (team != NULL) ? team->t.t_id : -1, tid));
-
+    KA_TRACE(10, ("__kmp_fork_barrier: T#%d(%d:%d) has arrived\n", gtid,
+                  (team != NULL) ? team->t.t_id : -1, tid));
+#endif
   // th_team pointer only valid for primary thread here
   if (KMP_MASTER_TID(tid)) {
 #if USE_ITT_BUILD && USE_ITT_NOTIFY
@@ -2581,7 +2582,7 @@ void __kmp_fork_barrier(int gtid, int tid) {
   kmp_proc_bind_t proc_bind = team->t.t_proc_bind;
   if (proc_bind == proc_bind_intel) {
     // Call dynamic affinity settings
-    if (__kmp_affinity_type == affinity_balanced && team->t.t_size_changed) {
+    if (__kmp_affinity.type == affinity_balanced && team->t.t_size_changed) {
       __kmp_balanced_affinity(this_thr, team->t.t_nproc);
     }
   } else if (proc_bind != proc_bind_false) {
@@ -2590,7 +2591,7 @@ void __kmp_fork_barrier(int gtid, int tid) {
                      __kmp_gtid_from_thread(this_thr),
                      this_thr->th.th_current_place));
     } else {
-      __kmp_affinity_set_place(gtid);
+      __kmp_affinity_bind_place(gtid);
     }
   }
 #endif // KMP_AFFINITY_SUPPORTED
@@ -2598,7 +2599,7 @@ void __kmp_fork_barrier(int gtid, int tid) {
   if (__kmp_display_affinity) {
     if (team->t.t_display_affinity
 #if KMP_AFFINITY_SUPPORTED
-        || (__kmp_affinity_type == affinity_balanced && team->t.t_size_changed)
+        || (__kmp_affinity.type == affinity_balanced && team->t.t_size_changed)
 #endif
     ) {
       // NULL means use the affinity-format-var ICV

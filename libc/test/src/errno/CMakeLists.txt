@@ -1,8 +1,8 @@
-if(NOT LLVM_LIBC_FULL_BUILD)
+if(NOT LLVM_LIBC_FULL_BUILD OR LIBC_TARGET_ARCHITECTURE_IS_GPU)
   return()
 endif()
 
-add_libc_testsuite(libc_errno_unittests)
+add_custom_target(libc_errno_unittests)
 
 add_libc_unittest(
   errno_test
@@ -11,5 +11,5 @@ add_libc_unittest(
   SRCS
     errno_test.cpp
   DEPENDS
-    libc.src.errno.__errno_location
+    libc.src.errno.errno
 )

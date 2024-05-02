@@ -8,8 +8,8 @@
 
 // Check the case when only the StdLibraryFunctionsChecker is enabled.
 // RUN: %clang_analyze_cc1 %s \
-// RUN:   -analyzer-checker=apiModeling.StdCLibraryFunctions \
-// RUN:   -analyzer-config apiModeling.StdCLibraryFunctions:DisplayLoadedSummaries=true \
+// RUN:   -analyzer-checker=unix.StdCLibraryFunctions \
+// RUN:   -analyzer-config unix.StdCLibraryFunctions:DisplayLoadedSummaries=true \
 // RUN:   -analyzer-checker=debug.ExprInspection \
 // RUN:   -analyzer-config eagerly-assume=false \
 // RUN:   -triple x86_64-unknown-linux \
@@ -19,8 +19,8 @@
 // StdLibraryFunctionsChecker are enabled.
 // RUN: %clang_analyze_cc1 %s \
 // RUN:   -analyzer-checker=core,alpha.unix.Stream \
-// RUN:   -analyzer-checker=apiModeling.StdCLibraryFunctions \
-// RUN:   -analyzer-config apiModeling.StdCLibraryFunctions:DisplayLoadedSummaries=true \
+// RUN:   -analyzer-checker=unix.StdCLibraryFunctions \
+// RUN:   -analyzer-config unix.StdCLibraryFunctions:DisplayLoadedSummaries=true \
 // RUN:   -analyzer-checker=debug.ExprInspection \
 // RUN:   -analyzer-config eagerly-assume=false \
 // RUN:   -triple x86_64-unknown-linux \
@@ -28,7 +28,7 @@
 
 // Verify that the summaries are loaded when the StdLibraryFunctionsChecker is
 // enabled.
-//      CHECK: Loaded summary for: int getchar()
+//      CHECK: Loaded summary for: int getchar(void)
 // CHECK-NEXT: Loaded summary for: unsigned long fread(void *restrict, size_t, size_t, FILE *restrict)
 // CHECK-NEXT: Loaded summary for: unsigned long fwrite(const void *restrict, size_t, size_t, FILE *restrict)
 
@@ -45,12 +45,13 @@ void test_fread_fwrite(FILE *fp, int *buf) {
   clang_analyzer_eval(x <= 10); // \
  // stream-warning{{TRUE}} \
  // stdLib-warning{{TRUE}} \
- // both-warning{{TRUE}} \
+ // both-warning{{TRUE}}
 
   clang_analyzer_eval(x == 10); // \
   // stream-warning{{TRUE}} \
   // stream-warning{{FALSE}} \
-  // stdLib-warning{{UNKNOWN}} \
+  // stdLib-warning{{TRUE}} \
+  // stdLib-warning{{FALSE}} \
   // both-warning{{TRUE}} \
   // both-warning{{FALSE}}
 

@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-coroutines
 
 #include <coroutine>
 #include <type_traits>
@@ -15,8 +14,6 @@
 #include <utility>
 
 #include "test_macros.h"
-
-TEST_SAFE_STATIC std::suspend_always safe_sa;
 
 constexpr bool check_suspend_constexpr() {
   std::suspend_always s{};

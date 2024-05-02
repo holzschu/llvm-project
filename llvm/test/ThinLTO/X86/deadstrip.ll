@@ -37,23 +37,23 @@
 
 ; RUN: llvm-bcanalyzer -dump %t.out.index.bc | FileCheck %s --check-prefix=COMBINED
 ; Live, NotEligibleForImport, dso_local, Internal
-; COMBINED-DAG: <COMBINED {{.*}} op2=119
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=119
 ; Live, dso_local, Internal
-; COMBINED-DAG: <COMBINED {{.*}} op2=103
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=103
 ; Live, Local, WeakODR
-; COMBINED-DAG: <COMBINED {{.*}} op2=101
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=101
 ; Live, Local, LinkOnceODR
-; COMBINED-DAG: <COMBINED {{.*}} op2=99
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=99
 ; Live, Local, AvailableExternally
-; COMBINED-DAG: <COMBINED {{.*}} op2=97
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=97
 ; Live, Local, External
-; COMBINED-DAG: <COMBINED {{.*}} op2=96
-; COMBINED-DAG: <COMBINED {{.*}} op2=96
-; COMBINED-DAG: <COMBINED {{.*}} op2=96
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=96
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=96
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=96
 ; Local, (Dead)
-; COMBINED-DAG: <COMBINED {{.*}} op2=64
-; COMBINED-DAG: <COMBINED {{.*}} op2=64
-; COMBINED-DAG: <COMBINED {{.*}} op2=64
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=64
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=64
+; COMBINED-DAG: <COMBINED_PROFILE {{.*}} op2=64
 
 ; Dead-stripping on the index allows to internalize these,
 ; and limit the import of @baz thanks to early pruning.
@@ -139,7 +139,7 @@ target datalayout = "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16
 target triple = "x86_64-apple-macosx10.11.0"
 
 
-@llvm.global_ctors = appending global [1 x { i32, void ()*, i8* }] [{ i32, void ()*, i8* } { i32 65535, void ()* @_GLOBAL__I_a, i8* null }]
+@llvm.global_ctors = appending global [1 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @_GLOBAL__I_a, ptr null }]
 
 declare void @baz()
 
@@ -183,7 +183,7 @@ define available_externally void @live_available_externally_func() {
 ; alive.
 ; We want to make sure the @linkonceodrfuncwithalias copy in Input/deadstrip.ll
 ; is also scanned when computing reachability.
-@linkonceodralias = linkonce_odr alias void (), void ()* @linkonceodrfuncwithalias
+@linkonceodralias = linkonce_odr alias void (), ptr @linkonceodrfuncwithalias
 
 define linkonce_odr void @linkonceodrfuncwithalias() {
 entry:

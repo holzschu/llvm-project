@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-coroutines
 
 #include <coroutine>
 #include <type_traits>
@@ -15,11 +14,6 @@
 #include <utility>
 
 #include "test_macros.h"
-
-// Test that the type 'std::suspend_never' is in the correct namespace
-
-TEST_SAFE_STATIC std::suspend_never safe_sn;
-constexpr std::suspend_never constexpr_sn;
 
 constexpr bool check_suspend_constexpr() {
   std::suspend_never s{};
@@ -75,10 +69,6 @@ int main(int, char**)
   }
   {
     static_assert(test_trivial_awaitable_constexpr<std::suspend_never>(true));
-  }
-  {
-    // suppress unused warnings for the global constexpr test variable
-    ((void)constexpr_sn);
   }
 
   return 0;

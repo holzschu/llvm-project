@@ -5,6 +5,10 @@
 ; RUN:    -experimental-debug-variable-locations=true \
 ; RUN: | FileCheck %s --check-prefixes=CHECK,INSTRREF
 
+; RUN: llc -start-after=codegenprepare -stop-before finalize-isel -o - %s \
+; RUN:    -experimental-debug-variable-locations=false --try-experimental-debuginfo-iterators \
+; RUN: | FileCheck %s --check-prefixes=CHECK,DBGVALUE
+
 ; This is a reproducer based on the test case from PR37321.
 
 ; We verify that the fragment for the last DBG_VALUE is limited depending
@@ -19,11 +23,11 @@
 ; INSTRREF-SAME:    debug-instr-number 2
 ; CHECK-NEXT:    [[REG3:%[0-9]+]]:gr32 = PHI
 ; INSTRREF-SAME:    debug-instr-number 3
-; INSTRREF-NEXT: DBG_INSTR_REF 1, 0, !13, !DIExpression(DW_OP_LLVM_fragment, 0, 32)
-; INSTRREF-NEXT: DBG_INSTR_REF 2, 0, !13, !DIExpression(DW_OP_LLVM_fragment, 32, 32)
-; INSTRREF-NEXT: DBG_INSTR_REF 3, 0, !13, !DIExpression(DW_OP_LLVM_fragment, 64, 16)
-; INSTRREF-NEXT: DBG_INSTR_REF 1, 0, !12, !DIExpression(DW_OP_LLVM_fragment, 10, 32)
-; INSTRREF-NEXT: DBG_INSTR_REF 2, 0, !12, !DIExpression(DW_OP_LLVM_fragment, 42, 13)
+; INSTRREF-NEXT: DBG_INSTR_REF !13, !DIExpression(DW_OP_LLVM_arg, 0, DW_OP_LLVM_fragment, 0, 32), dbg-instr-ref(1, 0)
+; INSTRREF-NEXT: DBG_INSTR_REF !13, !DIExpression(DW_OP_LLVM_arg, 0, DW_OP_LLVM_fragment, 32, 32), dbg-instr-ref(2, 0)
+; INSTRREF-NEXT: DBG_INSTR_REF !13, !DIExpression(DW_OP_LLVM_arg, 0, DW_OP_LLVM_fragment, 64, 16), dbg-instr-ref(3, 0)
+; INSTRREF-NEXT: DBG_INSTR_REF !12, !DIExpression(DW_OP_LLVM_arg, 0, DW_OP_LLVM_fragment, 10, 32), dbg-instr-ref(1, 0)
+; INSTRREF-NEXT: DBG_INSTR_REF !12, !DIExpression(DW_OP_LLVM_arg, 0, DW_OP_LLVM_fragment, 42, 13), dbg-instr-ref(2, 0)
 ; DBGVALUE-NEXT: DBG_VALUE [[REG1]], $noreg,  !13, !DIExpression(DW_OP_LLVM_fragment, 0, 32)
 ; DBGVALUE-NEXT: DBG_VALUE [[REG2]], $noreg,  !13, !DIExpression(DW_OP_LLVM_fragment, 32, 32)
 ; DBGVALUE-NEXT: DBG_VALUE [[REG3]], $noreg,  !13, !DIExpression(DW_OP_LLVM_fragment, 64, 16)

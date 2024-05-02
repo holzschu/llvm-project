@@ -68,10 +68,6 @@ public:
   size_t DoReadMemory(lldb::addr_t addr, void *buf, size_t size,
                       lldb_private::Status &error) override;
 
-  lldb_private::Status
-  GetMemoryRegionInfo(lldb::addr_t load_addr,
-                      lldb_private::MemoryRegionInfo &region_info) override;
-
   lldb::addr_t GetImageInfoAddress() override;
 
 protected:
@@ -84,8 +80,27 @@ protected:
 
   lldb_private::ObjectFile *GetCoreObjectFile();
 
+  lldb_private::Status
+  DoGetMemoryRegionInfo(lldb::addr_t load_addr,
+                        lldb_private::MemoryRegionInfo &region_info) override;
+
 private:
-  bool GetDynamicLoaderAddress(lldb::addr_t addr);
+  void CreateMemoryRegions();
+
+  bool LoadBinaryViaLowmemUUID();
+
+  /// \return
+  ///   True if any metadata were found indicating the binary that should
+  ///   be loaded, regardless of whether the specified binary could be found.
+  ///   False if no metadata were present.
+  bool LoadBinariesViaMetadata();
+
+  void LoadBinariesViaExhaustiveSearch();
+  void LoadBinariesAndSetDYLD();
+  void CleanupMemoryRegionPermissions();
+
+  bool CheckAddressForDyldOrKernel(lldb::addr_t addr, lldb::addr_t &dyld,
+                                   lldb::addr_t &kernel);
 
   enum CorefilePreference { eUserProcessCorefile, eKernelCorefile };
 

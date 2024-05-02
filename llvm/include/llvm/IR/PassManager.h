@@ -46,11 +46,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassInstrumentation.h"
 #include "llvm/IR/PassManagerInternal.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/TypeName.h"
-#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <iterator>
@@ -61,7 +59,26 @@
 #include <utility>
 #include <vector>
 
+extern llvm::cl::opt<bool> UseNewDbgInfoFormat;
+
 namespace llvm {
+
+// RemoveDIs: Provide facilities for converting debug-info from one form to
+// another, which are no-ops for everything but modules.
+template <class IRUnitT> inline bool shouldConvertDbgInfo(IRUnitT &IR) {
+  return false;
+}
+template <> inline bool shouldConvertDbgInfo(Module &IR) {
+  return !IR.IsNewDbgInfoFormat && UseNewDbgInfoFormat;
+}
+template <class IRUnitT> inline void doConvertDbgInfoToNew(IRUnitT &IR) {}
+template <> inline void doConvertDbgInfoToNew(Module &IR) {
+  IR.convertToNewDbgValues();
+}
+template <class IRUnitT> inline void doConvertDebugInfoToOld(IRUnitT &IR) {}
+template <> inline void doConvertDebugInfoToOld(Module &IR) {
+  IR.convertFromNewDbgValues();
+}
 
 /// A special type used by analysis passes to provide an address that
 /// identifies that particular analysis pass type.
@@ -233,11 +250,11 @@ public:
     }
     // The intersection requires the *union* of the explicitly not-preserved
     // IDs and the *intersection* of the preserved IDs.
-    for (auto ID : Arg.NotPreservedAnalysisIDs) {
+    for (auto *ID : Arg.NotPreservedAnalysisIDs) {
       PreservedIDs.erase(ID);
       NotPreservedAnalysisIDs.insert(ID);
     }
-    for (auto ID : PreservedIDs)
+    for (auto *ID : PreservedIDs)
       if (!Arg.PreservedIDs.count(ID))
         PreservedIDs.erase(ID);
   }
@@ -255,11 +272,11 @@ public:
     }
     // The intersection requires the *union* of the explicitly not-preserved
     // IDs and the *intersection* of the preserved IDs.
-    for (auto ID : Arg.NotPreservedAnalysisIDs) {
+    for (auto *ID : Arg.NotPreservedAnalysisIDs) {
       PreservedIDs.erase(ID);
       NotPreservedAnalysisIDs.insert(ID);
     }
-    for (auto ID : PreservedIDs)
+    for (auto *ID : PreservedIDs)
       if (!Arg.PreservedIDs.count(ID))
         PreservedIDs.erase(ID);
   }
@@ -473,7 +490,7 @@ class PassManager : public PassInfoMixin<
                         PassManager<IRUnitT, AnalysisManagerT, ExtraArgTs...>> {
 public:
   /// Construct a pass manager.
-  explicit PassManager() {}
+  explicit PassManager() = default;
 
   // FIXME: These are equivalent to the default move constructor/move
   // assignment. However, using = default triggers linker errors due to the
@@ -492,7 +509,7 @@ public:
       auto *P = Passes[Idx].get();
       P->printPipeline(OS, MapClassName2PassName);
       if (Idx + 1 < Size)
-        OS << ",";
+        OS << ',';
     }
   }
 
@@ -510,33 +527,36 @@ public:
         detail::getAnalysisResult<PassInstrumentationAnalysis>(
             AM, IR, std::tuple<ExtraArgTs...>(ExtraArgs...));
 
-    for (unsigned Idx = 0, Size = Passes.size(); Idx != Size; ++Idx) {
-      auto *P = Passes[Idx].get();
+    // RemoveDIs: if requested, convert debug-info to DPValue representation
+    // for duration of these passes.
+    bool ShouldConvertDbgInfo = shouldConvertDbgInfo(IR);
+    if (ShouldConvertDbgInfo)
+      doConvertDbgInfoToNew(IR);
 
+    for (auto &Pass : Passes) {
       // Check the PassInstrumentation's BeforePass callbacks before running the
       // pass, skip its execution completely if asked to (callback returns
       // false).
-      if (!PI.runBeforePass<IRUnitT>(*P, IR))
+      if (!PI.runBeforePass<IRUnitT>(*Pass, IR))
         continue;
 
-      PreservedAnalyses PassPA;
-      {
-        TimeTraceScope TimeScope(P->name(), IR.getName());
-        PassPA = P->run(IR, AM, ExtraArgs...);
-      }
-
-      // Call onto PassInstrumentation's AfterPass callbacks immediately after
-      // running the pass.
-      PI.runAfterPass<IRUnitT>(*P, IR, PassPA);
+      PreservedAnalyses PassPA = Pass->run(IR, AM, ExtraArgs...);
 
       // Update the analysis manager as each pass runs and potentially
       // invalidates analyses.
       AM.invalidate(IR, PassPA);
 
+      // Call onto PassInstrumentation's AfterPass callbacks immediately after
+      // running the pass.
+      PI.runAfterPass<IRUnitT>(*Pass, IR, PassPA);
+
       // Finally, intersect the preserved analyses to compute the aggregate
       // preserved set for this pass manager.
       PA.intersect(std::move(PassPA));
     }
+
+    if (ShouldConvertDbgInfo)
+      doConvertDebugInfoToOld(IR);
 
     // Invalidation was handled after each pass in the above loop for the
     // current unit of IR. Therefore, the remaining analysis results in the
@@ -1107,7 +1127,7 @@ public:
           DeadKeys.push_back(OuterID);
       }
 
-      for (auto OuterID : DeadKeys)
+      for (auto *OuterID : DeadKeys)
         OuterAnalysisInvalidationMap.erase(OuterID);
 
       // The proxy itself remains valid regardless of anything else.
@@ -1269,7 +1289,7 @@ struct RequireAnalysisPass
                      function_ref<StringRef(StringRef)> MapClassName2PassName) {
     auto ClassName = AnalysisT::name();
     auto PassName = MapClassName2PassName(ClassName);
-    OS << "require<" << PassName << ">";
+    OS << "require<" << PassName << '>';
   }
   static bool isRequired() { return true; }
 };
@@ -1295,7 +1315,7 @@ struct InvalidateAnalysisPass
                      function_ref<StringRef(StringRef)> MapClassName2PassName) {
     auto ClassName = AnalysisT::name();
     auto PassName = MapClassName2PassName(ClassName);
-    OS << "invalidate<" << PassName << ">";
+    OS << "invalidate<" << PassName << '>';
   }
 };
 
@@ -1350,7 +1370,7 @@ public:
                      function_ref<StringRef(StringRef)> MapClassName2PassName) {
     OS << "repeat<" << Count << ">(";
     P.printPipeline(OS, MapClassName2PassName);
-    OS << ")";
+    OS << ')';
   }
 
 private:

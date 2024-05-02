@@ -25,8 +25,6 @@ namespace test_block_retain {
 
 #else
 
-// CHECK: %[[STRUCT_BLOCK_DESCRIPTOR:.*]] = type { i64, i64 }
-
 namespace test_block_retain {
 // CHECK-LABEL: define linkonce_odr void @_ZN17test_block_retain14initializationEP11objc_object(
 // CHECK-NOT: call i8* @llvm.objc.retainBlock(
@@ -36,10 +34,8 @@ namespace test_block_retain {
   }
 
 // CHECK-LABEL: define{{.*}} void @_ZN17test_block_retain26test_assignmentConditionalEP11objc_objectb(
-// CHECK: %[[BLOCK:.*]] = alloca <{ i8*, i32, i32, i8*, %[[STRUCT_BLOCK_DESCRIPTOR]]*, i8* }>, align 8
-// CHECK: %[[V4:.*]] = bitcast <{ i8*, i32, i32, i8*, %[[STRUCT_BLOCK_DESCRIPTOR]]*, i8* }>* %[[BLOCK]] to void ()*
-// CHECK: %[[V5:.*]] = bitcast void ()* %[[V4]] to i8*
-// CHECK: call i8* @llvm.objc.retainBlock(i8* %[[V5]])
+// CHECK: %[[BLOCK:.*]] = alloca <{ ptr, i32, i32, ptr, ptr, ptr }>, align 8
+// CHECK: call ptr @llvm.objc.retainBlock(ptr %[[BLOCK]])
 
   void test_assignmentConditional(id a, bool c) {
     assignmentConditional(a, c);

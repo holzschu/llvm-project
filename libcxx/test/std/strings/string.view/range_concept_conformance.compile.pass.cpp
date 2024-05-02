@@ -7,8 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: c++03, c++11, c++14, c++17
-// UNSUPPORTED: libcpp-no-concepts
-// UNSUPPORTED: libcpp-has-no-incomplete-ranges
 
 // string_view
 
@@ -16,8 +14,6 @@
 
 #include <concepts>
 #include <ranges>
-
-
 
 static_assert(std::same_as<std::ranges::iterator_t<std::string_view>, std::string_view::iterator>);
 static_assert(std::ranges::common_range<std::string_view>);

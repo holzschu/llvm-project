@@ -1,4 +1,3 @@
-// RUN: %clang_cc1 -triple=powerpc-apple-darwin8 -target-feature +altivec -fsyntax-only -verify=expected,novsx %s
 // RUN: %clang_cc1 -triple=powerpc64-unknown-linux-gnu -target-feature +altivec -target-feature +vsx -fsyntax-only -verify=expected,nonaix %s
 // RUN: %clang_cc1 -triple=powerpc64le-unknown-linux-gnu -target-feature +altivec -target-feature -vsx -fsyntax-only -verify=expected,novsx %s
 // RUN: %clang_cc1 -triple=powerpc-ibm-aix -target-feature +altivec -fsyntax-only -verify=expected,aix %s
@@ -25,7 +24,7 @@ __vector __bool short vv___bs;
 __vector __bool int vv___bi;
 __vector __pixel vv_p;
 __vector pixel vv__p;
-__vector int vf__r();
+__vector int vf__r(void);
 void vf__a(__vector int a);
 void vf__a2(int b, __vector int a);
 
@@ -50,7 +49,7 @@ vector __bool short v___bs;
 vector __bool int v___bi;
 vector __pixel v_p;
 vector pixel v__p;
-vector int f__r();
+vector int f__r(void);
 void f_a(vector int a);
 void f_a2(int b, vector int a);
 
@@ -97,8 +96,8 @@ vector unsigned long int v_uli;     // nonaix-warning {{Use of 'long' with '__ve
 // These should have warnings.
 __vector long double  vv_ld;        // expected-error {{cannot use 'long double' with '__vector'}}
 vector long double  v_ld;           // expected-error {{cannot use 'long double' with '__vector'}}
-vector bool v_b;                    // expected-warning {{type specifier missing, defaults to 'int'}}
-vector __bool v___b;                // expected-warning {{type specifier missing, defaults to 'int'}}
+vector bool v_b;                    // expected-error {{type specifier missing, defaults to 'int'}}
+vector __bool v___b;                // expected-error {{type specifier missing, defaults to 'int'}}
 
 // These should have errors.
 #ifndef __VSX__
@@ -146,7 +145,7 @@ struct S {
   vector short i32;
 };
 
-void f() {
+void f(void) {
   __vector unsigned int v = {0,0,0,0};
   __vector int v__cast = (__vector int)v;
   __vector int v_cast = (vector int)v;

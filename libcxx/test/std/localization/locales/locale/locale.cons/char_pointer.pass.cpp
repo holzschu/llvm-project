@@ -12,10 +12,7 @@
 // REQUIRES: locale.ru_RU.UTF-8
 // REQUIRES: locale.zh_CN.UTF-8
 
-// This test relies on P0482 being fixed, which isn't in
-// older Apple dylibs
-//
-// XFAIL: use_system_cxx_lib && target={{.+}}-apple-macosx10.{{9|10|11|12|13|14|15}}
+// XFAIL: availability-char8_t_support-missing
 
 // This test runs in C++20, but we have deprecated codecvt<char(16|32), char, mbstate_t> in C++20.
 // ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_DISABLE_DEPRECATION_WARNINGS
@@ -84,21 +81,25 @@ int main(int, char**)
         assert(!(loc == loc3));
         assert(loc != loc3);
 #ifndef TEST_HAS_NO_EXCEPTIONS
-        try
-        {
+        try {
             std::locale((const char*)0);
             assert(false);
+        } catch (std::runtime_error&) {
+            // pass
         }
-        catch (std::runtime_error&)
-        {
+
+        try {
+            std::locale(nullptr);
+            assert(false);
+        } catch (std::runtime_error&) {
+            // pass
         }
-        try
-        {
+
+        try {
             std::locale("spazbot");
             assert(false);
-        }
-        catch (std::runtime_error&)
-        {
+        } catch (std::runtime_error&) {
+            // pass
         }
 #endif
         std::locale ok("");

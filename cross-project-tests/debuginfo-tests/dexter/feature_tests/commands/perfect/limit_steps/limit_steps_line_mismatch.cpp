@@ -3,12 +3,8 @@
 //      doesn't exist. This can happen due to optimisations or label is on an
 //      empty line.
 //
-// FIXME: Windows regression tests run with dbgeng. \DexLimitSteps isn't yet
-// supported with dbgeng.
-//
-// REQUIRES: system-linux
-//
-// RUN: %dexter_regression_test -- %s | FileCheck %s
+// RUN: %dexter_regression_test_build %s -o %t
+// RUN: %dexter_regression_test_run --binary %t -- %s | FileCheck %s
 // CHECK: limit_steps_line_mismatch.cpp
 
 int main() {

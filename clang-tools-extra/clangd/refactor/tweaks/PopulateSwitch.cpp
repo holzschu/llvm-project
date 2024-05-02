@@ -33,7 +33,6 @@
 #include "AST.h"
 #include "Selection.h"
 #include "refactor/Tweak.h"
-#include "support/Logger.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
@@ -177,7 +176,7 @@ bool PopulateSwitch::prepare(const Selection &Sel) {
 
     // We need a stored value in order to continue; currently both C and ObjC
     // enums won't have one.
-    if (CE->getResultStorageKind() == ConstantExpr::RSK_None)
+    if (CE->getResultStorageKind() == ConstantResultStorageKind::None)
       return false;
     auto Iter = ExpectedCases.find(Normalize(CE->getResultAsAPSInt()));
     if (Iter != ExpectedCases.end())

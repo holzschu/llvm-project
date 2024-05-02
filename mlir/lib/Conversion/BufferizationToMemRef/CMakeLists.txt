@@ -8,7 +8,12 @@ add_mlir_conversion_library(MLIRBufferizationToMemRef
   MLIRConversionPassIncGen
 
   LINK_LIBS PUBLIC
-  MLIRBufferization
+  MLIRBufferizationDialect
+  MLIRBufferizationTransforms
+  MLIRSCFDialect
+  MLIRFuncDialect
+  MLIRArithDialect
+  MLIRMemRefDialect
   MLIRPass
   MLIRTransforms
   )

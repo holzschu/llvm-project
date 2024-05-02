@@ -8,31 +8,40 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "State.h"
+#include "Shared/Environment.h"
+
+#include "Allocator.h"
 #include "Configuration.h"
 #include "Debug.h"
 #include "Interface.h"
+#include "LibC.h"
 #include "Mapping.h"
+#include "State.h"
 #include "Synchronization.h"
 #include "Types.h"
 #include "Utils.h"
 
-using namespace _OMP;
+using namespace ompx;
 
-#pragma omp declare target
+#pragma omp begin declare target device_type(nohost)
 
 /// Memory implementation
 ///
 ///{
 
-/// Add worst-case padding so that future allocations are properly aligned.
-/// FIXME: The stack shouldn't require worst-case padding. Alignment needs to be
-/// passed in as an argument and the stack rewritten to support it.
-constexpr const uint32_t Alignment = 16;
-
 /// External symbol to access dynamic shared memory.
-extern unsigned char DynamicSharedBuffer[] __attribute__((aligned(Alignment)));
+[[gnu::aligned(
+    allocator::ALIGNMENT)]] extern unsigned char DynamicSharedBuffer[];
 #pragma omp allocate(DynamicSharedBuffer) allocator(omp_pteam_mem_alloc)
+
+/// The kernel environment passed to the init method by the compiler.
+static KernelEnvironmentTy *SHARED(KernelEnvironmentPtr);
+
+/// The kernel launch environment passed as argument to the kernel by the
+/// runtime.
+static KernelLaunchEnvironmentTy *SHARED(KernelLaunchEnvironmentPtr);
+
+///}
 
 namespace {
 
@@ -41,29 +50,19 @@ namespace {
 /// dedicated begin/end declare variant.
 ///
 ///{
-
 extern "C" {
-__attribute__((leaf)) void *malloc(uint64_t Size);
-__attribute__((leaf)) void free(void *Ptr);
+#ifdef __AMDGPU__
+
+[[gnu::weak]] void *malloc(uint64_t Size) { return allocator::alloc(Size); }
+[[gnu::weak]] void free(void *Ptr) { allocator::free(Ptr); }
+
+#else
+
+[[gnu::weak, gnu::leaf]] void *malloc(uint64_t Size);
+[[gnu::weak, gnu::leaf]] void free(void *Ptr);
+
+#endif
 }
-
-///}
-
-/// AMDGCN implementations of the shuffle sync idiom.
-///
-///{
-#pragma omp begin declare variant match(device = {arch(amdgcn)})
-
-extern "C" {
-void *malloc(uint64_t Size) {
-  // TODO: Use some preallocated space for dynamic malloc.
-  return nullptr;
-}
-
-void free(void *Ptr) {}
-}
-
-#pragma omp end declare variant
 ///}
 
 /// A "smart" stack in shared memory.
@@ -90,9 +89,9 @@ struct SharedMemorySmartStackTy {
 private:
   /// Compute the size of the storage space reserved for a thread.
   uint32_t computeThreadStorageTotal() {
-    uint32_t NumLanesInBlock = mapping::getNumberOfProcessorElements();
+    uint32_t NumLanesInBlock = mapping::getNumberOfThreadsInBlock();
     return utils::align_down((state::SharedScratchpadSize / NumLanesInBlock),
-                             Alignment);
+                             allocator::ALIGNMENT);
   }
 
   /// Return the top address of the warp data stack, that is the first address
@@ -102,10 +101,10 @@ private:
   }
 
   /// The actual storage, shared among all warps.
-  unsigned char Data[state::SharedScratchpadSize]
-      __attribute__((aligned(Alignment)));
-  unsigned char Usage[mapping::MaxThreadsPerTeam]
-      __attribute__((aligned(Alignment)));
+  [[gnu::aligned(
+      allocator::ALIGNMENT)]] unsigned char Data[state::SharedScratchpadSize];
+  [[gnu::aligned(
+      allocator::ALIGNMENT)]] unsigned char Usage[mapping::MaxThreadsPerTeam];
 };
 
 static_assert(state::SharedScratchpadSize / mapping::MaxThreadsPerTeam <= 256,
@@ -120,7 +119,9 @@ void SharedMemorySmartStackTy::init(bool IsSPMD) {
 
 void *SharedMemorySmartStackTy::push(uint64_t Bytes) {
   // First align the number of requested bytes.
-  uint64_t AlignedBytes = utils::align_up(Bytes, Alignment);
+  /// FIXME: The stack shouldn't require worst-case padding. Alignment needs to
+  /// be passed in as an argument and the stack rewritten to support it.
+  uint64_t AlignedBytes = utils::align_up(Bytes, allocator::ALIGNMENT);
 
   uint32_t StorageTotal = computeThreadStorageTotal();
 
@@ -136,17 +137,20 @@ void *SharedMemorySmartStackTy::push(uint64_t Bytes) {
     return Ptr;
   }
 
+  if (config::isDebugMode(DeviceDebugKind::CommonIssues))
+    PRINT("Shared memory stack full, fallback to dynamic allocation of global "
+          "memory will negatively impact performance.\n");
   void *GlobalMemory = memory::allocGlobal(
       AlignedBytes, "Slow path shared memory allocation, insufficient "
                     "shared memory stack memory!");
-  ASSERT(GlobalMemory != nullptr && "nullptr returned by malloc!");
+  ASSERT(GlobalMemory != nullptr, "nullptr returned by malloc!");
 
   return GlobalMemory;
 }
 
 void SharedMemorySmartStackTy::pop(void *Ptr, uint32_t Bytes) {
-  uint64_t AlignedBytes = utils::align_up(Bytes, Alignment);
-  if (Ptr >= &Data[0] && Ptr < &Data[state::SharedScratchpadSize]) {
+  uint64_t AlignedBytes = utils::align_up(Bytes, allocator::ALIGNMENT);
+  if (utils::isSharedMemPtr(Ptr)) {
     int TId = mapping::getThreadIdInBlock();
     Usage[TId] -= AlignedBytes;
     return;
@@ -168,7 +172,7 @@ void memory::freeShared(void *Ptr, uint64_t Bytes, const char *Reason) {
 
 void *memory::allocGlobal(uint64_t Bytes, const char *Reason) {
   void *Ptr = malloc(Bytes);
-  if (config::isDebugMode(config::DebugKind::CommonIssues) && Ptr == nullptr)
+  if (config::isDebugMode(DeviceDebugKind::CommonIssues) && Ptr == nullptr)
     PRINT("nullptr returned by malloc!\n");
   return Ptr;
 }
@@ -177,22 +181,7 @@ void memory::freeGlobal(void *Ptr, const char *Reason) { free(Ptr); }
 
 ///}
 
-namespace {
-
-struct ICVStateTy {
-  uint32_t NThreadsVar;
-  uint32_t LevelVar;
-  uint32_t ActiveLevelVar;
-  uint32_t MaxActiveLevelsVar;
-  uint32_t RunSchedVar;
-  uint32_t RunSchedChunkVar;
-
-  bool operator==(const ICVStateTy &Other) const;
-
-  void assertEqual(const ICVStateTy &Other) const;
-};
-
-bool ICVStateTy::operator==(const ICVStateTy &Other) const {
+bool state::ICVStateTy::operator==(const ICVStateTy &Other) const {
   return (NThreadsVar == Other.NThreadsVar) & (LevelVar == Other.LevelVar) &
          (ActiveLevelVar == Other.ActiveLevelVar) &
          (MaxActiveLevelsVar == Other.MaxActiveLevelsVar) &
@@ -200,112 +189,44 @@ bool ICVStateTy::operator==(const ICVStateTy &Other) const {
          (RunSchedChunkVar == Other.RunSchedChunkVar);
 }
 
-void ICVStateTy::assertEqual(const ICVStateTy &Other) const {
-  ASSERT(NThreadsVar == Other.NThreadsVar);
-  ASSERT(LevelVar == Other.LevelVar);
-  ASSERT(ActiveLevelVar == Other.ActiveLevelVar);
-  ASSERT(MaxActiveLevelsVar == Other.MaxActiveLevelsVar);
-  ASSERT(RunSchedVar == Other.RunSchedVar);
-  ASSERT(RunSchedChunkVar == Other.RunSchedChunkVar);
+void state::ICVStateTy::assertEqual(const ICVStateTy &Other) const {
+  ASSERT(NThreadsVar == Other.NThreadsVar, nullptr);
+  ASSERT(LevelVar == Other.LevelVar, nullptr);
+  ASSERT(ActiveLevelVar == Other.ActiveLevelVar, nullptr);
+  ASSERT(MaxActiveLevelsVar == Other.MaxActiveLevelsVar, nullptr);
+  ASSERT(RunSchedVar == Other.RunSchedVar, nullptr);
+  ASSERT(RunSchedChunkVar == Other.RunSchedChunkVar, nullptr);
 }
 
-struct TeamStateTy {
-  /// TODO: provide a proper init function.
-  void init(bool IsSPMD);
-
-  bool operator==(const TeamStateTy &) const;
-
-  void assertEqual(TeamStateTy &Other) const;
-
-  /// ICVs
-  ///
-  /// Preallocated storage for ICV values that are used if the threads have not
-  /// set a custom default. The latter is supported but unlikely and slow(er).
-  ///
-  ///{
-  ICVStateTy ICVState;
-  ///}
-
-  uint32_t ParallelTeamSize;
-  ParallelRegionFnTy ParallelRegionFnVar;
-};
-
-TeamStateTy SHARED(TeamState);
-
-void TeamStateTy::init(bool IsSPMD) {
-  ICVState.NThreadsVar = mapping::getBlockSize();
+void state::TeamStateTy::init(bool IsSPMD) {
+  ICVState.NThreadsVar = 0;
   ICVState.LevelVar = 0;
   ICVState.ActiveLevelVar = 0;
+  ICVState.Padding0Val = 0;
   ICVState.MaxActiveLevelsVar = 1;
   ICVState.RunSchedVar = omp_sched_static;
   ICVState.RunSchedChunkVar = 1;
   ParallelTeamSize = 1;
+  HasThreadState = false;
   ParallelRegionFnVar = nullptr;
 }
 
-bool TeamStateTy::operator==(const TeamStateTy &Other) const {
+bool state::TeamStateTy::operator==(const TeamStateTy &Other) const {
   return (ICVState == Other.ICVState) &
+         (HasThreadState == Other.HasThreadState) &
          (ParallelTeamSize == Other.ParallelTeamSize);
 }
 
-void TeamStateTy::assertEqual(TeamStateTy &Other) const {
+void state::TeamStateTy::assertEqual(TeamStateTy &Other) const {
   ICVState.assertEqual(Other.ICVState);
-  ASSERT(ParallelTeamSize == Other.ParallelTeamSize);
+  ASSERT(ParallelTeamSize == Other.ParallelTeamSize, nullptr);
+  ASSERT(HasThreadState == Other.HasThreadState, nullptr);
 }
 
-struct ThreadStateTy {
+state::TeamStateTy SHARED(ompx::state::TeamState);
+state::ThreadStateTy **SHARED(ompx::state::ThreadStates);
 
-  /// ICVs have preallocated storage in the TeamStateTy which is used if a
-  /// thread has not set a custom value. The latter is supported but unlikely.
-  /// When it happens we will allocate dynamic memory to hold the values of all
-  /// ICVs. Thus, the first time an ICV is set by a thread we will allocate an
-  /// ICV struct to hold them all. This is slower than alternatives but allows
-  /// users to pay only for what they use.
-  ///
-  ICVStateTy ICVState;
-
-  ThreadStateTy *PreviousThreadState;
-
-  void init() {
-    ICVState = TeamState.ICVState;
-    PreviousThreadState = nullptr;
-  }
-
-  void init(ThreadStateTy *PreviousTS) {
-    ICVState = PreviousTS ? PreviousTS->ICVState : TeamState.ICVState;
-    PreviousThreadState = PreviousTS;
-  }
-};
-
-__attribute__((loader_uninitialized))
-ThreadStateTy *ThreadStates[mapping::MaxThreadsPerTeam];
-#pragma omp allocate(ThreadStates) allocator(omp_pteam_mem_alloc)
-
-uint32_t &lookupForModify32Impl(uint32_t ICVStateTy::*Var) {
-  if (OMP_LIKELY(TeamState.ICVState.LevelVar == 0))
-    return TeamState.ICVState.*Var;
-  uint32_t TId = mapping::getThreadIdInBlock();
-  if (!ThreadStates[TId]) {
-    ThreadStates[TId] = reinterpret_cast<ThreadStateTy *>(memory::allocGlobal(
-        sizeof(ThreadStateTy), "ICV modification outside data environment"));
-    ASSERT(ThreadStates[TId] != nullptr && "Nullptr returned by malloc!");
-    ThreadStates[TId]->init();
-  }
-  return ThreadStates[TId]->ICVState.*Var;
-}
-
-uint32_t &lookup32Impl(uint32_t ICVStateTy::*Var) {
-  uint32_t TId = mapping::getThreadIdInBlock();
-  if (OMP_UNLIKELY(ThreadStates[TId]))
-    return ThreadStates[TId]->ICVState.*Var;
-  return TeamState.ICVState.*Var;
-}
-uint64_t &lookup64Impl(uint64_t ICVStateTy::*Var) {
-  uint64_t TId = mapping::getThreadIdInBlock();
-  if (OMP_UNLIKELY(ThreadStates[TId]))
-    return ThreadStates[TId]->ICVState.*Var;
-  return TeamState.ICVState.*Var;
-}
+namespace {
 
 int returnValIfLevelIsActive(int Level, int Val, int DefaultVal,
                              int OutOfBoundsVal = -1) {
@@ -322,79 +243,70 @@ int returnValIfLevelIsActive(int Level, int Val, int DefaultVal,
 
 } // namespace
 
-uint32_t &state::lookup32(ValueKind Kind, bool IsReadonly) {
-  switch (Kind) {
-  case state::VK_NThreads:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::NThreadsVar);
-    return lookupForModify32Impl(&ICVStateTy::NThreadsVar);
-  case state::VK_Level:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::LevelVar);
-    return lookupForModify32Impl(&ICVStateTy::LevelVar);
-  case state::VK_ActiveLevel:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::ActiveLevelVar);
-    return lookupForModify32Impl(&ICVStateTy::ActiveLevelVar);
-  case state::VK_MaxActiveLevels:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::MaxActiveLevelsVar);
-    return lookupForModify32Impl(&ICVStateTy::MaxActiveLevelsVar);
-  case state::VK_RunSched:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::RunSchedVar);
-    return lookupForModify32Impl(&ICVStateTy::RunSchedVar);
-  case state::VK_RunSchedChunk:
-    if (IsReadonly)
-      return lookup32Impl(&ICVStateTy::RunSchedChunkVar);
-    return lookupForModify32Impl(&ICVStateTy::RunSchedChunkVar);
-  case state::VK_ParallelTeamSize:
-    return TeamState.ParallelTeamSize;
-  default:
-    break;
-  }
-  __builtin_unreachable();
-}
-
-void *&state::lookupPtr(ValueKind Kind, bool IsReadonly) {
-  switch (Kind) {
-  case state::VK_ParallelRegionFn:
-    return TeamState.ParallelRegionFnVar;
-  default:
-    break;
-  }
-  __builtin_unreachable();
-}
-
-void state::init(bool IsSPMD) {
+void state::init(bool IsSPMD, KernelEnvironmentTy &KernelEnvironment,
+                 KernelLaunchEnvironmentTy &KernelLaunchEnvironment) {
   SharedMemorySmartStack.init(IsSPMD);
   if (mapping::isInitialThreadInLevel0(IsSPMD)) {
     TeamState.init(IsSPMD);
-    DebugEntryRAII::init();
+    ThreadStates = nullptr;
+    KernelEnvironmentPtr = &KernelEnvironment;
+    KernelLaunchEnvironmentPtr = &KernelLaunchEnvironment;
   }
-
-  ThreadStates[mapping::getThreadIdInBlock()] = nullptr;
 }
 
-void state::enterDataEnvironment() {
+KernelEnvironmentTy &state::getKernelEnvironment() {
+  return *KernelEnvironmentPtr;
+}
+
+KernelLaunchEnvironmentTy &state::getKernelLaunchEnvironment() {
+  return *KernelLaunchEnvironmentPtr;
+}
+
+void state::enterDataEnvironment(IdentTy *Ident) {
+  ASSERT(config::mayUseThreadStates(),
+         "Thread state modified while explicitly disabled!");
+  if (!config::mayUseThreadStates())
+    return;
+
   unsigned TId = mapping::getThreadIdInBlock();
-  ThreadStateTy *NewThreadState =
-      static_cast<ThreadStateTy *>(__kmpc_alloc_shared(sizeof(ThreadStateTy)));
+  ThreadStateTy *NewThreadState = static_cast<ThreadStateTy *>(
+      memory::allocGlobal(sizeof(ThreadStateTy), "ThreadStates alloc"));
+  uintptr_t *ThreadStatesBitsPtr = reinterpret_cast<uintptr_t *>(&ThreadStates);
+  if (!atomic::load(ThreadStatesBitsPtr, atomic::seq_cst)) {
+    uint32_t Bytes =
+        sizeof(ThreadStates[0]) * mapping::getNumberOfThreadsInBlock();
+    void *ThreadStatesPtr =
+        memory::allocGlobal(Bytes, "Thread state array allocation");
+    memset(ThreadStatesPtr, 0, Bytes);
+    if (!atomic::cas(ThreadStatesBitsPtr, uintptr_t(0),
+                     reinterpret_cast<uintptr_t>(ThreadStatesPtr),
+                     atomic::seq_cst, atomic::seq_cst))
+      memory::freeGlobal(ThreadStatesPtr,
+                         "Thread state array allocated multiple times");
+    ASSERT(atomic::load(ThreadStatesBitsPtr, atomic::seq_cst),
+           "Expected valid thread states bit!");
+  }
   NewThreadState->init(ThreadStates[TId]);
+  TeamState.HasThreadState = true;
   ThreadStates[TId] = NewThreadState;
 }
 
 void state::exitDataEnvironment() {
+  ASSERT(config::mayUseThreadStates(),
+         "Thread state modified while explicitly disabled!");
+
   unsigned TId = mapping::getThreadIdInBlock();
   resetStateForThread(TId);
 }
 
 void state::resetStateForThread(uint32_t TId) {
-  if (OMP_LIKELY(!ThreadStates[TId]))
+  if (!config::mayUseThreadStates())
+    return;
+  if (OMP_LIKELY(!TeamState.HasThreadState || !ThreadStates[TId]))
     return;
 
   ThreadStateTy *PreviousThreadState = ThreadStates[TId]->PreviousThreadState;
-  __kmpc_free_shared(ThreadStates[TId], sizeof(ThreadStateTy));
+  memory::freeGlobal(ThreadStates[TId], "ThreadStates dealloc");
   ThreadStates[TId] = PreviousThreadState;
 }
 
@@ -411,8 +323,12 @@ void state::assumeInitialState(bool IsSPMD) {
   TeamStateTy InitialTeamState;
   InitialTeamState.init(IsSPMD);
   InitialTeamState.assertEqual(TeamState);
-  ASSERT(!ThreadStates[mapping::getThreadIdInBlock()]);
-  ASSERT(mapping::isSPMDMode() == IsSPMD);
+  ASSERT(mapping::isSPMDMode() == IsSPMD, nullptr);
+}
+
+int state::getEffectivePTeamSize() {
+  int PTeamSize = state::ParallelTeamSize;
+  return PTeamSize ? PTeamSize : mapping::getMaxTeamThreads();
 }
 
 extern "C" {
@@ -422,11 +338,14 @@ int omp_get_dynamic(void) { return 0; }
 
 void omp_set_num_threads(int V) { icv::NThreads = V; }
 
-int omp_get_max_threads(void) { return icv::NThreads; }
+int omp_get_max_threads(void) {
+  int NT = icv::NThreads;
+  return NT > 0 ? NT : mapping::getMaxTeamThreads();
+}
 
 int omp_get_level(void) {
   int LevelVar = icv::Level;
-  ASSERT(LevelVar >= 0);
+  ASSERT(LevelVar >= 0, nullptr);
   return LevelVar;
 }
 
@@ -453,14 +372,14 @@ int omp_get_thread_num(void) {
 }
 
 int omp_get_team_size(int Level) {
-  return returnValIfLevelIsActive(Level, state::ParallelTeamSize, 1);
+  return returnValIfLevelIsActive(Level, state::getEffectivePTeamSize(), 1);
 }
 
 int omp_get_num_threads(void) {
-  return omp_get_level() > 1 ? 1 : state::ParallelTeamSize;
+  return omp_get_level() != 1 ? 1 : state::getEffectivePTeamSize();
 }
 
-int omp_get_thread_limit(void) { return mapping::getKernelSize(); }
+int omp_get_thread_limit(void) { return mapping::getMaxTeamThreads(); }
 
 int omp_get_num_procs(void) { return mapping::getNumberOfProcessorElements(); }
 
@@ -500,25 +419,29 @@ int omp_get_default_device(void) { return -1; }
 
 int omp_get_num_devices(void) { return config::getNumDevices(); }
 
-int omp_get_num_teams(void) { return mapping::getNumberOfBlocks(); }
+int omp_get_device_num(void) { return config::getDeviceNum(); }
 
-int omp_get_team_num() { return mapping::getBlockId(); }
+int omp_get_num_teams(void) { return mapping::getNumberOfBlocksInKernel(); }
+
+int omp_get_team_num() { return mapping::getBlockIdInKernel(); }
 
 int omp_get_initial_device(void) { return -1; }
 }
 
 extern "C" {
-__attribute__((noinline)) void *__kmpc_alloc_shared(uint64_t Bytes) {
-  FunctionTracingRAII();
+[[clang::noinline]] void *__kmpc_alloc_shared(uint64_t Bytes) {
   return memory::allocShared(Bytes, "Frontend alloc shared");
 }
 
-__attribute__((noinline)) void __kmpc_free_shared(void *Ptr, uint64_t Bytes) {
-  FunctionTracingRAII();
+[[clang::noinline]] void __kmpc_free_shared(void *Ptr, uint64_t Bytes) {
   memory::freeShared(Ptr, Bytes, "Frontend free shared");
 }
 
 void *__kmpc_get_dynamic_shared() { return memory::getDynamicBuffer(); }
+
+void *llvm_omp_target_dynamic_shared_alloc() {
+  return __kmpc_get_dynamic_shared();
+}
 
 void *llvm_omp_get_dynamic_shared() { return __kmpc_get_dynamic_shared(); }
 
@@ -536,26 +459,23 @@ constexpr uint64_t NUM_SHARED_VARIABLES_IN_SHARED_MEM = 64;
     allocator(omp_pteam_mem_alloc)
 
 void __kmpc_begin_sharing_variables(void ***GlobalArgs, uint64_t nArgs) {
-  FunctionTracingRAII();
   if (nArgs <= NUM_SHARED_VARIABLES_IN_SHARED_MEM) {
     SharedMemVariableSharingSpacePtr = &SharedMemVariableSharingSpace[0];
   } else {
     SharedMemVariableSharingSpacePtr = (void **)memory::allocGlobal(
         nArgs * sizeof(void *), "new extended args");
-    ASSERT(SharedMemVariableSharingSpacePtr != nullptr &&
+    ASSERT(SharedMemVariableSharingSpacePtr != nullptr,
            "Nullptr returned by malloc!");
   }
   *GlobalArgs = SharedMemVariableSharingSpacePtr;
 }
 
 void __kmpc_end_sharing_variables() {
-  FunctionTracingRAII();
   if (SharedMemVariableSharingSpacePtr != &SharedMemVariableSharingSpace[0])
     memory::freeGlobal(SharedMemVariableSharingSpacePtr, "new extended args");
 }
 
 void __kmpc_get_shared_variables(void ***GlobalArgs) {
-  FunctionTracingRAII();
   *GlobalArgs = SharedMemVariableSharingSpacePtr;
 }
 }

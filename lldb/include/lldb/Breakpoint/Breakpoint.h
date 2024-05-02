@@ -80,7 +80,8 @@ namespace lldb_private {
 class Breakpoint : public std::enable_shared_from_this<Breakpoint>,
                    public Stoppoint {
 public:
-  static ConstString GetEventIdentifier();
+  static const char *
+      BreakpointEventTypeAsCString(lldb::BreakpointEventType type);
 
   /// An enum specifying the match style for breakpoint settings.  At present
   /// only used for function name style breakpoints.
@@ -104,13 +105,15 @@ public:
 
     ~BreakpointEventData() override;
 
-    static ConstString GetFlavorString();
+    static llvm::StringRef GetFlavorString();
 
-    ConstString GetFlavor() const override;
+    Log *GetLogChannel() override;
+
+    llvm::StringRef GetFlavor() const override;
 
     lldb::BreakpointEventType GetBreakpointEventType() const;
 
-    lldb::BreakpointSP &GetBreakpoint();
+    lldb::BreakpointSP GetBreakpoint() const;
 
     BreakpointLocationCollection &GetBreakpointLocationCollection() {
       return m_locations;
@@ -326,6 +329,9 @@ public:
   ///     The current hit count for all locations.
   uint32_t GetHitCount() const;
 
+  /// Resets the current hit count for all locations.
+  void ResetHitCount();
+
   /// If \a one_shot is \b true, breakpoint will be deleted on first hit.
   void SetOneShot(bool one_shot);
 
@@ -375,7 +381,10 @@ public:
   /// \param[in] is_synchronous
   ///    If \b true the callback will be run on the private event thread
   ///    before the stop event gets reported.  If false, the callback will get
-  ///    handled on the public event thread after the stop has been posted.
+  ///    handled on the public event thread while the stop event is being
+  ///    pulled off the event queue.
+  ///    Note: synchronous callbacks cannot cause the target to run, in
+  ///    particular, they should not try to run the expression evaluator.
   void SetCallback(BreakpointHitCallback callback, void *baton,
                    bool is_synchronous = false);
 
@@ -514,9 +523,8 @@ public:
 
   lldb::SearchFilterSP GetSearchFilter() { return m_filter_sp; }
 
-private: // The target needs to manage adding & removing names.  It will do the
-         // checking for name validity as well.
-  bool AddName(llvm::StringRef new_name);
+private:
+  void AddName(llvm::StringRef new_name);
 
   void RemoveName(const char *name_to_remove) {
     if (name_to_remove)
@@ -581,7 +589,7 @@ public:
   llvm::json::Value GetStatistics();
 
   /// Get the time it took to resolve all locations in this breakpoint.
-  StatsDuration GetResolveTime() const { return m_resolve_time; }
+  StatsDuration::Duration GetResolveTime() const { return m_resolve_time; }
 
 protected:
   friend class Target;
@@ -660,11 +668,11 @@ private:
 
   BreakpointName::Permissions m_permissions;
 
-  StatsDuration m_resolve_time{0.0};
+  StatsDuration m_resolve_time;
 
   void SendBreakpointChangedEvent(lldb::BreakpointEventType eventKind);
 
-  void SendBreakpointChangedEvent(BreakpointEventData *data);
+  void SendBreakpointChangedEvent(const lldb::EventDataSP &breakpoint_data_sp);
 
   Breakpoint(const Breakpoint &) = delete;
   const Breakpoint &operator=(const Breakpoint &) = delete;

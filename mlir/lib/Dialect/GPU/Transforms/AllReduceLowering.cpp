@@ -11,15 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Arithmetic/IR/Arithmetic.h"
-#include "mlir/Dialect/GPU/GPUDialect.h"
-#include "mlir/Dialect/GPU/Passes.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
+#include "mlir/Dialect/GPU/Transforms/Passes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/Support/ErrorHandling.h"
 
 using namespace mlir;
 
@@ -31,7 +33,7 @@ struct GpuAllReduceRewriter {
   GpuAllReduceRewriter(gpu::GPUFuncOp funcOp, gpu::AllReduceOp reduceOp,
                        PatternRewriter &rewriter)
       : funcOp(funcOp), reduceOp(reduceOp), rewriter(rewriter),
-        loc(reduceOp.getLoc()), valueType(reduceOp.value().getType()),
+        loc(reduceOp.getLoc()), valueType(reduceOp.getValue().getType()),
         indexType(IndexType::get(reduceOp.getContext())),
         int32Type(IntegerType::get(reduceOp.getContext(), /*width=*/32)) {}
 
@@ -44,14 +46,14 @@ struct GpuAllReduceRewriter {
   /// workgroup memory.
   ///
   ///     %subgroup_reduce = `createSubgroupReduce(%operand)`
-  ///     cond_br %is_first_lane, ^then1, ^continue1
+  ///     cf.cond_br %is_first_lane, ^then1, ^continue1
   ///   ^then1:
   ///     store %subgroup_reduce, %workgroup_buffer[%subgroup_id]
-  ///     br ^continue1
+  ///     cf.br ^continue1
   ///   ^continue1:
   ///     gpu.barrier
   ///     %is_valid_subgroup = arith.cmpi "slt" %invocation_idx, %num_subgroups
-  ///     cond_br %is_valid_subgroup, ^then2, ^continue2
+  ///     cf.cond_br %is_valid_subgroup, ^then2, ^continue2
   ///   ^then2:
   ///     %partial_reduce = load %workgroup_buffer[%invocation_idx]
   ///     %all_reduce = `createSubgroupReduce(%partial_reduce)`
@@ -66,12 +68,12 @@ struct GpuAllReduceRewriter {
     rewriter.setInsertionPoint(reduceOp);
 
     // Compute linear invocation index and workgroup size.
-    Value dimX = getDimOp<gpu::BlockDimOp>("x");
-    Value dimY = getDimOp<gpu::BlockDimOp>("y");
-    Value dimZ = getDimOp<gpu::BlockDimOp>("z");
-    Value tidX = getDimOp<gpu::ThreadIdOp>("x");
-    Value tidY = getDimOp<gpu::ThreadIdOp>("y");
-    Value tidZ = getDimOp<gpu::ThreadIdOp>("z");
+    Value dimX = getDimOp<gpu::BlockDimOp>(gpu::Dimension::x);
+    Value dimY = getDimOp<gpu::BlockDimOp>(gpu::Dimension::y);
+    Value dimZ = getDimOp<gpu::BlockDimOp>(gpu::Dimension::z);
+    Value tidX = getDimOp<gpu::ThreadIdOp>(gpu::Dimension::x);
+    Value tidY = getDimOp<gpu::ThreadIdOp>(gpu::Dimension::y);
+    Value tidZ = getDimOp<gpu::ThreadIdOp>(gpu::Dimension::z);
     Value tmp1 = create<arith::MulIOp>(int32Type, tidZ, dimY);
     Value tmp2 = create<arith::AddIOp>(int32Type, tmp1, tidY);
     Value tmp3 = create<arith::MulIOp>(int32Type, tmp2, dimX);
@@ -100,8 +102,8 @@ struct GpuAllReduceRewriter {
     assert(accumFactory && "failed to create accumulator factory");
 
     // Reduce elements within each subgroup to produce the intermediate results.
-    Value subgroupReduce = createSubgroupReduce(activeWidth, laneId,
-                                                reduceOp.value(), accumFactory);
+    Value subgroupReduce = createSubgroupReduce(
+        activeWidth, laneId, reduceOp.getValue(), accumFactory);
 
     // Add workgroup buffer to parent function for intermediate result.
     Value buffer = createWorkgroupBuffer();
@@ -150,27 +152,28 @@ private:
 
   // Creates dimension op of type T, with the result casted to int32.
   template <typename T>
-  Value getDimOp(StringRef dimension) {
-    Value dim = create<T>(indexType, rewriter.getStringAttr(dimension));
+  Value getDimOp(gpu::Dimension dimension) {
+    Value dim = create<T>(indexType, dimension);
     return create<arith::IndexCastOp>(int32Type, dim);
   }
 
   /// Adds type to funcOp's workgroup attributions.
   Value createWorkgroupBuffer() {
-    int workgroupMemoryAddressSpace =
-        gpu::GPUDialect::getWorkgroupAddressSpace();
+    // TODO: Pick a proper location for the attribution.
+    auto workgroupMemoryAddressSpace = gpu::AddressSpaceAttr::get(
+        funcOp->getContext(), gpu::GPUDialect::getWorkgroupAddressSpace());
     auto bufferType = MemRefType::get({kSubgroupSize}, valueType, AffineMap{},
                                       workgroupMemoryAddressSpace);
-    return funcOp.addWorkgroupAttribution(bufferType);
+    return funcOp.addWorkgroupAttribution(bufferType, rewriter.getUnknownLoc());
   }
 
   /// Returns an accumulator factory using either the op attribute or the body
   /// region.
   AccumulatorFactory getFactory() {
-    auto &body = reduceOp.body();
+    auto &body = reduceOp.getBody();
     if (!body.empty())
       return getFactory(body);
-    auto opAttr = reduceOp.op();
+    auto opAttr = reduceOp.getOp();
     if (opAttr)
       return getFactory(*opAttr);
     return AccumulatorFactory();
@@ -180,12 +183,12 @@ private:
   /// block is expected to have 2 arguments. The gpu.yield return the
   /// accumulated value of the same type.
   AccumulatorFactory getFactory(Region &body) {
-    return AccumulatorFactory([&](Value lhs, Value rhs) {
+    return [&body, this](Value lhs, Value rhs) -> Value {
       Block *block = rewriter.getInsertionBlock();
       Block *split = rewriter.splitBlock(block, rewriter.getInsertionPoint());
 
       // Insert accumulator body between split block.
-      BlockAndValueMapping mapping;
+      IRMapping mapping;
       mapping.map(body.getArgument(0), lhs);
       mapping.map(body.getArgument(1), rhs);
       rewriter.cloneRegionBefore(body, *split->getParent(),
@@ -193,7 +196,7 @@ private:
 
       // Add branch before inserted body, into body.
       block = block->getNextNode();
-      create<BranchOp>(block, ValueRange());
+      create<cf::BranchOp>(block, ValueRange());
 
       // Replace all gpu.yield ops with branch out of body.
       for (; block != split; block = block->getNextNode()) {
@@ -201,66 +204,21 @@ private:
         if (!isa<gpu::YieldOp>(terminator))
           continue;
         rewriter.setInsertionPointToEnd(block);
-        rewriter.replaceOpWithNewOp<BranchOp>(
+        rewriter.replaceOpWithNewOp<cf::BranchOp>(
             terminator, split, ValueRange(terminator->getOperand(0)));
       }
 
       // Return accumulator result.
       rewriter.setInsertionPointToStart(split);
-      return split->addArgument(lhs.getType());
-    });
-  }
-
-  /// Returns an accumulator factory that creates an op specified by opName.
-  AccumulatorFactory getFactory(StringRef opName) {
-    bool isFloatingPoint = valueType.isa<FloatType>();
-    if (opName == "add")
-      return isFloatingPoint ? getFactory<arith::AddFOp>()
-                             : getFactory<arith::AddIOp>();
-    if (opName == "mul")
-      return isFloatingPoint ? getFactory<arith::MulFOp>()
-                             : getFactory<arith::MulIOp>();
-    if (opName == "and") {
-      return getFactory<arith::AndIOp>();
-    }
-    if (opName == "or") {
-      return getFactory<arith::OrIOp>();
-    }
-    if (opName == "xor") {
-      return getFactory<arith::XOrIOp>();
-    }
-    if (opName == "max") {
-      return isFloatingPoint
-                 ? getCmpFactory<arith::CmpFOp, arith::CmpFPredicate,
-                                 arith::CmpFPredicate::UGT>()
-                 : getCmpFactory<arith::CmpIOp, arith::CmpIPredicate,
-                                 arith::CmpIPredicate::ugt>();
-    }
-    if (opName == "min") {
-      return isFloatingPoint
-                 ? getCmpFactory<arith::CmpFOp, arith::CmpFPredicate,
-                                 arith::CmpFPredicate::ULT>()
-                 : getCmpFactory<arith::CmpIOp, arith::CmpIPredicate,
-                                 arith::CmpIPredicate::ult>();
-    }
-    return AccumulatorFactory();
-  }
-
-  /// Returns an accumulator factory that creates an op of type T.
-  template <typename T>
-  AccumulatorFactory getFactory() {
-    return [&](Value lhs, Value rhs) {
-      return create<T>(lhs.getType(), lhs, rhs);
+      return split->addArgument(lhs.getType(), lhs.getLoc());
     };
   }
 
-  /// Returns an accumulator for comparison such as min, max. T is the type
-  /// of the compare op.
-  template <typename T, typename PredicateEnum, PredicateEnum predicate>
-  AccumulatorFactory getCmpFactory() const {
-    return [&](Value lhs, Value rhs) {
-      Value cmp = rewriter.create<T>(loc, predicate, lhs, rhs);
-      return rewriter.create<SelectOp>(loc, cmp, lhs, rhs);
+  /// Returns an accumulator factory that creates an op specified by opName.
+  AccumulatorFactory getFactory(gpu::AllReduceOperation opName) {
+    return [opName, this](Value lhs, Value rhs) {
+      return vector::makeArithReduction(rewriter, loc,
+                                        convertReductionKind(opName), lhs, rhs);
     };
   }
 
@@ -287,22 +245,22 @@ private:
     Block *continueBlock = rewriter.splitBlock(elseBlock, elseBlock->begin());
 
     rewriter.setInsertionPointToEnd(currentBlock);
-    create<CondBranchOp>(condition, thenBlock,
-                         /*trueOperands=*/ArrayRef<Value>(), elseBlock,
-                         /*falseOperands=*/ArrayRef<Value>());
+    create<cf::CondBranchOp>(condition, thenBlock,
+                             /*trueOperands=*/ArrayRef<Value>(), elseBlock,
+                             /*falseOperands=*/ArrayRef<Value>());
 
     rewriter.setInsertionPointToStart(thenBlock);
     auto thenOperands = thenOpsFactory();
-    create<BranchOp>(continueBlock, thenOperands);
+    create<cf::BranchOp>(continueBlock, thenOperands);
 
     rewriter.setInsertionPointToStart(elseBlock);
     auto elseOperands = elseOpsFactory();
-    create<BranchOp>(continueBlock, elseOperands);
+    create<cf::BranchOp>(continueBlock, elseOperands);
 
     assert(thenOperands.size() == elseOperands.size());
     rewriter.setInsertionPointToStart(continueBlock);
     for (auto operand : thenOperands)
-      continueBlock->addArgument(operand.getType());
+      continueBlock->addArgument(operand.getType(), operand.getLoc());
   }
 
   /// Shortcut for createIf with empty else block and no block operands.
@@ -328,7 +286,6 @@ private:
     Value isPartialSubgroup = create<arith::CmpIOp>(arith::CmpIPredicate::slt,
                                                     activeWidth, subgroupSize);
     std::array<Type, 2> shuffleType = {valueType, rewriter.getI1Type()};
-    auto xorAttr = rewriter.getStringAttr("xor");
 
     createIf(
         isPartialSubgroup,
@@ -340,8 +297,8 @@ private:
           // in the first lane.
           for (int i = 1; i < kSubgroupSize; i <<= 1) {
             Value offset = create<arith::ConstantIntOp>(i, int32Type);
-            auto shuffleOp = create<gpu::ShuffleOp>(shuffleType, value, offset,
-                                                    activeWidth, xorAttr);
+            auto shuffleOp = create<gpu::ShuffleOp>(
+                shuffleType, value, offset, activeWidth, gpu::ShuffleMode::XOR);
             // Skip the accumulation if the shuffle op read from a lane outside
             // of the active range.
             createIf(
@@ -350,7 +307,7 @@ private:
                   return SmallVector<Value, 1>{
                       accumFactory(value, shuffleOp.getResult(0))};
                 },
-                [&] { return llvm::makeArrayRef(value); });
+                [&] { return llvm::ArrayRef(value); });
             value = rewriter.getInsertionBlock()->getArgument(0);
           }
           return SmallVector<Value, 1>{value};
@@ -362,8 +319,9 @@ private:
           Value value = operand;
           for (int i = 1; i < kSubgroupSize; i <<= 1) {
             Value offset = create<arith::ConstantIntOp>(i, int32Type);
-            auto shuffleOp = create<gpu::ShuffleOp>(shuffleType, value, offset,
-                                                    subgroupSize, xorAttr);
+            auto shuffleOp =
+                create<gpu::ShuffleOp>(shuffleType, value, offset, subgroupSize,
+                                       gpu::ShuffleMode::XOR);
             value = accumFactory(value, shuffleOp.getResult(0));
           }
           return SmallVector<Value, 1>{value};
@@ -389,26 +347,35 @@ private:
   static constexpr int kSubgroupSize = 32;
 };
 
-struct GpuAllReduceConversion : public RewritePattern {
-  explicit GpuAllReduceConversion(MLIRContext *context)
+struct GpuAllReduceRewrite : public RewritePattern {
+  explicit GpuAllReduceRewrite(MLIRContext *context)
       : RewritePattern(gpu::GPUFuncOp::getOperationName(), 1, context) {}
 
   LogicalResult matchAndRewrite(Operation *op,
                                 PatternRewriter &rewriter) const override {
     auto funcOp = cast<gpu::GPUFuncOp>(op);
-    auto callback = [&](gpu::AllReduceOp reduceOp) {
-      GpuAllReduceRewriter(funcOp, reduceOp, rewriter).rewrite();
-      // Performing a rewrite invalidates the walk iterator. Report interrupt
-      // so that we can start a new walk until all all_reduce ops are replaced.
-      return WalkResult::interrupt();
+
+    SmallVector<gpu::AllReduceOp> reduceOps;
+    auto callback = [&](gpu::AllReduceOp reduceOp) -> WalkResult {
+      if (!reduceOp.getUniform())
+        return WalkResult::interrupt();
+
+      reduceOps.emplace_back(reduceOp);
+      return WalkResult::advance();
     };
-    while (funcOp.walk(callback).wasInterrupted()) {
-    }
+
+    if (funcOp.walk(callback).wasInterrupted() || reduceOps.empty())
+      return rewriter.notifyMatchFailure(
+          op, "Non uniform reductions are not supported yet.");
+
+    for (gpu::AllReduceOp reduceOp : reduceOps)
+      GpuAllReduceRewriter(funcOp, reduceOp, rewriter).rewrite();
+
     return success();
   }
 };
 } // namespace
 
 void mlir::populateGpuAllReducePatterns(RewritePatternSet &patterns) {
-  patterns.add<GpuAllReduceConversion>(patterns.getContext());
+  patterns.add<GpuAllReduceRewrite>(patterns.getContext());
 }

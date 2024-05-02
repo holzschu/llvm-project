@@ -6,13 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "src/__support/UInt128.h"
 #include "src/__support/high_precision_decimal.h"
 
-#include "utils/UnitTest/Test.h"
+#include "test/UnitTest/Test.h"
 
 TEST(LlvmLibcHighPrecisionDecimalTest, BasicInit) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1.2345");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1.2345");
   uint8_t *digits = hpd.get_digits();
 
   EXPECT_EQ(digits[0], uint8_t(1));
@@ -25,8 +26,8 @@ TEST(LlvmLibcHighPrecisionDecimalTest, BasicInit) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, BasicShift) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(1); // shift left 1, equal to multiplying by 2.
@@ -36,9 +37,20 @@ TEST(LlvmLibcHighPrecisionDecimalTest, BasicShift) {
   EXPECT_EQ(hpd.get_decimal_point(), 1);
 }
 
+TEST(LlvmLibcHighPrecisionDecimalTest, ShouldRoundup) {
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal(".5");
+  uint8_t *digits = hpd.get_digits();
+
+  EXPECT_EQ(digits[0], uint8_t(5));
+  EXPECT_EQ(hpd.get_num_digits(), 1u);
+  EXPECT_EQ(hpd.get_decimal_point(), 0);
+  EXPECT_EQ(hpd.round_to_integer_type<int>(), 0);
+}
+
 TEST(LlvmLibcHighPrecisionDecimalTest, SmallShift) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1.2345");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1.2345");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(-1); // shift right one, equal to dividing by 2
@@ -86,8 +98,8 @@ TEST(LlvmLibcHighPrecisionDecimalTest, SmallShift) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, MediumShift) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal(".299792458");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal(".299792458");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(-3); // shift right three, equal to dividing by 8
@@ -123,8 +135,8 @@ TEST(LlvmLibcHighPrecisionDecimalTest, MediumShift) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, BigShift) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal(".299792458");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal(".299792458");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(-29); // shift right 29, equal to dividing by 536,870,912
@@ -178,8 +190,8 @@ TEST(LlvmLibcHighPrecisionDecimalTest, BigShift) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, BigShiftInSteps) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(60); // shift left 60, equal to multiplying by
@@ -275,8 +287,8 @@ TEST(LlvmLibcHighPrecisionDecimalTest, BigShiftInSteps) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, VeryBigShift) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1");
   uint8_t *digits = hpd.get_digits();
 
   hpd.shift(100); // shift left 100, equal to multiplying by
@@ -328,31 +340,31 @@ TEST(LlvmLibcHighPrecisionDecimalTest, VeryBigShift) {
 }
 
 TEST(LlvmLibcHighPrecisionDecimalTest, RoundingTest) {
-  __llvm_libc::internal::HighPrecisionDecimal hpd =
-      __llvm_libc::internal::HighPrecisionDecimal("1.2345");
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1.2345");
 
   EXPECT_EQ(hpd.round_to_integer_type<uint32_t>(), uint32_t(1));
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(1));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), __uint128_t(1));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(1));
 
   hpd.shift(1); // shift left 1 to get 2.469 (rounds to 2)
 
   EXPECT_EQ(hpd.round_to_integer_type<uint32_t>(), uint32_t(2));
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(2));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), __uint128_t(2));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(2));
 
   hpd.shift(1); // shift left 1 to get 4.938 (rounds to 5)
 
   EXPECT_EQ(hpd.round_to_integer_type<uint32_t>(), uint32_t(5));
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(5));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), __uint128_t(5));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(5));
 
   // 2.5 is right between two integers, so we round to even (2)
-  hpd = __llvm_libc::internal::HighPrecisionDecimal("2.5");
+  hpd = LIBC_NAMESPACE::internal::HighPrecisionDecimal("2.5");
 
   EXPECT_EQ(hpd.round_to_integer_type<uint32_t>(), uint32_t(2));
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(2));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), __uint128_t(2));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(2));
 
   // unless it's marked as having truncated, which means it's actually slightly
   // higher, forcing a round up (3)
@@ -360,23 +372,37 @@ TEST(LlvmLibcHighPrecisionDecimalTest, RoundingTest) {
 
   EXPECT_EQ(hpd.round_to_integer_type<uint32_t>(), uint32_t(3));
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(3));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), __uint128_t(3));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(3));
 
   // Check that the larger int types are being handled properly (overflow is not
   // handled, so int types that are too small are ignored for this test.)
 
   // 1099511627776 = 2^40
-  hpd = __llvm_libc::internal::HighPrecisionDecimal("1099511627776");
+  hpd = LIBC_NAMESPACE::internal::HighPrecisionDecimal("1099511627776");
 
   EXPECT_EQ(hpd.round_to_integer_type<uint64_t>(), uint64_t(1099511627776));
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(),
-            __uint128_t(1099511627776));
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), UInt128(1099511627776));
 
   // 1267650600228229401496703205376 = 2^100
-  hpd = __llvm_libc::internal::HighPrecisionDecimal(
+  hpd = LIBC_NAMESPACE::internal::HighPrecisionDecimal(
       "1267650600228229401496703205376");
 
-  __uint128_t result = __uint128_t(1) << 100;
+  UInt128 result = UInt128(1) << 100;
 
-  EXPECT_EQ(hpd.round_to_integer_type<__uint128_t>(), result);
+  EXPECT_EQ(hpd.round_to_integer_type<UInt128>(), result);
+}
+
+TEST(LlvmLibcHighPrecisionDecimalTest, BigExpTest) {
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal big_hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1e123456789");
+
+  // We need to add one to handle the digit before the decimal point in our
+  // number.
+  EXPECT_EQ(big_hpd.get_decimal_point(), 123456789 + 1);
+
+  LIBC_NAMESPACE::internal::HighPrecisionDecimal big_negative_hpd =
+      LIBC_NAMESPACE::internal::HighPrecisionDecimal("1e-123456789");
+
+  // Same, but since the number is negative the net result is -123456788
+  EXPECT_EQ(big_negative_hpd.get_decimal_point(), -123456789 + 1);
 }

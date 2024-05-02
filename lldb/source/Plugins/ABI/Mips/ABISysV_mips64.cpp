@@ -9,7 +9,7 @@
 #include "ABISysV_mips64.h"
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
@@ -25,9 +25,11 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
+#include <optional>
 
 using namespace lldb;
 using namespace lldb_private;
@@ -92,6 +94,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r1",
      "AT",
@@ -103,6 +106,8 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
+
     },
     {"r2",
      "v0",
@@ -112,6 +117,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r2, dwarf_r2, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -125,6 +131,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r4",
      nullptr,
@@ -134,6 +141,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r4, dwarf_r4, LLDB_REGNUM_GENERIC_ARG1, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -147,6 +155,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r6",
      nullptr,
@@ -156,6 +165,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r6, dwarf_r6, LLDB_REGNUM_GENERIC_ARG3, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -169,6 +179,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r8",
      nullptr,
@@ -178,6 +189,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r8, dwarf_r8, LLDB_REGNUM_GENERIC_ARG5, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -191,6 +203,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r10",
      nullptr,
@@ -200,6 +213,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r10, dwarf_r10, LLDB_REGNUM_GENERIC_ARG7, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -213,6 +227,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r12",
      nullptr,
@@ -222,6 +237,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r12, dwarf_r12, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -235,6 +251,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r14",
      nullptr,
@@ -244,6 +261,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r14, dwarf_r14, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -257,6 +275,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r16",
      nullptr,
@@ -266,6 +285,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r16, dwarf_r16, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -279,6 +299,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r18",
      nullptr,
@@ -288,6 +309,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r18, dwarf_r18, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -301,6 +323,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r20",
      nullptr,
@@ -310,6 +333,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r20, dwarf_r20, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -323,6 +347,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r22",
      nullptr,
@@ -332,6 +357,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r22, dwarf_r22, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -345,6 +371,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r24",
      nullptr,
@@ -354,6 +381,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r24, dwarf_r24, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -367,6 +395,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r26",
      nullptr,
@@ -376,6 +405,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r26, dwarf_r26, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -389,6 +419,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r28",
      "gp",
@@ -398,6 +429,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r28, dwarf_r28, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -411,6 +443,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"r30",
      nullptr,
@@ -420,6 +453,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_r30, dwarf_r30, LLDB_REGNUM_GENERIC_FP, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -433,6 +467,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"sr",
      nullptr,
@@ -442,6 +477,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_sr, dwarf_sr, LLDB_REGNUM_GENERIC_FLAGS, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -455,6 +491,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"hi",
      nullptr,
@@ -464,6 +501,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_hi, dwarf_hi, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -477,6 +515,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
     {"cause",
      nullptr,
@@ -486,6 +525,7 @@ static const RegisterInfo g_register_infos_mips64[] = {
      eFormatHex,
      {dwarf_cause, dwarf_cause, LLDB_INVALID_REGNUM, LLDB_INVALID_REGNUM,
       LLDB_INVALID_REGNUM},
+     nullptr,
      nullptr,
      nullptr,
     },
@@ -499,11 +539,11 @@ static const RegisterInfo g_register_infos_mips64[] = {
       LLDB_INVALID_REGNUM},
      nullptr,
      nullptr,
+     nullptr,
     },
 };
 
-static const uint32_t k_num_register_infos =
-    llvm::array_lengthof(g_register_infos_mips64);
+static const uint32_t k_num_register_infos = std::size(g_register_infos_mips64);
 
 const lldb_private::RegisterInfo *
 ABISysV_mips64::GetRegisterInfoArray(uint32_t &count) {
@@ -526,7 +566,7 @@ ABISysV_mips64::CreateInstance(lldb::ProcessSP process_sp, const ArchSpec &arch)
 bool ABISysV_mips64::PrepareTrivialCall(Thread &thread, addr_t sp,
                                         addr_t func_addr, addr_t return_addr,
                                         llvm::ArrayRef<addr_t> args) const {
-  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+  Log *log = GetLog(LLDBLog::Expressions);
 
   if (log) {
     StreamString s;
@@ -714,8 +754,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
   Target *target = exe_ctx.GetTargetPtr();
   const ArchSpec target_arch = target->GetArchitecture();
   ByteOrder target_byte_order = target_arch.GetByteOrder();
-  llvm::Optional<uint64_t> byte_size =
-      return_compiler_type.GetByteSize(&thread);
+  std::optional<uint64_t> byte_size = return_compiler_type.GetByteSize(&thread);
   if (!byte_size)
     return return_valobj_sp;
   const uint32_t type_flags = return_compiler_type.GetTypeInfo(nullptr);
@@ -724,6 +763,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
   const RegisterInfo *r2_info = reg_ctx->GetRegisterInfoByName("r2", 0);
   const RegisterInfo *r3_info = reg_ctx->GetRegisterInfoByName("r3", 0);
+  assert(r2_info && r3_info && "Basic registers should always be present.");
 
   if (type_flags & eTypeIsScalar || type_flags & eTypeIsPointer) {
     value.SetValueType(Value::ValueType::Scalar);
@@ -826,7 +866,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             DataExtractor f2_data;
             reg_ctx->ReadRegister(f2_info, f2_value);
             DataExtractor *copy_from_extractor = nullptr;
-            DataBufferSP data_sp(new DataBufferHeap(16, 0));
+            WritableDataBufferSP data_sp(new DataBufferHeap(16, 0));
             DataExtractor return_ext(
                 data_sp, target_byte_order,
                 target->GetArchitecture().GetAddressByteSize());
@@ -866,7 +906,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
              type_flags & eTypeIsVector) {
     // Any structure of up to 16 bytes in size is returned in the registers.
     if (*byte_size <= 16) {
-      DataBufferSP data_sp(new DataBufferHeap(16, 0));
+      WritableDataBufferSP data_sp(new DataBufferHeap(16, 0));
       DataExtractor return_ext(data_sp, target_byte_order,
                                target->GetArchitecture().GetAddressByteSize());
 
@@ -923,7 +963,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
             CompilerType field_compiler_type =
                 return_compiler_type.GetFieldAtIndex(
                     idx, name, &field_bit_offset, nullptr, nullptr);
-            llvm::Optional<uint64_t> field_byte_width =
+            std::optional<uint64_t> field_byte_width =
                 field_compiler_type.GetByteSize(&thread);
             if (!field_byte_width)
               return return_valobj_sp;
@@ -995,7 +1035,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
 
         CompilerType field_compiler_type = return_compiler_type.GetFieldAtIndex(
             idx, name, &field_bit_offset, nullptr, nullptr);
-        llvm::Optional<uint64_t> field_byte_width =
+        std::optional<uint64_t> field_byte_width =
             field_compiler_type.GetByteSize(&thread);
 
         // if we don't know the size of the field (e.g. invalid type), just
@@ -1054,8 +1094,8 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
         reg_ctx->ReadRegister(r2_info, r2_value);
 
         const size_t bytes_copied = r2_value.GetAsMemoryData(
-            r2_info, data_sp->GetBytes(), r2_info->byte_size, target_byte_order,
-            error);
+            *r2_info, data_sp->GetBytes(), r2_info->byte_size,
+            target_byte_order, error);
         if (bytes_copied != r2_info->byte_size)
           return return_valobj_sp;
         sucess = true;
@@ -1063,7 +1103,7 @@ ValueObjectSP ABISysV_mips64::GetReturnValueObjectImpl(
       if (use_r3) {
         reg_ctx->ReadRegister(r3_info, r3_value);
         const size_t bytes_copied = r3_value.GetAsMemoryData(
-            r3_info, data_sp->GetBytes() + r2_info->byte_size,
+            *r3_info, data_sp->GetBytes() + r2_info->byte_size,
             r3_info->byte_size, target_byte_order, error);
 
         if (bytes_copied != r3_info->byte_size)

@@ -37,7 +37,7 @@ NSDictionary_Additionals::AdditionalFormatterMatching::Prefix::Prefix(
 
 bool NSDictionary_Additionals::AdditionalFormatterMatching::Prefix::Match(
     ConstString class_name) {
-  return class_name.GetStringRef().startswith(m_prefix.GetStringRef());
+  return class_name.GetStringRef().starts_with(m_prefix.GetStringRef());
 }
 
 NSDictionary_Additionals::AdditionalFormatterMatching::Full::Full(ConstString n)
@@ -65,33 +65,31 @@ NSDictionary_Additionals::GetAdditionalSynthetics() {
 
 static CompilerType GetLLDBNSPairType(TargetSP target_sp) {
   CompilerType compiler_type;
-
-  TypeSystemClang *target_ast_context =
+  TypeSystemClangSP scratch_ts_sp =
       ScratchTypeSystemClang::GetForTarget(*target_sp);
 
-  if (target_ast_context) {
-    ConstString g___lldb_autogen_nspair("__lldb_autogen_nspair");
+  if (!scratch_ts_sp)
+    return compiler_type;
 
-    compiler_type =
-        target_ast_context->GetTypeForIdentifier<clang::CXXRecordDecl>(
-            g___lldb_autogen_nspair);
+  static constexpr llvm::StringLiteral g_lldb_autogen_nspair("__lldb_autogen_nspair");
 
-    if (!compiler_type) {
-      compiler_type = target_ast_context->CreateRecordType(
-          nullptr, OptionalClangModuleID(), lldb::eAccessPublic,
-          g___lldb_autogen_nspair.GetCString(), clang::TTK_Struct,
-          lldb::eLanguageTypeC);
+  compiler_type = scratch_ts_sp->GetTypeForIdentifier<clang::CXXRecordDecl>(g_lldb_autogen_nspair);
 
-      if (compiler_type) {
-        TypeSystemClang::StartTagDeclarationDefinition(compiler_type);
-        CompilerType id_compiler_type =
-            target_ast_context->GetBasicType(eBasicTypeObjCID);
-        TypeSystemClang::AddFieldToRecordType(
-            compiler_type, "key", id_compiler_type, lldb::eAccessPublic, 0);
-        TypeSystemClang::AddFieldToRecordType(
-            compiler_type, "value", id_compiler_type, lldb::eAccessPublic, 0);
-        TypeSystemClang::CompleteTagDeclarationDefinition(compiler_type);
-      }
+  if (!compiler_type) {
+    compiler_type = scratch_ts_sp->CreateRecordType(
+        nullptr, OptionalClangModuleID(), lldb::eAccessPublic,
+        g_lldb_autogen_nspair, llvm::to_underlying(clang::TagTypeKind::Struct),
+        lldb::eLanguageTypeC);
+
+    if (compiler_type) {
+      TypeSystemClang::StartTagDeclarationDefinition(compiler_type);
+      CompilerType id_compiler_type =
+          scratch_ts_sp->GetBasicType(eBasicTypeObjCID);
+      TypeSystemClang::AddFieldToRecordType(
+          compiler_type, "key", id_compiler_type, lldb::eAccessPublic, 0);
+      TypeSystemClang::AddFieldToRecordType(
+          compiler_type, "value", id_compiler_type, lldb::eAccessPublic, 0);
+      TypeSystemClang::CompleteTagDeclarationDefinition(compiler_type);
     }
   }
   return compiler_type;
@@ -133,11 +131,11 @@ private:
   };
 
   ExecutionContextRef m_exe_ctx_ref;
-  uint8_t m_ptr_size;
-  lldb::ByteOrder m_order;
-  DataDescriptor_32 *m_data_32;
-  DataDescriptor_64 *m_data_64;
-  lldb::addr_t m_data_ptr;
+  uint8_t m_ptr_size = 8;
+  lldb::ByteOrder m_order = lldb::eByteOrderInvalid;
+  DataDescriptor_32 *m_data_32 = nullptr;
+  DataDescriptor_64 *m_data_64 = nullptr;
+  lldb::addr_t m_data_ptr = LLDB_INVALID_ADDRESS;
   CompilerType m_pair_type;
   std::vector<DictionaryItemDescriptor> m_children;
 };
@@ -196,8 +194,8 @@ private:
   };
 
   ExecutionContextRef m_exe_ctx_ref;
-  uint8_t m_ptr_size;
-  lldb::ByteOrder m_order;
+  uint8_t m_ptr_size = 8;
+  lldb::ByteOrder m_order = lldb::eByteOrderInvalid;
 
   CFBasicHash m_hashtable;
 
@@ -250,8 +248,8 @@ private:
   };
 
   ExecutionContextRef m_exe_ctx_ref;
-  uint8_t m_ptr_size;
-  lldb::ByteOrder m_order;
+  uint8_t m_ptr_size = 8;
+  lldb::ByteOrder m_order = lldb::eByteOrderInvalid;
   D32 *m_data_32;
   D64 *m_data_64;
   CompilerType m_pair_type;
@@ -301,10 +299,10 @@ namespace Foundation1100 {
     };
     
     ExecutionContextRef m_exe_ctx_ref;
-    uint8_t m_ptr_size;
-    lldb::ByteOrder m_order;
-    DataDescriptor_32 *m_data_32;
-    DataDescriptor_64 *m_data_64;
+    uint8_t m_ptr_size = 8;
+    lldb::ByteOrder m_order = lldb::eByteOrderInvalid;
+    DataDescriptor_32 *m_data_32 = nullptr;
+    DataDescriptor_64 *m_data_64 = nullptr;
     CompilerType m_pair_type;
     std::vector<DictionaryItemDescriptor> m_children;
   };
@@ -410,7 +408,7 @@ namespace Foundation1437 {
 template <bool name_entries>
 bool lldb_private::formatters::NSDictionarySummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
-  static ConstString g_TypeHint("NSDictionary");
+  static constexpr llvm::StringLiteral g_TypeHint("NSDictionary");
   ProcessSP process_sp = valobj.GetProcessSP();
   if (!process_sp)
     return false;
@@ -502,17 +500,14 @@ bool lldb_private::formatters::NSDictionarySummaryProvider(
     return false;
   }
 
-  std::string prefix, suffix;
-  if (Language *language = Language::FindPlugin(options.GetLanguage())) {
-    if (!language->GetFormatterPrefixSuffix(valobj, g_TypeHint, prefix,
-                                            suffix)) {
-      prefix.clear();
-      suffix.clear();
-    }
-  }
+  llvm::StringRef prefix, suffix;
+  if (Language *language = Language::FindPlugin(options.GetLanguage()))
+    std::tie(prefix, suffix) = language->GetFormatterPrefixSuffix(g_TypeHint);
 
-  stream.Printf("%s%" PRIu64 " %s%s%s", prefix.c_str(), value, "key/value pair",
-                value == 1 ? "" : "s", suffix.c_str());
+  stream << prefix;
+  stream.Printf("%" PRIu64 " %s%s", value, "key/value pair",
+                value == 1 ? "" : "s");
+  stream << suffix;
   return true;
 }
 
@@ -592,9 +587,7 @@ lldb_private::formatters::NSDictionarySyntheticFrontEndCreator(
 
 lldb_private::formatters::NSDictionaryISyntheticFrontEnd::
     NSDictionaryISyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
-    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_ptr_size(8),
-      m_order(lldb::eByteOrderInvalid), m_data_32(nullptr), m_data_64(nullptr),
-      m_pair_type() {}
+    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_pair_type() {}
 
 lldb_private::formatters::NSDictionaryISyntheticFrontEnd::
     ~NSDictionaryISyntheticFrontEnd() {
@@ -715,7 +708,7 @@ lldb_private::formatters::NSDictionaryISyntheticFrontEnd::GetChildAtIndex(
     if (!m_pair_type.IsValid())
       return ValueObjectSP();
 
-    DataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
 
     if (m_ptr_size == 8) {
       uint64_t *data_ptr = (uint64_t *)buffer_sp->GetBytes();
@@ -738,8 +731,8 @@ lldb_private::formatters::NSDictionaryISyntheticFrontEnd::GetChildAtIndex(
 
 lldb_private::formatters::NSCFDictionarySyntheticFrontEnd::
     NSCFDictionarySyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
-    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_ptr_size(8),
-      m_order(lldb::eByteOrderInvalid), m_hashtable(), m_pair_type() {}
+    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_hashtable(),
+      m_pair_type() {}
 
 size_t lldb_private::formatters::NSCFDictionarySyntheticFrontEnd::
     GetIndexOfChildWithName(ConstString name) {
@@ -842,7 +835,7 @@ lldb_private::formatters::NSCFDictionarySyntheticFrontEnd::GetChildAtIndex(
     if (!m_pair_type.IsValid())
       return ValueObjectSP();
 
-    DataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
 
     switch (m_ptr_size) {
     case 0: // architecture has no clue - fail
@@ -963,7 +956,7 @@ lldb::ValueObjectSP lldb_private::formatters::
     if (!m_pair_type.IsValid())
       return ValueObjectSP();
 
-    DataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
 
     if (m_ptr_size == 8) {
       uint64_t *data_ptr = (uint64_t *)buffer_sp->GetBytes();
@@ -1040,7 +1033,7 @@ lldb_private::formatters::NSDictionary1SyntheticFrontEnd::GetChildAtIndex(
   auto pair_type =
       GetLLDBNSPairType(process_sp->GetTarget().shared_from_this());
 
-  DataBufferSP buffer_sp(new DataBufferHeap(2 * ptr_size, 0));
+  WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * ptr_size, 0));
 
   if (ptr_size == 8) {
     uint64_t *data_ptr = (uint64_t *)buffer_sp->GetBytes();
@@ -1060,11 +1053,10 @@ lldb_private::formatters::NSDictionary1SyntheticFrontEnd::GetChildAtIndex(
 }
 
 template <typename D32, typename D64>
-lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::
+lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32, D64>::
     GenericNSDictionaryMSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
-    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_ptr_size(8),
-      m_order(lldb::eByteOrderInvalid), m_data_32(nullptr), m_data_64(nullptr),
-      m_pair_type() {}
+    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(),
+      m_data_32(nullptr), m_data_64(nullptr), m_pair_type() {}
 
 template <typename D32, typename D64>
 lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::
@@ -1124,9 +1116,8 @@ lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<D32,D64>::
     process_sp->ReadMemory(data_location, m_data_64, sizeof(D64),
                            error);
   }
-  if (error.Fail())
-    return false;
-  return true;
+
+  return error.Success();
 }
 
 template <typename D32, typename D64>
@@ -1206,7 +1197,7 @@ lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<
     if (!m_pair_type.IsValid())
       return ValueObjectSP();
 
-    DataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
 
     if (m_ptr_size == 8) {
       uint64_t *data_ptr = (uint64_t *)buffer_sp->GetBytes();
@@ -1227,12 +1218,9 @@ lldb_private::formatters::GenericNSDictionaryMSyntheticFrontEnd<
   return dict_item.valobj_sp;
 }
 
-lldb_private::formatters::Foundation1100::
-  NSDictionaryMSyntheticFrontEnd::
+lldb_private::formatters::Foundation1100::NSDictionaryMSyntheticFrontEnd::
     NSDictionaryMSyntheticFrontEnd(lldb::ValueObjectSP valobj_sp)
-    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_ptr_size(8),
-      m_order(lldb::eByteOrderInvalid), m_data_32(nullptr), m_data_64(nullptr),
-      m_pair_type() {}
+    : SyntheticChildrenFrontEnd(*valobj_sp), m_exe_ctx_ref(), m_pair_type() {}
 
 lldb_private::formatters::Foundation1100::
   NSDictionaryMSyntheticFrontEnd::~NSDictionaryMSyntheticFrontEnd() {
@@ -1290,9 +1278,8 @@ lldb_private::formatters::Foundation1100::
     process_sp->ReadMemory(data_location, m_data_64, sizeof(DataDescriptor_64),
                            error);
   }
-  if (error.Fail())
-    return false;
-  return false;
+
+  return error.Success();
 }
 
 bool
@@ -1363,7 +1350,7 @@ lldb_private::formatters::Foundation1100::
     if (!m_pair_type.IsValid())
       return ValueObjectSP();
 
-    DataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
+    WritableDataBufferSP buffer_sp(new DataBufferHeap(2 * m_ptr_size, 0));
 
     if (m_ptr_size == 8) {
       uint64_t *data_ptr = (uint64_t *)buffer_sp->GetBytes();

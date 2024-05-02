@@ -36,7 +36,7 @@ and software you will need.
 
 Hardware
 --------
-Any system that can adequately run Visual Studio 2017 is fine. The LLVM
+Any system that can adequately run Visual Studio 2019 is fine. The LLVM
 source tree including the git index consumes approximately 3GB.
 Object files, libraries and executables consume approximately 5GB in
 Release mode and much more in Debug mode. SSD drive and >16GB RAM are
@@ -45,19 +45,20 @@ recommended.
 
 Software
 --------
-You will need `Visual Studio <https://visualstudio.microsoft.com/>`_ 2017 or
-higher, with the latest Update installed. Visual Studio Community Edition
+You will need `Visual Studio <https://visualstudio.microsoft.com/>`_ 2019 or
+later, with the latest Update installed. Visual Studio Community Edition
 suffices.
 
 You will also need the `CMake <http://www.cmake.org/>`_ build system since it
 generates the project files you will use to build with. CMake is bundled with
-Visual Studio 2019 so separate installation is not required.
+Visual Studio 2019 so separate installation is not required. If you do install
+CMake separately, Visual Studio 2022 will require CMake Version 3.21 or later.
 
 If you would like to run the LLVM tests you will need `Python
 <http://www.python.org/>`_. Version 3.6 and newer are known to work. You can
 install Python with Visual Studio 2019, from the Microsoft store or from
 the `Python web site <http://www.python.org/>`_. We recommend the latter since it
-allows you to to adjust installation options.
+allows you to adjust installation options.
 
 You will need `Git for Windows <https://git-scm.com/>`_ with bash tools, too.
 Git for Windows is also bundled with Visual Studio 2019.
@@ -163,7 +164,7 @@ These instruction were tested with Visual Studio 2019 and Python 3.9.6:
    **RelWithDebInfo** which is also several time larger than Release.
    Another technique is to build all of LLVM in Release mode and change
    compiler flags, disabling optimization and enabling debug information, only
-   for specific librares or source files you actually need to debug.
+   for specific libraries or source files you actually need to debug.
 
 14. Test LLVM in Visual Studio:
 

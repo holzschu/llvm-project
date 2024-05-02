@@ -3,7 +3,7 @@
 
 declare arm_aapcscc i32 @int_varargs_target(i32, ...)
 
-define arm_aapcscc i32 @test_call_to_varargs_with_ints(i32 *%a, i32 %b) {
+define arm_aapcscc i32 @test_call_to_varargs_with_ints(ptr %a, i32 %b) {
 ; CHECK-LABEL: name: test_call_to_varargs_with_ints
 ; CHECK-DAG: [[AVREG:%[0-9]+]]:_(p0) = COPY $r0
 ; CHECK-DAG: [[BVREG:%[0-9]+]]:_(s32) = COPY $r1
@@ -23,12 +23,12 @@ define arm_aapcscc i32 @test_call_to_varargs_with_ints(i32 *%a, i32 %b) {
 ; ARM: BL @int_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r1, implicit $r2, implicit $r3, implicit-def $r0
 ; THUMB: tBL 14 /* CC::al */, $noreg, @int_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r1, implicit $r2, implicit $r3, implicit-def $r0
 ; CHECK: [[RVREG:%[0-9]+]]:_(s32) = COPY $r0
-; CHECK: ADJCALLSTACKUP 8, 0, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
+; CHECK: ADJCALLSTACKUP 8, -1, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
 ; CHECK: $r0 = COPY [[RVREG]]
 ; ARM: BX_RET 14 /* CC::al */, $noreg, implicit $r0
 ; THUMB: tBX_RET 14 /* CC::al */, $noreg, implicit $r0
 entry:
-  %r = notail call arm_aapcscc i32(i32, ...) @int_varargs_target(i32 %b, i32 *%a, i32 %b, i32 *%a, i32 %b, i32 *%a)
+  %r = notail call arm_aapcscc i32(i32, ...) @int_varargs_target(i32 %b, ptr %a, i32 %b, ptr %a, i32 %b, ptr %a)
   ret i32 %r
 }
 
@@ -50,7 +50,7 @@ define arm_aapcs_vfpcc float @test_call_to_varargs_with_floats(float %a, double 
 ; ARM: BL @float_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; THUMB: tBL 14 /* CC::al */, $noreg, @float_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; CHECK: [[RVREG:%[0-9]+]]:_(s32) = COPY $r0
-; CHECK: ADJCALLSTACKUP 8, 0, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
+; CHECK: ADJCALLSTACKUP 8, -1, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
 ; CHECK: $s0 = COPY [[RVREG]]
 ; ARM: BX_RET 14 /* CC::al */, $noreg, implicit $s0
 ; THUMB: tBX_RET 14 /* CC::al */, $noreg, implicit $s0
@@ -71,7 +71,7 @@ define arm_aapcs_vfpcc float @test_call_to_varargs_with_floats_fixed_args_only(f
 ; ARM: BL @float_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; THUMB: tBL 14 /* CC::al */, $noreg, @float_varargs_target, csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; CHECK: [[RVREG:%[0-9]+]]:_(s32) = COPY $r0
-; CHECK: ADJCALLSTACKUP 0, 0, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
+; CHECK: ADJCALLSTACKUP 0, -1, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
 ; CHECK: $s0 = COPY [[RVREG]]
 ; ARM: BX_RET 14 /* CC::al */, $noreg, implicit $s0
 ; THUMB: tBX_RET 14 /* CC::al */, $noreg, implicit $s0
@@ -80,7 +80,7 @@ entry:
   ret float %r
 }
 
-define arm_aapcs_vfpcc float @test_indirect_call_to_varargs(float (float, double, ...) *%fptr, float %a, double %b) {
+define arm_aapcs_vfpcc float @test_indirect_call_to_varargs(ptr %fptr, float %a, double %b) {
 ; CHECK-LABEL: name: test_indirect_call_to_varargs
 ; CHECK-DAG: [[FPTRVREG:%[0-9]+]]:gpr(p0) = COPY $r0
 ; CHECK-DAG: [[AVREG:%[0-9]+]]:_(s32) = COPY $s0
@@ -97,7 +97,7 @@ define arm_aapcs_vfpcc float @test_indirect_call_to_varargs(float (float, double
 ; ARM: BLX [[FPTRVREG]](p0), csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; THUMB: tBLXr 14 /* CC::al */, $noreg, [[FPTRVREG]](p0), csr_aapcs, implicit-def $lr, implicit $sp, implicit $r0, implicit $r2, implicit $r3, implicit-def $r0
 ; CHECK: [[RVREG:%[0-9]+]]:_(s32) = COPY $r0
-; CHECK: ADJCALLSTACKUP 8, 0, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
+; CHECK: ADJCALLSTACKUP 8, -1, 14 /* CC::al */, $noreg, implicit-def $sp, implicit $sp
 ; CHECK: $s0 = COPY [[RVREG]]
 ; ARM: BX_RET 14 /* CC::al */, $noreg, implicit $s0
 ; THUMB: tBX_RET 14 /* CC::al */, $noreg, implicit $s0

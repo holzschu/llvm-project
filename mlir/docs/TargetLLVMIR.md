@@ -16,6 +16,14 @@ are expected to closely match the corresponding LLVM IR instructions and
 intrinsics. This minimizes the dependency on LLVM IR libraries in MLIR as well
 as reduces the churn in case of changes.
 
+Note that many different dialects can be lowered to LLVM but are provided as
+different sets of patterns and have different passes available to mlir-opt.
+However, this is primarily useful for testing and prototyping, and using the
+collection of patterns together is highly recommended. One place this is
+important and visible is the ControlFlow dialect's branching operations which
+will fail to apply if their types mismatch with the blocks they jump to in the
+parent op.
+
 SPIR-V to LLVM dialect conversion has a
 [dedicated document](SPIRVToLLVMDialectConversion.md).
 
@@ -27,7 +35,7 @@ Conversion to the LLVM dialect from other dialects is the first step to produce
 LLVM IR. All non-trivial IR modifications are expected to happen at this stage
 or before. The conversion is *progressive*: most passes convert one dialect to
 the LLVM dialect and keep operations from other dialects intact. For example,
-the `-convert-memref-to-llvm` pass will only convert operations from the
+the `-finalize-memref-to-llvm` pass will only convert operations from the
 `memref` dialect but will not convert operations from other dialects even if
 they use or produce `memref`-typed values.
 
@@ -127,20 +135,19 @@ Examples:
 ```mlir
 // Assuming index is converted to i64.
 
-memref<f32> -> !llvm.struct<(ptr<f32> , ptr<f32>, i64)>
-memref<1 x f32> -> !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                 array<1 x 64>, array<1 x i64>)>
-memref<? x f32> -> !llvm.struct<(ptr<f32>, ptr<f32>, i64
-                                 array<1 x 64>, array<1 x i64>)>
-memref<10x42x42x43x123 x f32> -> !llvm.struct<(ptr<f32>, ptr<f32>, i64
-                                               array<5 x 64>, array<5 x i64>)>
-memref<10x?x42x?x123 x f32> -> !llvm.struct<(ptr<f32>, ptr<f32>, i64
-                                             array<5 x 64>, array<5 x i64>)>
+memref<f32> -> !llvm.struct<(ptr , ptr, i64)>
+memref<1 x f32> -> !llvm.struct<(ptr, ptr, i64,
+                                 array<1 x i64>, array<1 x i64>)>
+memref<? x f32> -> !llvm.struct<(ptr, ptr, i64
+                                 array<1 x i64>, array<1 x i64>)>
+memref<10x42x42x43x123 x f32> -> !llvm.struct<(ptr, ptr, i64
+                                               array<5 x i64>, array<5 x i64>)>
+memref<10x?x42x?x123 x f32> -> !llvm.struct<(ptr, ptr, i64
+                                             array<5 x i64>, array<5 x i64>)>
 
 // Memref types can have vectors as element types
-memref<1x? x vector<4xf32>> -> !llvm.struct<(ptr<vector<4 x f32>>,
-                                             ptr<vector<4 x f32>>, i64,
-                                             array<2 x i64>, array<2 x i64>)>
+memref<1x? x vector<4xf32>> -> !llvm.struct<(ptr, ptr, i64, array<2 x i64>,
+                                             array<2 x i64>)>
 ```
 
 #### Unranked MemRef Types
@@ -151,7 +158,7 @@ as *unranked descriptor*. It contains:
 
 1.  a converted `index`-typed integer representing the dynamic rank of the
     memref;
-2.  a type-erased pointer (`!llvm.ptr<i8>`) to a ranked memref descriptor with
+2.  a type-erased pointer (`!llvm.ptr`) to a ranked memref descriptor with
     the contents listed above.
 
 This descriptor is primarily intended for interfacing with rank-polymorphic
@@ -182,6 +189,8 @@ Function types are converted to LLVM dialect function types as follows:
     individual pointers;
 -   the conversion of `memref`-typed arguments is subject to
     [calling conventions](TargetLLVMIR.md#calling-conventions).
+-   if a function type has boolean attribute `func.varargs` being set, the
+    converted LLVM function will be variadic.
 
 Examples:
 
@@ -209,49 +218,47 @@ Examples:
 
 // Function-typed arguments or results in higher-order functions:
 (() -> ()) -> (() -> ())
-// are converted into pointers to functions.
-!llvm.func<ptr<func<void ()>> (ptr<func<void ()>>)>
-
-// These rules apply recursively: a function type taking a function that takes
-// another function
-( ( (i32) -> (i64) ) -> () ) -> ()
-// is converted into a function type taking a pointer-to-function that takes
-// another point-to-function.
-!llvm.func<void (ptr<func<void (ptr<func<i64 (i32)>>)>>)>
+// are converted into opaque pointers.
+!llvm.func<ptr (ptr)>
 
 // A memref descriptor appearing as function argument:
 (memref<f32>) -> ()
 // gets converted into a list of individual scalar components of a descriptor.
-!llvm.func<void (ptr<f32>, ptr<f32>, i64)>
+!llvm.func<void (ptr, ptr, i64)>
 
 // The list of arguments is linearized and one can freely mix memref and other
 // types in this list:
 (memref<f32>, f32) -> ()
 // which gets converted into a flat list.
-!llvm.func<void (ptr<f32>, ptr<f32>, i64, f32)>
+!llvm.func<void (ptr, ptr, i64, f32)>
 
 // For nD ranked memref descriptors:
 (memref<?x?xf32>) -> ()
 // the converted signature will contain 2n+1 `index`-typed integer arguments,
 // offset, n sizes and n strides, per memref argument type.
-!llvm.func<void (ptr<f32>, ptr<f32>, i64, i64, i64, i64, i64)>
+!llvm.func<void (ptr, ptr, i64, i64, i64, i64, i64)>
 
 // Same rules apply to unranked descriptors:
 (memref<*xf32>) -> ()
 // which get converted into their components.
-!llvm.func<void (i64, ptr<i8>)>
+!llvm.func<void (i64, ptr)>
 
 // However, returning a memref from a function is not affected:
 () -> (memref<?xf32>)
 // gets converted to a function returning a descriptor structure.
-!llvm.func<struct<(ptr<f32>, ptr<f32>, i64, array<1xi64>, array<1xi64>)> ()>
+!llvm.func<struct<(ptr, ptr, i64, array<1xi64>, array<1xi64>)> ()>
 
 // If multiple memref-typed results are returned:
 () -> (memref<f32>, memref<f64>)
 // their descriptor structures are additionally packed into another structure,
 // potentially with other non-memref typed results.
-!llvm.func<struct<(struct<(ptr<f32>, ptr<f32>, i64)>,
-                   struct<(ptr<double>, ptr<double>, i64)>)> ()>
+!llvm.func<struct<(struct<(ptr, ptr, i64)>,
+                   struct<(ptr, ptr, i64)>)> ()>
+
+// If "func.varargs" attribute is set:
+(i32) -> () attributes { "func.varargs" = true }
+// the corresponding LLVM function will be variadic:
+!llvm.func<void (i32, ...)>
 ```
 
 Conversion patterns are available to convert built-in function operations and
@@ -275,14 +282,28 @@ vector<4x8 x f32>
 
 memref<2 x vector<4x8 x f32>
 // ->
-!llvm.struct<(ptr<array<4 x vector<8xf32>>>, ptr<array<4 x vector<8xf32>>>
-              i64, array<1 x i64>, array<1 x i64>)>
+!llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
 ```
 
 #### Tensor Types
 
 Tensor types cannot be converted to the LLVM dialect. Operations on tensors must
 be [bufferized](Bufferization.md) before being converted.
+
+### Conversion of LLVM Container Types with Non-Compatible Element Types
+
+Progressive lowering may result in there LLVM container types, such
+as LLVM dialect structures, containing non-compatible types:
+`!llvm.struct<(index)>`. Such types are converted recursively using the rules
+described above.
+
+Identified structures are converted to _new_ structures that have their
+identifiers prefixed with `_Converted.` since the bodies of identified types
+cannot be updated once initialized. Such names are considered _reserved_ and
+must not appear in the input code (in practice, C reserves names starting with
+`_` and a capital, and `.` cannot appear in valid C types anyway). If they do
+and have a different body than the result of the conversion, the type conversion
+will stop.
 
 ### Calling Conventions
 
@@ -301,10 +322,10 @@ defines and uses of the values being returned.
 Example:
 
 ```mlir
-func @foo(%arg0: i32, %arg1: i64) -> (i32, i64) {
+func.func @foo(%arg0: i32, %arg1: i64) -> (i32, i64) {
   return %arg0, %arg1 : i32, i64
 }
-func @bar() {
+func.func @bar() {
   %0 = arith.constant 42 : i32
   %1 = arith.constant 17 : i64
   %2:2 = call @foo(%0, %1) : (i32, i64) -> (i32, i64)
@@ -325,7 +346,7 @@ llvm.func @foo(%arg0: i32, %arg1: i64) -> !llvm.struct<(i32, i64)> {
 }
 llvm.func @bar() {
   %0 = llvm.mlir.constant(42 : i32) : i32
-  %1 = llvm.mlir.constant(17) : i64
+  %1 = llvm.mlir.constant(17 : i64) : i64
 
   // call and extract the values from the structure
   %2 = llvm.call @bar(%0, %1)
@@ -348,7 +369,7 @@ individual scalar arguments.
 
 Examples:
 
-This convention is implemented in the conversion of `std.func` and `std.call` to
+This convention is implemented in the conversion of `func.func` and `func.call` to
 the LLVM dialect, with the former unpacking the descriptor into a set of
 individual values and the latter packing those values back into a descriptor so
 as to make it transparently usable by other operations. Conversions from other
@@ -360,23 +381,22 @@ aliasing attributes on the raw pointers underpinning the memref.
 Examples:
 
 ```mlir
-func @foo(%arg0: memref<?xf32>) -> () {
+func.func @foo(%arg0: memref<?xf32>) -> () {
   "use"(%arg0) : (memref<?xf32>) -> ()
   return
 }
 
 // Gets converted to the following
 // (using type alias for brevity):
-!llvm.memref_1d = type !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                     array<1xi64>, array<1xi64>)>
+!llvm.memref_1d = !llvm.struct<(ptr, ptr, i64, array<1xi64>, array<1xi64>)>
 
-llvm.func @foo(%arg0: !llvm.ptr<f32>,  // Allocated pointer.
-               %arg1: !llvm.ptr<f32>,  // Aligned pointer.
+llvm.func @foo(%arg0: !llvm.ptr,       // Allocated pointer.
+               %arg1: !llvm.ptr,       // Aligned pointer.
                %arg2: i64,             // Offset.
                %arg3: i64,             // Size in dim 0.
                %arg4: i64) {           // Stride in dim 0.
   // Populate memref descriptor structure.
-  %0 = llvm.mlir.undef :
+  %0 = llvm.mlir.undef : !llvm.memref_1d
   %1 = llvm.insertvalue %arg0, %0[0] : !llvm.memref_1d
   %2 = llvm.insertvalue %arg1, %1[1] : !llvm.memref_1d
   %3 = llvm.insertvalue %arg2, %2[2] : !llvm.memref_1d
@@ -390,7 +410,7 @@ llvm.func @foo(%arg0: !llvm.ptr<f32>,  // Allocated pointer.
 ```
 
 ```mlir
-func @bar() {
+func.func @bar() {
   %0 = "get"() : () -> (memref<?xf32>)
   call @foo(%0) : (memref<?xf32>) -> ()
   return
@@ -398,8 +418,7 @@ func @bar() {
 
 // Gets converted to the following
 // (using type alias for brevity):
-!llvm.memref_1d = type !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                     array<1xi64>, array<1xi64>)>
+!llvm.memref_1d = !llvm.struct<(ptr, ptr, i64, array<1xi64>, array<1xi64>)>
 
 llvm.func @bar() {
   %0 = "get"() : () -> !llvm.memref_1d
@@ -421,7 +440,7 @@ llvm.func @bar() {
 
 For unranked memrefs, the list of function arguments always contains two
 elements, same as the unranked memref descriptor: an integer rank, and a
-type-erased (`!llvm<"i8*">`) pointer to the ranked memref descriptor. Note that
+type-erased (`!llvm.ptr`) pointer to the ranked memref descriptor. Note that
 while the *calling convention* does not require allocation, *casting* to
 unranked memref does since one cannot take an address of an SSA value containing
 the ranked memref, which must be stored in some memory instead. The caller is in
@@ -439,13 +458,13 @@ llvm.func @foo(%arg0: memref<*xf32>) -> () {
 // Gets converted to the following.
 
 llvm.func @foo(%arg0: i64              // Rank.
-               %arg1: !llvm.ptr<i8>) { // Type-erased pointer to descriptor.
+               %arg1: !llvm.ptr) { // Type-erased pointer to descriptor.
   // Pack the unranked memref descriptor.
-  %0 = llvm.mlir.undef : !llvm.struct<(i64, ptr<i8>)>
-  %1 = llvm.insertvalue %arg0, %0[0] : !llvm.struct<(i64, ptr<i8>)>
-  %2 = llvm.insertvalue %arg1, %1[1] : !llvm.struct<(i64, ptr<i8>)>
+  %0 = llvm.mlir.undef : !llvm.struct<(i64, ptr)>
+  %1 = llvm.insertvalue %arg0, %0[0] : !llvm.struct<(i64, ptr)>
+  %2 = llvm.insertvalue %arg1, %1[1] : !llvm.struct<(i64, ptr)>
 
-  "use"(%2) : (!llvm.struct<(i64, ptr<i8>)>) -> ()
+  "use"(%2) : (!llvm.struct<(i64, ptr)>) -> ()
   llvm.return
 }
 ```
@@ -460,14 +479,14 @@ llvm.func @bar() {
 // Gets converted to the following.
 
 llvm.func @bar() {
-  %0 = "get"() : () -> (!llvm.struct<(i64, ptr<i8>)>)
+  %0 = "get"() : () -> (!llvm.struct<(i64, ptr)>)
 
   // Unpack the memref descriptor.
-  %1 = llvm.extractvalue %0[0] : !llvm.struct<(i64, ptr<i8>)>
-  %2 = llvm.extractvalue %0[1] : !llvm.struct<(i64, ptr<i8>)>
+  %1 = llvm.extractvalue %0[0] : !llvm.struct<(i64, ptr)>
+  %2 = llvm.extractvalue %0[1] : !llvm.struct<(i64, ptr)>
 
   // Pass individual values to the callee.
-  llvm.call @foo(%1, %2) : (i64, !llvm.ptr<i8>)
+  llvm.call @foo(%1, %2) : (i64, !llvm.ptr)
   llvm.return
 }
 ```
@@ -481,7 +500,7 @@ be returned from a function, the ranked descriptor it points to is copied into
 dynamically allocated memory, and the pointer in the unranked descriptor is
 updated accordingly. The allocation happens immediately before returning. It is
 the responsibility of the caller to free the dynamically allocated memory. The
-default conversion of `std.call` and `std.call_indirect` copies the ranked
+default conversion of `func.call` and `func.call_indirect` copies the ranked
 descriptor to newly allocated memory on the caller's stack. Thus, the convention
 of the ranked memref descriptor pointed to by an unranked memref descriptor
 being stored on stack is respected.
@@ -503,20 +522,20 @@ to the following.
 Examples:
 
 ```
-func @callee(memref<2x4xf32>) {
+func.func @callee(memref<2x4xf32>)
 
-func @caller(%0 : memref<2x4xf32>) {
+func.func @caller(%0 : memref<2x4xf32>) {
   call @callee(%0) : (memref<2x4xf32>) -> ()
 }
 
 // ->
 
-!descriptor = !llvm.struct<(ptr<f32>, ptr<f32>, i64,
+!descriptor = !llvm.struct<(ptr, ptr, i64,
                             array<2xi64>, array<2xi64>)>
 
-llvm.func @callee(!llvm.ptr<f32>)
+llvm.func @callee(!llvm.ptr)
 
-llvm.func @caller(%arg0: !llvm.ptr<f32>) {
+llvm.func @caller(%arg0: !llvm.ptr) {
   // A descriptor value is defined at the function entry point.
   %0 = llvm.mlir.undef : !descriptor
 
@@ -539,7 +558,7 @@ llvm.func @caller(%arg0: !llvm.ptr<f32>) {
 
   // The function call corresponds to extracting the aligned data pointer.
   %12 = llvm.extractelement %11[1] : !descriptor
-  llvm.call @callee(%12) : (!llvm.ptr<f32>) -> ()
+  llvm.call @callee(%12) : (!llvm.ptr) -> ()
 }
 ```
 
@@ -547,6 +566,18 @@ llvm.func @caller(%arg0: !llvm.ptr<f32>) {
 
 The "bare pointer" calling convention does not support unranked memrefs as their
 shape cannot be known at compile time.
+
+### Generic alloction and deallocation functions
+
+When converting the Memref dialect, allocations and deallocations are converted
+into calls to `malloc` (`aligned_alloc` if aligned allocations are requested)
+and `free`. However, it is possible to convert them to more generic functions
+which can be implemented by a runtime library, thus allowing custom allocation
+strategies or runtime profiling. When the conversion pass is  instructed to
+perform such operation, the names of the calles are
+`_mlir_memref_to_llvm_alloc`, `_mlir_memref_to_llvm_aligned_alloc` and
+`_mlir_memref_to_llvm_free`. Their signatures are the same of `malloc`,
+`aligned_alloc` and `free`.
 
 ### C-compatible wrapper emission
 
@@ -615,15 +646,14 @@ Examples:
 
 ```mlir
 
-func @qux(%arg0: memref<?x?xf32>)
+func.func @qux(%arg0: memref<?x?xf32>)
 
 // Gets converted into the following
 // (using type alias for brevity):
-!llvm.memref_2d = type !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                     array<2xi64>, array<2xi64>)>
+!llvm.memref_2d = !llvm.struct<(ptr, ptr, i64, array<2xi64>, array<2xi64>)>
 
 // Function with unpacked arguments.
-llvm.func @qux(%arg0: !llvm.ptr<f32>, %arg1: !llvm.ptr<f32>,
+llvm.func @qux(%arg0: !llvm.ptr, %arg1: !llvm.ptr,
                %arg2: i64, %arg3: i64, %arg4: i64,
                %arg5: i64, %arg6: i64) {
   // Populate memref descriptor (as per calling convention).
@@ -639,48 +669,40 @@ llvm.func @qux(%arg0: !llvm.ptr<f32>, %arg1: !llvm.ptr<f32>,
   // Store the descriptor in a stack-allocated space.
   %8 = llvm.mlir.constant(1 : index) : i64
   %9 = llvm.alloca %8 x !llvm.memref_2d
-     : (i64) -> !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                                        array<2xi64>, array<2xi64>)>>
-  llvm.store %7, %9 : !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                                        array<2xi64>, array<2xi64>)>>
+     : (i64) -> !llvm.ptr
+  llvm.store %7, %9 : !llvm.memref_2d, !llvm.ptr
 
   // Call the interface function.
-  llvm.call @_mlir_ciface_qux(%9)
-     : (!llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                          array<2xi64>, array<2xi64>)>>) -> ()
+  llvm.call @_mlir_ciface_qux(%9) : (!llvm.ptr) -> ()
 
   // The stored descriptor will be freed on return.
   llvm.return
 }
 
 // Interface function.
-llvm.func @_mlir_ciface_qux(!llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                                              array<2xi64>, array<2xi64>)>>)
+llvm.func @_mlir_ciface_qux(!llvm.ptr)
 ```
 
 ```mlir
-func @foo(%arg0: memref<?x?xf32>) {
+func.func @foo(%arg0: memref<?x?xf32>) {
   return
 }
 
 // Gets converted into the following
 // (using type alias for brevity):
-!llvm.memref_2d = type !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                     array<2xi64>, array<2xi64>)>
-!llvm.memref_2d_ptr = type !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                                             array<2xi64>, array<2xi64>)>>
+!llvm.memref_2d = !llvm.struct<(ptr, ptr, i64, array<2xi64>, array<2xi64>)>
 
 // Function with unpacked arguments.
-llvm.func @foo(%arg0: !llvm.ptr<f32>, %arg1: !llvm.ptr<f32>,
+llvm.func @foo(%arg0: !llvm.ptr, %arg1: !llvm.ptr,
                %arg2: i64, %arg3: i64, %arg4: i64,
                %arg5: i64, %arg6: i64) {
   llvm.return
 }
 
 // Interface function callable from C.
-llvm.func @_mlir_ciface_foo(%arg0: !llvm.memref_2d_ptr) {
+llvm.func @_mlir_ciface_foo(%arg0: !llvm.ptr) {
   // Load the descriptor.
-  %0 = llvm.load %arg0 : !llvm.memref_2d_ptr
+  %0 = llvm.load %arg0 : !llvm.ptr -> !llvm.memref_2d
 
   // Unpack the descriptor as per calling convention.
   %1 = llvm.extractvalue %0[0] : !llvm.memref_2d
@@ -691,26 +713,23 @@ llvm.func @_mlir_ciface_foo(%arg0: !llvm.memref_2d_ptr) {
   %6 = llvm.extractvalue %0[4, 0] : !llvm.memref_2d
   %7 = llvm.extractvalue %0[4, 1] : !llvm.memref_2d
   llvm.call @foo(%1, %2, %3, %4, %5, %6, %7)
-    : (!llvm.ptr<f32>, !llvm.ptr<f32>, i64, i64, i64,
+    : (!llvm.ptr, !llvm.ptr, i64, i64, i64,
        i64, i64) -> ()
   llvm.return
 }
 ```
 
 ```mlir
-func @foo(%arg0: memref<?x?xf32>) -> memref<?x?xf32> {
+func.func @foo(%arg0: memref<?x?xf32>) -> memref<?x?xf32> {
   return %arg0 : memref<?x?xf32>
 }
 
 // Gets converted into the following
 // (using type alias for brevity):
-!llvm.memref_2d = type !llvm.struct<(ptr<f32>, ptr<f32>, i64,
-                                     array<2xi64>, array<2xi64>)>
-!llvm.memref_2d_ptr = type !llvm.ptr<struct<(ptr<f32>, ptr<f32>, i64,
-                                             array<2xi64>, array<2xi64>)>>
+!llvm.memref_2d = !llvm.struct<(ptr, ptr, i64, array<2xi64>, array<2xi64>)>
 
 // Function with unpacked arguments.
-llvm.func @foo(%arg0: !llvm.ptr<f32>, %arg1: !llvm.ptr<f32>, %arg2: i64,
+llvm.func @foo(%arg0: !llvm.ptr, %arg1: !llvm.ptr, %arg2: i64,
                %arg3: i64, %arg4: i64, %arg5: i64, %arg6: i64)
     -> !llvm.memref_2d {
   %0 = llvm.mlir.undef : !llvm.memref_2d
@@ -725,8 +744,8 @@ llvm.func @foo(%arg0: !llvm.ptr<f32>, %arg1: !llvm.ptr<f32>, %arg2: i64,
 }
 
 // Interface function callable from C.
-llvm.func @_mlir_ciface_foo(%arg0: !llvm.memref_2d_ptr, %arg1: !llvm.memref_2d_ptr) {
-  %0 = llvm.load %arg1 : !llvm.memref_2d_ptr
+llvm.func @_mlir_ciface_foo(%arg0: !llvm.ptr, %arg1: !llvm.ptr) {
+  %0 = llvm.load %arg1 : !llvm.ptr
   %1 = llvm.extractvalue %0[0] : !llvm.memref_2d
   %2 = llvm.extractvalue %0[1] : !llvm.memref_2d
   %3 = llvm.extractvalue %0[2] : !llvm.memref_2d
@@ -735,8 +754,8 @@ llvm.func @_mlir_ciface_foo(%arg0: !llvm.memref_2d_ptr, %arg1: !llvm.memref_2d_p
   %6 = llvm.extractvalue %0[4, 0] : !llvm.memref_2d
   %7 = llvm.extractvalue %0[4, 1] : !llvm.memref_2d
   %8 = llvm.call @foo(%1, %2, %3, %4, %5, %6, %7)
-    : (!llvm.ptr<f32>, !llvm.ptr<f32>, i64, i64, i64, i64, i64) -> !llvm.memref_2d
-  llvm.store %8, %arg0 : !llvm.memref_2d_ptr
+    : (!llvm.ptr, !llvm.ptr, i64, i64, i64, i64, i64) -> !llvm.memref_2d
+  llvm.store %8, %arg0 : !llvm.memref_2d, !llvm.ptr
   llvm.return
 }
 ```
@@ -753,6 +772,18 @@ descriptors passed by pointer would have to be transferred to the device memory,
 which introduces significant overhead. In such situations, auxiliary interface
 functions are executed on host and only pass the values through device function
 invocation mechanism.
+
+Limitation: Right now we cannot generate C interface for variadic functions,
+regardless of being non-external or external. Because C functions are unable to
+"forward" variadic arguments like this:
+```c
+void bar(int, ...);
+
+void foo(int x, ...) {
+  // ERROR: no way to forward variadic arguments.
+  void bar(x, ...);
+}
+```
 
 ### Address Computation
 
@@ -777,7 +808,7 @@ is transformed into the equivalent of the following code:
 // Compute the linearized index from strides.
 // When strides or, in absence of explicit strides, the corresponding sizes are
 // dynamic, extract the stride value from the descriptor.
-%stride1 = llvm.extractvalue[4, 0] : !llvm.struct<(ptr<f32>, ptr<f32>, i64,
+%stride1 = llvm.extractvalue[4, 0] : !llvm.struct<(ptr, ptr, i64,
                                                    array<4xi64>, array<4xi64>)>
 %addr1 = arith.muli %stride1, %1 : i64
 
@@ -797,21 +828,20 @@ is transformed into the equivalent of the following code:
 
 // If the linear offset is known to be zero, it can also be omitted. If it is
 // dynamic, it is extracted from the descriptor.
-%offset = llvm.extractvalue[2] : !llvm.struct<(ptr<f32>, ptr<f32>, i64,
+%offset = llvm.extractvalue[2] : !llvm.struct<(ptr, ptr, i64,
                                                array<4xi64>, array<4xi64>)>
 %addr7 = arith.addi %addr6, %offset : i64
 
 // All accesses are based on the aligned pointer.
-%aligned = llvm.extractvalue[1] : !llvm.struct<(ptr<f32>, ptr<f32>, i64,
+%aligned = llvm.extractvalue[1] : !llvm.struct<(ptr, ptr, i64,
                                                 array<4xi64>, array<4xi64>)>
 
 // Get the address of the data pointer.
-%ptr = llvm.getelementptr %aligned[%addr8]
-     : !llvm.struct<(ptr<f32>, ptr<f32>, i64, array<4xi64>, array<4xi64>)>
-     -> !llvm.ptr<f32>
+%ptr = llvm.getelementptr %aligned[%addr7]
+     : !llvm.struct<(ptr, ptr, i64, array<4xi64>, array<4xi64>)> -> !llvm.ptr
 
 // Perform the actual load.
-%0 = llvm.load %ptr : !llvm.ptr<f32>
+%0 = llvm.load %ptr : !llvm.ptr -> f32
 ```
 
 For stores, the address computation code is identical and only the actual store

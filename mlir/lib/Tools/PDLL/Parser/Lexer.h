@@ -21,6 +21,8 @@ namespace mlir {
 struct LogicalResult;
 
 namespace pdll {
+class CodeCompleteContext;
+
 namespace ast {
 class DiagnosticEngine;
 } // namespace ast
@@ -32,30 +34,37 @@ class DiagnosticEngine;
 class Token {
 public:
   enum Kind {
-    // Markers.
+    /// Markers.
     eof,
     error,
+    /// Token signifying a code completion location.
+    code_complete,
+    /// Token signifying a code completion location within a string.
+    code_complete_string,
 
-    // Keywords.
+    /// Keywords.
     KW_BEGIN,
-    // Dependent keywords, i.e. those that are treated as keywords depending on
-    // the current parser context.
+    /// Dependent keywords, i.e. those that are treated as keywords depending on
+    /// the current parser context.
     KW_DEPENDENT_BEGIN,
     kw_attr,
     kw_op,
     kw_type,
     KW_DEPENDENT_END,
 
-    // General keywords.
+    /// General keywords.
     kw_Attr,
     kw_erase,
     kw_let,
     kw_Constraint,
+    kw_not,
     kw_Op,
     kw_OpName,
     kw_Pattern,
     kw_replace,
+    kw_return,
     kw_rewrite,
+    kw_Rewrite,
     kw_Type,
     kw_TypeRange,
     kw_Value,
@@ -63,7 +72,7 @@ public:
     kw_with,
     KW_END,
 
-    // Punctuation.
+    /// Punctuation.
     arrow,
     colon,
     comma,
@@ -71,7 +80,7 @@ public:
     equal,
     equal_arrow,
     semicolon,
-    // Paired punctuation.
+    /// Paired punctuation.
     less,
     greater,
     l_brace,
@@ -82,7 +91,7 @@ public:
     r_square,
     underscore,
 
-    // Tokens.
+    /// Tokens.
     directive,
     identifier,
     integer,
@@ -125,25 +134,22 @@ public:
 
   /// Return if the token does not have the given kind.
   bool isNot(Kind k) const { return k != kind; }
-  template <typename... T> bool isNot(Kind k1, Kind k2, T... others) const {
+  template <typename... T>
+  bool isNot(Kind k1, Kind k2, T... others) const {
     return !isAny(k1, k2, others...);
   }
 
   /// Return if the token has the given kind.
-  bool is(Kind K) const { return kind == K; }
+  bool is(Kind k) const { return kind == k; }
 
   /// Return a location for the start of this token.
-  llvm::SMLoc getStartLoc() const {
-    return llvm::SMLoc::getFromPointer(spelling.data());
-  }
+  SMLoc getStartLoc() const { return SMLoc::getFromPointer(spelling.data()); }
   /// Return a location at the end of this token.
-  llvm::SMLoc getEndLoc() const {
-    return llvm::SMLoc::getFromPointer(spelling.data() + spelling.size());
+  SMLoc getEndLoc() const {
+    return SMLoc::getFromPointer(spelling.data() + spelling.size());
   }
   /// Return a location for the range of this token.
-  llvm::SMRange getLoc() const {
-    return llvm::SMRange(getStartLoc(), getEndLoc());
-  }
+  SMRange getLoc() const { return SMRange(getStartLoc(), getEndLoc()); }
 
 private:
   /// Discriminator that indicates the kind of token this is.
@@ -160,7 +166,8 @@ private:
 
 class Lexer {
 public:
-  Lexer(llvm::SourceMgr &mgr, ast::DiagnosticEngine &diagEngine);
+  Lexer(llvm::SourceMgr &mgr, ast::DiagnosticEngine &diagEngine,
+        CodeCompleteContext *codeCompleteContext);
   ~Lexer();
 
   /// Return a reference to the source manager used by the lexer.
@@ -172,7 +179,7 @@ public:
   /// Push an include of the given file. This will cause the lexer to start
   /// processing the provided file. Returns failure if the file could not be
   /// opened, success otherwise.
-  LogicalResult pushInclude(StringRef filename);
+  LogicalResult pushInclude(StringRef filename, SMRange includeLoc);
 
   /// Lex the next token and return it.
   Token lexToken();
@@ -182,10 +189,10 @@ public:
   void resetPointer(const char *newPointer) { curPtr = newPointer; }
 
   /// Emit an error to the lexer with the given location and message.
-  Token emitError(llvm::SMRange loc, const Twine &msg);
+  Token emitError(SMRange loc, const Twine &msg);
   Token emitError(const char *loc, const Twine &msg);
-  Token emitErrorAndNote(llvm::SMRange loc, const Twine &msg,
-                         llvm::SMRange noteLoc, const Twine &note);
+  Token emitErrorAndNote(SMRange loc, const Twine &msg, SMRange noteLoc,
+                         const Twine &note);
 
 private:
   Token formToken(Token::Kind kind, const char *tokStart) {
@@ -213,6 +220,9 @@ private:
   /// A flag indicating if we added a default diagnostic handler to the provided
   /// diagEngine.
   bool addedHandlerToDiagEngine;
+
+  /// The optional code completion point within the input file.
+  const char *codeCompletionLocation;
 };
 } // namespace pdll
 } // namespace mlir

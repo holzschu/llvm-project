@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_SUPPORT_TYPEUTILITIES_H
-#define MLIR_SUPPORT_TYPEUTILITIES_H
+#ifndef MLIR_IR_TYPEUTILITIES_H
+#define MLIR_IR_TYPEUTILITIES_H
 
 #include "mlir/IR/Operation.h"
 #include "llvm/ADT/STLExtras.h"
@@ -21,6 +21,7 @@ namespace mlir {
 class Attribute;
 class TupleType;
 class Type;
+class TypeRange;
 class Value;
 
 //===----------------------------------------------------------------------===//
@@ -67,6 +68,17 @@ LogicalResult verifyCompatibleShapes(TypeRange types);
 /// Dimensions are compatible if all non-dynamic dims are equal.
 LogicalResult verifyCompatibleDims(ArrayRef<int64_t> dims);
 
+/// Insert a set of `newTypes` into `oldTypes` at the given `indices`. If any
+/// types are inserted, `storage` is used to hold the new type list. The new
+/// type list is returned. `indices` must be sorted by increasing index.
+TypeRange insertTypesInto(TypeRange oldTypes, ArrayRef<unsigned> indices,
+                          TypeRange newTypes, SmallVectorImpl<Type> &storage);
+
+/// Filters out any elements referenced by `indices`. If any types are removed,
+/// `storage` is used to hold the new type list. Returns the new type list.
+TypeRange filterTypesOut(TypeRange types, const BitVector &indices,
+                         SmallVectorImpl<Type> &storage);
+
 //===----------------------------------------------------------------------===//
 // Utility Iterators
 //===----------------------------------------------------------------------===//
@@ -99,4 +111,4 @@ using ResultElementTypeRange = iterator_range<ResultElementTypeIterator>;
 
 } // namespace mlir
 
-#endif // MLIR_SUPPORT_TYPEUTILITIES_H
+#endif // MLIR_IR_TYPEUTILITIES_H

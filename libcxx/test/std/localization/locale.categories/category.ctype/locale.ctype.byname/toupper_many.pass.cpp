@@ -7,6 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 // REQUIRES: locale.en_US.UTF-8
+// XFAIL: win32-broken-utf8-wchar-ctype
+
+// Bionic has minimal locale support, investigate this later.
+// XFAIL: LIBCXX-ANDROID-FIXME
 
 // <locale>
 

@@ -10,7 +10,7 @@
 
 // Test unique_ptr<T[]> with trivial_abi as parameter type.
 
-// ADDITIONAL_COMPILE_FLAGS: -D_LIBCPP_ABI_ENABLE_UNIQUE_PTR_TRIVIAL_ABI
+// ADDITIONAL_COMPILE_FLAGS: -Wno-macro-redefined -D_LIBCPP_ABI_ENABLE_UNIQUE_PTR_TRIVIAL_ABI
 
 // XFAIL: gcc
 // UNSUPPORTED: c++03
@@ -24,6 +24,8 @@ struct Node {
   int* shared_val;
 
   explicit Node(int* ptr) : shared_val(ptr) {}
+  Node(const Node&) = default;
+  Node& operator=(const Node&) = default;
   ~Node() { ++(*shared_val); }
 };
 

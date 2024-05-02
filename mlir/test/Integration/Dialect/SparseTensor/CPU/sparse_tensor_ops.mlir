@@ -1,18 +1,37 @@
-// RUN: mlir-opt %s \
-// RUN:   --sparsification --sparse-tensor-conversion \
-// RUN:   --linalg-bufferize --convert-linalg-to-loops \
-// RUN:   --convert-vector-to-scf --convert-scf-to-std \
-// RUN:   --func-bufferize --tensor-constant-bufferize --tensor-bufferize \
-// RUN:   --std-bufferize --finalizing-bufferize --lower-affine \
-// RUN:   --convert-vector-to-llvm --convert-memref-to-llvm --convert-math-to-llvm \
-// RUN:   --convert-std-to-llvm --reconcile-unrealized-casts | \
-// RUN: mlir-cpu-runner \
-// RUN:  -e entry -entry-point-result=void  \
-// RUN:  -shared-libs=%mlir_integration_test_dir/libmlir_c_runner_utils%shlibext | \
-// RUN: FileCheck %s
+//--------------------------------------------------------------------------------------------------
+// WHEN CREATING A NEW TEST, PLEASE JUST COPY & PASTE WITHOUT EDITS.
+//
+// Set-up that's shared across all tests in this directory. In principle, this
+// config could be moved to lit.local.cfg. However, there are downstream users that
+//  do not use these LIT config files. Hence why this is kept inline.
+//
+// DEFINE: %{sparsifier_opts} = enable-runtime-library=true
+// DEFINE: %{sparsifier_opts_sve} = enable-arm-sve=true %{sparsifier_opts}
+// DEFINE: %{compile} = mlir-opt %s --sparsifier="%{sparsifier_opts}"
+// DEFINE: %{compile_sve} = mlir-opt %s --sparsifier="%{sparsifier_opts_sve}"
+// DEFINE: %{run_libs} = -shared-libs=%mlir_c_runner_utils,%mlir_runner_utils
+// DEFINE: %{run_opts} = -e entry -entry-point-result=void
+// DEFINE: %{run} = mlir-cpu-runner %{run_opts} %{run_libs}
+// DEFINE: %{run_sve} = %mcr_aarch64_cmd --march=aarch64 --mattr="+sve" %{run_opts} %{run_libs}
+//
+// DEFINE: %{env} =
+//--------------------------------------------------------------------------------------------------
 
-#ST1 = #sparse_tensor.encoding<{dimLevelType = ["compressed", "compressed", "compressed"]}>
-#ST2 = #sparse_tensor.encoding<{dimLevelType = ["compressed", "compressed", "dense"]}>
+// RUN: %{compile} | %{run} | FileCheck %s
+//
+// Do the same run, but now with direct IR generation.
+// REDEFINE: %{sparsifier_opts} = enable-runtime-library=false
+// RUN: %{compile} | %{run} | FileCheck %s
+//
+// Do the same run, but now with vectorization.
+// REDEFINE: %{sparsifier_opts} = enable-runtime-library=false vl=2 reassociate-fp-reductions=true enable-index-optimizations=true
+// RUN: %{compile} | %{run} | FileCheck %s
+//
+// Do the same run, but now with  VLA vectorization.
+// RUN: %if mlir_arm_sve_tests %{ %{compile_sve} | %{run_sve} | FileCheck %s %}
+
+#ST1 = #sparse_tensor.encoding<{map = (d0, d1, d2) -> (d0 : compressed, d1 : compressed, d2 : compressed)}>
+#ST2 = #sparse_tensor.encoding<{map = (d0, d1, d2) -> (d0 : compressed, d1 : compressed, d2 : dense)}>
 
 //
 // Trait for 3-d tensor operation.
@@ -28,7 +47,7 @@
 
 module {
   // Scales a sparse tensor into a new sparse tensor.
-  func @tensor_scale(%arga: tensor<?x?x?xf64, #ST1>) -> tensor<?x?x?xf64, #ST2> {
+  func.func @tensor_scale(%arga: tensor<?x?x?xf64, #ST1>) -> tensor<?x?x?xf64, #ST2> {
     %s = arith.constant 2.0 : f64
     %c0 = arith.constant 0 : index
     %c1 = arith.constant 1 : index
@@ -36,7 +55,7 @@ module {
     %d0 = tensor.dim %arga, %c0 : tensor<?x?x?xf64, #ST1>
     %d1 = tensor.dim %arga, %c1 : tensor<?x?x?xf64, #ST1>
     %d2 = tensor.dim %arga, %c2 : tensor<?x?x?xf64, #ST1>
-    %xm = sparse_tensor.init [%d0, %d1, %d2] : tensor<?x?x?xf64, #ST2>
+    %xm = tensor.empty(%d0, %d1, %d2) : tensor<?x?x?xf64, #ST2>
     %0 = linalg.generic #trait_scale
        ins(%arga: tensor<?x?x?xf64, #ST1>)
         outs(%xm: tensor<?x?x?xf64, #ST2>) {
@@ -48,7 +67,7 @@ module {
   }
 
   // Driver method to call and verify tensor kernel.
-  func @entry() {
+  func.func @entry() {
     %c0 = arith.constant 0 : index
     %d1 = arith.constant -1.0 : f64
 
@@ -73,18 +92,24 @@ module {
 
     // Sanity check on stored values.
     //
-    // CHECK:      ( 1, 2, 3, 4, 5, -1, -1, -1 )
-    // CHECK-NEXT: ( 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 6, 8, 0, 0, 0, 0, 10, -1, -1, -1, -1, -1, -1, -1, -1 )
+    // CHECK:      5
+    // CHECK-NEXT: ( 1, 2, 3, 4, 5 )
+    // CHECK-NEXT: 24
+    // CHECK-NEXT: ( 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 6, 8, 0, 0, 0, 0, 10 )
     %m1 = sparse_tensor.values %st : tensor<?x?x?xf64, #ST1> to memref<?xf64>
     %m2 = sparse_tensor.values %0  : tensor<?x?x?xf64, #ST2> to memref<?xf64>
-    %v1 = vector.transfer_read %m1[%c0], %d1: memref<?xf64>, vector<8xf64>
-    %v2 = vector.transfer_read %m2[%c0], %d1: memref<?xf64>, vector<32xf64>
-    vector.print %v1 : vector<8xf64>
-    vector.print %v2 : vector<32xf64>
+    %n1 = sparse_tensor.number_of_entries %st : tensor<?x?x?xf64, #ST1>
+    %n2 = sparse_tensor.number_of_entries %0 : tensor<?x?x?xf64, #ST2>
+    %v1 = vector.transfer_read %m1[%c0], %d1: memref<?xf64>, vector<5xf64>
+    %v2 = vector.transfer_read %m2[%c0], %d1: memref<?xf64>, vector<24xf64>
+    vector.print %n1 : index
+    vector.print %v1 : vector<5xf64>
+    vector.print %n2 : index
+    vector.print %v2 : vector<24xf64>
 
     // Release the resources.
-    sparse_tensor.release %st : tensor<?x?x?xf64, #ST1>
-    sparse_tensor.release %0  : tensor<?x?x?xf64, #ST2>
+    bufferization.dealloc_tensor %st : tensor<?x?x?xf64, #ST1>
+    bufferization.dealloc_tensor %0  : tensor<?x?x?xf64, #ST2>
     return
   }
 }

@@ -56,28 +56,28 @@ define i64 @func2(i64 %x, i64 %y) {
 ; X86-NEXT:    movl %esi, %eax
 ; X86-NEXT:    mull {{[0-9]+}}(%esp)
 ; X86-NEXT:    movl %edx, %edi
-; X86-NEXT:    movl %eax, %ebp
+; X86-NEXT:    movl %eax, %ebx
 ; X86-NEXT:    movl %esi, %eax
 ; X86-NEXT:    mull %ecx
 ; X86-NEXT:    movl %eax, %esi
-; X86-NEXT:    addl %edx, %ebp
-; X86-NEXT:    movl {{[0-9]+}}(%esp), %ebx
-; X86-NEXT:    adcl $0, %edi
-; X86-NEXT:    movl %ebx, %eax
-; X86-NEXT:    mull %ecx
-; X86-NEXT:    addl %ebp, %eax
-; X86-NEXT:    adcl %edi, %edx
-; X86-NEXT:    movl %ebx, %edi
+; X86-NEXT:    addl %edx, %ebx
 ; X86-NEXT:    movl {{[0-9]+}}(%esp), %ebp
-; X86-NEXT:    imull %ebp, %edi
+; X86-NEXT:    adcl $0, %edi
+; X86-NEXT:    movl %ebp, %eax
+; X86-NEXT:    mull %ecx
+; X86-NEXT:    addl %ebx, %eax
+; X86-NEXT:    adcl %edi, %edx
+; X86-NEXT:    movl %ebp, %edi
+; X86-NEXT:    movl {{[0-9]+}}(%esp), %ebx
+; X86-NEXT:    imull %ebx, %edi
 ; X86-NEXT:    addl %edi, %edx
 ; X86-NEXT:    movl %edx, %edi
 ; X86-NEXT:    subl %ecx, %edi
-; X86-NEXT:    testl %ebx, %ebx
+; X86-NEXT:    testl %ebp, %ebp
 ; X86-NEXT:    cmovsl %edi, %edx
 ; X86-NEXT:    movl %edx, %ecx
 ; X86-NEXT:    subl {{[0-9]+}}(%esp), %ecx
-; X86-NEXT:    testl %ebp, %ebp
+; X86-NEXT:    testl %ebx, %ebx
 ; X86-NEXT:    cmovsl %ecx, %edx
 ; X86-NEXT:    shldl $30, %eax, %edx
 ; X86-NEXT:    shldl $30, %esi, %eax
@@ -114,10 +114,10 @@ define i4 @func3(i4 %x, i4 %y) nounwind {
 ;
 ; X86-LABEL: func3:
 ; X86:       # %bb.0:
-; X86-NEXT:    movb {{[0-9]+}}(%esp), %al
+; X86-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
 ; X86-NEXT:    shlb $4, %al
 ; X86-NEXT:    sarb $4, %al
-; X86-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; X86-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; X86-NEXT:    shlb $4, %cl
 ; X86-NEXT:    sarb $4, %cl
 ; X86-NEXT:    movsbl %cl, %ecx
@@ -255,10 +255,10 @@ define i4 @func6(i4 %x, i4 %y) nounwind {
 ;
 ; X86-LABEL: func6:
 ; X86:       # %bb.0:
-; X86-NEXT:    movb {{[0-9]+}}(%esp), %al
+; X86-NEXT:    movzbl {{[0-9]+}}(%esp), %eax
 ; X86-NEXT:    shlb $4, %al
 ; X86-NEXT:    sarb $4, %al
-; X86-NEXT:    movb {{[0-9]+}}(%esp), %cl
+; X86-NEXT:    movzbl {{[0-9]+}}(%esp), %ecx
 ; X86-NEXT:    shlb $4, %cl
 ; X86-NEXT:    sarb $4, %cl
 ; X86-NEXT:    mulb %cl

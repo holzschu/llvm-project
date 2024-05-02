@@ -45,7 +45,7 @@ using namespace llvm;
 #define DEBUG_TYPE "polly-detect"
 
 #define SCOP_STAT(NAME, DESC)                                                  \
-  { "polly-detect", "NAME", "Number of rejected regions: " DESC }
+  {"polly-detect", "NAME", "Number of rejected regions: " DESC}
 
 static Statistic RejectStatistics[] = {
     SCOP_STAT(CFG, ""),
@@ -638,8 +638,7 @@ bool ReportNonSimpleMemoryAccess::classof(const RejectReason *RR) {
 
 ReportAlias::ReportAlias(Instruction *Inst, AliasSet &AS)
     : RejectReason(RejectReasonKind::Alias), Inst(Inst) {
-  for (const auto &I : AS)
-    Pointers.push_back(I.getValue());
+  append_range(Pointers, AS.getPointers());
 }
 
 std::string ReportAlias::formatInvalidAlias(std::string Prefix,

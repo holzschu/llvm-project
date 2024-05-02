@@ -127,6 +127,30 @@ define <vscale x 2 x i64> @masked_gather_passthru_0(<vscale x 2 x i32*> %ptrs, <
   ret <vscale x 2 x i64> %vals.sext
 }
 
+%i64_x3 = type { i64, i64, i64}
+define <vscale x 2 x i64> @masked_gather_non_power_of_two_based_scaling(ptr %base, <vscale x 2 x i64> %offsets, <vscale x 2 x i1> %mask) {
+; CHECK-LABEL: masked_gather_non_power_of_two_based_scaling:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mul z0.d, z0.d, #24
+; CHECK-NEXT:    ld1d { z0.d }, p0/z, [x0, z0.d]
+; CHECK-NEXT:    ret
+  %ptrs = getelementptr inbounds %i64_x3, ptr %base, <vscale x 2 x i64> %offsets
+  %vals = call <vscale x 2 x i64> @llvm.masked.gather.nxv2i64(<vscale x 2 x ptr> %ptrs, i32 8, <vscale x 2 x i1> %mask, <vscale x 2 x i64> undef)
+  ret <vscale x 2 x i64> %vals
+}
+
+%i64_x4 = type { i64, i64, i64, i64}
+define <vscale x 2 x i64> @masked_gather_non_element_type_based_scaling(ptr %base, <vscale x 2 x i64> %offsets, <vscale x 2 x i1> %mask) {
+; CHECK-LABEL: masked_gather_non_element_type_based_scaling:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    lsl z0.d, z0.d, #5
+; CHECK-NEXT:    ld1d { z0.d }, p0/z, [x0, z0.d]
+; CHECK-NEXT:    ret
+  %ptrs = getelementptr inbounds %i64_x4, ptr %base, <vscale x 2 x i64> %offsets
+  %vals = call <vscale x 2 x i64> @llvm.masked.gather.nxv2i64(<vscale x 2 x ptr> %ptrs, i32 8, <vscale x 2 x i1> %mask, <vscale x 2 x i64> undef)
+  ret <vscale x 2 x i64> %vals
+}
+
 declare <vscale x 2 x i8> @llvm.masked.gather.nxv2i8(<vscale x 2 x i8*>, i32, <vscale x 2 x i1>, <vscale x 2 x i8>)
 declare <vscale x 2 x i16> @llvm.masked.gather.nxv2i16(<vscale x 2 x i16*>, i32, <vscale x 2 x i1>, <vscale x 2 x i16>)
 declare <vscale x 2 x i32> @llvm.masked.gather.nxv2i32(<vscale x 2 x i32*>, i32, <vscale x 2 x i1>, <vscale x 2 x i32>)

@@ -7,12 +7,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "src/fenv/fesetexceptflag.h"
-#include "src/__support/FPUtil/FEnvUtils.h"
+#include "src/__support/FPUtil/FEnvImpl.h"
 #include "src/__support/common.h"
 
 #include <fenv.h>
 
-namespace __llvm_libc {
+namespace LIBC_NAMESPACE {
 
 LLVM_LIBC_FUNCTION(int, fesetexceptflag,
                    (const fexcept_t *flagp, int excepts)) {
@@ -20,9 +20,9 @@ LLVM_LIBC_FUNCTION(int, fesetexceptflag,
   // can fit in int type.
   static_assert(sizeof(int) >= sizeof(fexcept_t),
                 "fexcept_t value cannot fit in an int value.");
-  int excepts_to_set = static_cast<const int>(*flagp) & excepts;
+  int excepts_to_set = static_cast<int>(*flagp) & excepts;
   fputil::clear_except(FE_ALL_EXCEPT);
   return fputil::set_except(excepts_to_set);
 }
 
-} // namespace __llvm_libc
+} // namespace LIBC_NAMESPACE

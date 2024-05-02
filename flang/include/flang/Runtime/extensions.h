@@ -12,12 +12,28 @@
 #ifndef FORTRAN_RUNTIME_EXTENSIONS_H_
 #define FORTRAN_RUNTIME_EXTENSIONS_H_
 
-#define FORTRAN_SUBROUTINE_NAME(name) name##_
+#define FORTRAN_PROCEDURE_NAME(name) name##_
+
+#include <cstddef>
+#include <cstdint>
 
 extern "C" {
 
 // CALL FLUSH(n) antedates the Fortran 2003 FLUSH statement.
-void FORTRAN_SUBROUTINE_NAME(flush)(const int &unit);
+void FORTRAN_PROCEDURE_NAME(flush)(const int &unit);
+
+// GNU extension subroutine FDATE
+void FORTRAN_PROCEDURE_NAME(fdate)(char *string, std::int64_t length);
+
+// GNU Fortran 77 compatibility function IARGC.
+std::int32_t FORTRAN_PROCEDURE_NAME(iargc)();
+
+// GNU Fortran 77 compatibility subroutine GETARG(N, ARG).
+void FORTRAN_PROCEDURE_NAME(getarg)(
+    std::int32_t &n, char *arg, std::int64_t length);
+
+// GNU extension subroutine GETLOG(C).
+void FORTRAN_PROCEDURE_NAME(getlog)(char *name, std::int64_t length);
 
 } // extern "C"
 #endif // FORTRAN_RUNTIME_EXTENSIONS_H_

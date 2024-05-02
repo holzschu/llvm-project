@@ -16,7 +16,6 @@
 #define SANITIZER_COMMON_H
 
 #include "sanitizer_flags.h"
-#include "sanitizer_interface_internal.h"
 #include "sanitizer_internal_defs.h"
 #include "sanitizer_libc.h"
 #include "sanitizer_list.h"
@@ -33,6 +32,7 @@ struct AddressInfo;
 struct BufferedStackTrace;
 struct SignalContext;
 struct StackTrace;
+struct SymbolizedStack;
 
 // Constants.
 const uptr kWordSize = SANITIZER_WORDSIZE / 8;
@@ -118,8 +118,14 @@ void *MmapAlignedOrDieOnFatalError(uptr size, uptr alignment,
 // unaccessible memory.
 bool MprotectNoAccess(uptr addr, uptr size);
 bool MprotectReadOnly(uptr addr, uptr size);
+bool MprotectReadWrite(uptr addr, uptr size);
 
 void MprotectMallocZones(void *addr, int prot);
+
+#if SANITIZER_WINDOWS
+// Zero previously mmap'd memory. Currently used only on Windows.
+bool ZeroMmapFixedRegion(uptr fixed_addr, uptr size) WARN_UNUSED_RESULT;
+#endif
 
 #if SANITIZER_LINUX
 // Unmap memory. Currently only used on Linux.
@@ -171,8 +177,8 @@ void SetShadowRegionHugePageMode(uptr addr, uptr length);
 bool DontDumpShadowMemory(uptr addr, uptr length);
 // Check if the built VMA size matches the runtime one.
 void CheckVMASize();
-void RunMallocHooks(const void *ptr, uptr size);
-void RunFreeHooks(const void *ptr);
+void RunMallocHooks(void *ptr, uptr size);
+void RunFreeHooks(void *ptr);
 
 class ReservedAddressRange {
  public:
@@ -203,10 +209,16 @@ void ParseUnixMemoryProfile(fill_profile_f cb, uptr *stats, char *smaps,
 // Simple low-level (mmap-based) allocator for internal use. Doesn't have
 // constructor, so all instances of LowLevelAllocator should be
 // linker initialized.
+//
+// NOTE: Users should instead use the singleton provided via
+// `GetGlobalLowLevelAllocator()` rather than create a new one. This way, the
+// number of mmap fragments can be reduced and use the same contiguous mmap
+// provided by this singleton.
 class LowLevelAllocator {
  public:
   // Requires an external lock.
   void *Allocate(uptr size);
+
  private:
   char *allocated_end_;
   char *allocated_current_;
@@ -217,6 +229,8 @@ typedef void (*LowLevelAllocateCallback)(uptr ptr, uptr size);
 // Allows to register tool-specific callbacks for LowLevelAllocator.
 // Passing NULL removes the callback.
 void SetLowLevelAllocateCallback(LowLevelAllocateCallback callback);
+
+LowLevelAllocator &GetGlobalLowLevelAllocator();
 
 // IO
 void CatastrophicErrorWrite(const char *buffer, uptr length);
@@ -286,7 +300,7 @@ void SetStackSizeLimitInBytes(uptr limit);
 bool AddressSpaceIsUnlimited();
 void SetAddressSpaceUnlimited();
 void AdjustStackSize(void *attr);
-void PlatformPrepareForSandboxing(__sanitizer_sandbox_arguments *args);
+void PlatformPrepareForSandboxing(void *args);
 void SetSandboxingCallback(void (*f)());
 
 void InitializeCoverage(bool enabled, const char *coverage_dir);
@@ -295,6 +309,7 @@ void InitTlsSize();
 uptr GetTlsSize();
 
 // Other
+void WaitForDebugger(unsigned seconds, const char *label);
 void SleepForSeconds(unsigned seconds);
 void SleepForMillis(unsigned millis);
 u64 NanoTime();
@@ -310,6 +325,20 @@ CheckFailed(const char *file, int line, const char *cond, u64 v1, u64 v2);
 void NORETURN ReportMmapFailureAndDie(uptr size, const char *mem_type,
                                       const char *mmap_type, error_t err,
                                       bool raw_report = false);
+void NORETURN ReportMunmapFailureAndDie(void *ptr, uptr size, error_t err,
+                                        bool raw_report = false);
+
+// Returns true if the platform-specific error reported is an OOM error.
+bool ErrorIsOOM(error_t err);
+
+// This reports an error in the form:
+//
+//   `ERROR: {{SanitizerToolName}}: out of memory: {{err_msg}}`
+//
+// Downstream tools that read sanitizer output will know that errors starting
+// in this format are specifically OOM errors.
+#define ERROR_OOM(err_msg, ...) \
+  Report("ERROR: %s: out of memory: " err_msg, SanitizerToolName, __VA_ARGS__)
 
 // Specific tools may override behavior of "Die" function to do tool-specific
 // job.
@@ -365,6 +394,8 @@ void ReportErrorSummary(const char *error_type, const AddressInfo &info,
 // Same as above, but obtains AddressInfo by symbolizing top stack trace frame.
 void ReportErrorSummary(const char *error_type, const StackTrace *trace,
                         const char *alt_tool_name = nullptr);
+// Skips frames which we consider internal and not usefull to the users.
+const SymbolizedStack *SkipInternalFrames(const SymbolizedStack *frames);
 
 void ReportMmapWriteExec(int prot, int mflags);
 
@@ -499,8 +530,8 @@ class InternalMmapVectorNoCtor {
     return data_[i];
   }
   void push_back(const T &element) {
-    CHECK_LE(size_, capacity());
-    if (size_ == capacity()) {
+    if (UNLIKELY(size_ >= capacity())) {
+      CHECK_EQ(size_, capacity());
       uptr new_capacity = RoundUpToPowerOfTwo(size_ + 1);
       Realloc(new_capacity);
     }
@@ -560,7 +591,7 @@ class InternalMmapVectorNoCtor {
   }
 
  private:
-  void Realloc(uptr new_capacity) {
+  NOINLINE void Realloc(uptr new_capacity) {
     CHECK_GT(new_capacity, 0);
     CHECK_LE(size_, new_capacity);
     uptr new_capacity_bytes =
@@ -615,7 +646,8 @@ class InternalScopedString {
     buffer_.resize(1);
     buffer_[0] = '\0';
   }
-  void append(const char *format, ...) FORMAT(2, 3);
+  void Append(const char *str);
+  void AppendF(const char *format, ...) FORMAT(2, 3);
   const char *data() const { return buffer_.data(); }
   char *data() { return buffer_.data(); }
 
@@ -692,6 +724,7 @@ enum ModuleArch {
   kModuleArchARMV7S,
   kModuleArchARMV7K,
   kModuleArchARM64,
+  kModuleArchLoongArch64,
   kModuleArchRISCV64,
   kModuleArchHexagon
 };
@@ -739,6 +772,9 @@ bool ReadFileToBuffer(const char *file_name, char **buff, uptr *buff_size,
                       uptr *read_len, uptr max_len = kDefaultFileMaxSize,
                       error_t *errno_p = nullptr);
 
+int GetModuleAndOffsetForPc(uptr pc, char *module_name, uptr module_name_len,
+                            uptr *pc_offset);
+
 // When adding a new architecture, don't forget to also update
 // script/asan_symbolize.py and sanitizer_symbolizer_libcdep.cpp.
 inline const char *ModuleArchToString(ModuleArch arch) {
@@ -761,6 +797,8 @@ inline const char *ModuleArchToString(ModuleArch arch) {
       return "armv7k";
     case kModuleArchARM64:
       return "arm64";
+    case kModuleArchLoongArch64:
+      return "loongarch64";
     case kModuleArchRISCV64:
       return "riscv64";
     case kModuleArchHexagon:
@@ -770,7 +808,11 @@ inline const char *ModuleArchToString(ModuleArch arch) {
   return "";
 }
 
+#if SANITIZER_APPLE
+const uptr kModuleUUIDSize = 16;
+#else
 const uptr kModuleUUIDSize = 32;
+#endif
 const uptr kMaxSegName = 16;
 
 // Represents a binary loaded into virtual memory (e.g. this can be an
@@ -780,7 +822,7 @@ class LoadedModule {
   LoadedModule()
       : full_name_(nullptr),
         base_address_(0),
-        max_executable_address_(0),
+        max_address_(0),
         arch_(kModuleArchUnknown),
         uuid_size_(0),
         instrumented_(false) {
@@ -798,7 +840,7 @@ class LoadedModule {
 
   const char *full_name() const { return full_name_; }
   uptr base_address() const { return base_address_; }
-  uptr max_executable_address() const { return max_executable_address_; }
+  uptr max_address() const { return max_address_; }
   ModuleArch arch() const { return arch_; }
   const u8 *uuid() const { return uuid_; }
   uptr uuid_size() const { return uuid_size_; }
@@ -828,7 +870,7 @@ class LoadedModule {
  private:
   char *full_name_;  // Owned.
   uptr base_address_;
-  uptr max_executable_address_;
+  uptr max_address_;
   ModuleArch arch_;
   uptr uuid_size_;
   u8 uuid_[kModuleUUIDSize];
@@ -888,13 +930,13 @@ void WriteToSyslog(const char *buffer);
 #define SANITIZER_WIN_TRACE 0
 #endif
 
-#if SANITIZER_MAC || SANITIZER_WIN_TRACE
+#if SANITIZER_APPLE || SANITIZER_WIN_TRACE
 void LogFullErrorReport(const char *buffer);
 #else
 inline void LogFullErrorReport(const char *buffer) {}
 #endif
 
-#if SANITIZER_LINUX || SANITIZER_MAC
+#if SANITIZER_LINUX || SANITIZER_APPLE
 void WriteOneLineToSyslog(const char *s);
 void LogMessageOnPrintf(const char *str);
 #else
@@ -956,7 +998,7 @@ struct SignalContext {
   uptr sp;
   uptr bp;
   bool is_memory_access;
-  enum WriteFlag { UNKNOWN, READ, WRITE } write_flag;
+  enum WriteFlag { Unknown, Read, Write } write_flag;
 
   // In some cases the kernel cannot provide the true faulting address; `addr`
   // will be zero then.  This field allows to distinguish between these cases
@@ -1001,7 +1043,6 @@ struct SignalContext {
 };
 
 void InitializePlatformEarly();
-void MaybeReexec();
 
 template <typename Fn>
 class RunOnDestruction {
@@ -1053,20 +1094,6 @@ inline u32 GetNumberOfCPUsCached() {
     NumberOfCPUsCached = GetNumberOfCPUs();
   return NumberOfCPUsCached;
 }
-
-template <typename T>
-class ArrayRef {
- public:
-  ArrayRef() {}
-  ArrayRef(T *begin, T *end) : begin_(begin), end_(end) {}
-
-  T *begin() { return begin_; }
-  T *end() { return end_; }
-
- private:
-  T *begin_ = nullptr;
-  T *end_ = nullptr;
-};
 
 }  // namespace __sanitizer
 

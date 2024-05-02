@@ -22,36 +22,10 @@
 # ZLIB-NEXT:   EntrySize: 1
 # ZLIB-NEXT: }
 
-# RUN: llvm-mc -compress-debug-sections=zlib-gnu -filetype=obj -triple=x86_64-unknown-linux %s -o %t2
-# RUN: llvm-mc -compress-debug-sections=zlib-gnu -filetype=obj -triple=powerpc64-unknown-unknown %s -o %t2-be
-# RUN: llvm-readobj --sections %t2 | FileCheck -check-prefix=GNU %s
-# RUN: llvm-readobj --sections %t2-be | FileCheck -check-prefix=GNU %s
-# GNU:      Section {
-# GNU:        Index: 2
-# GNU:        Name: .zdebug_str
-# GNU-NEXT:   Type: SHT_PROGBITS
-# GNU-NEXT:   Flags [
-# GNU-NEXT:     SHF_MERGE (0x10)
-# GNU-NEXT:     SHF_STRINGS (0x20)
-# GNU-NEXT:   ]
-# GNU-NEXT:   Address:
-# GNU-NEXT:   Offset:
-# GNU-NEXT:   Size:
-# GNU-NEXT:   Link:
-# GNU-NEXT:   Info:
-# GNU-NEXT:   AddressAlignment: 1
-# GNU-NEXT:   EntrySize: 1
-# GNU-NEXT: }
-
 # RUN: ld.lld --hash-style=sysv %t -o %t.so -shared
 # RUN: llvm-readobj --sections --section-data %t.so | FileCheck -check-prefix=DATA %s
 # RUN: ld.lld --hash-style=sysv %t-be -o %t-be.so -shared
 # RUN: llvm-readobj --sections --section-data %t-be.so | FileCheck -check-prefix=DATA %s
-
-# RUN: ld.lld --hash-style=sysv %t2 -o %t2.so -shared
-# RUN: llvm-readobj --sections --section-data %t2.so | FileCheck -check-prefix=DATA %s
-# RUN: ld.lld --hash-style=sysv %t2-be -o %t2-be.so -shared
-# RUN: llvm-readobj --sections --section-data %t2-be.so | FileCheck -check-prefix=DATA %s
 
 # DATA:      Section {
 # DATA:        Index: 6
@@ -69,10 +43,10 @@
 # DATA-NEXT:   AddressAlignment: 1
 # DATA-NEXT:   EntrySize: 1
 # DATA-NEXT:   SectionData (
-# DATA-NEXT:     0000: 6C6F6E67 20756E73 69676E65 6420696E  |long unsigned in|
-# DATA-NEXT:     0010: 7400756E 7369676E 65642063 68617200  |t.unsigned char.|
-# DATA-NEXT:     0020: 756E7369 676E6564 20696E74 00636861  |unsigned int.cha|
-# DATA-NEXT:     0030: 72007368 6F727420 756E7369 676E6564  |r.short unsigned|
+# DATA-NEXT:     0000: 73686F72 7420756E 7369676E 65642069  |short unsigned i|
+# DATA-NEXT:     0010: 6E740075 6E736967 6E656420 63686172  |nt.unsigned char|
+# DATA-NEXT:     0020: 00636861 72006C6F 6E672075 6E736967  |.char.long unsig|
+# DATA-NEXT:     0030: 6E656420 696E7400 756E7369 676E6564  |ned int.unsigned|
 # DATA-NEXT:     0040: 20696E74 00                          | int.|
 # DATA-NEXT:   )
 # DATA-NEXT: }

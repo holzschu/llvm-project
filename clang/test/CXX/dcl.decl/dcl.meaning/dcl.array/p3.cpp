@@ -4,7 +4,6 @@
 // which the bound was specified, an omitted array bound is taken to be the
 // same as in that earlier declaration
 
-// rdar://13535367
 namespace test0 {
   extern "C" int array[];
   void declare() { extern int array[100]; }
@@ -98,7 +97,8 @@ namespace dependent {
     static_assert(sizeof(arr2) == 12, "");
 
     // Use a failing test to ensure the type isn't considered dependent.
-    static_assert(sizeof(arr2) == 13, ""); // expected-error {{failed}}
+    static_assert(sizeof(arr2) == 13, ""); // expected-error {{failed}} \
+                                           // expected-note {{evaluates to '12 == 13'}}
   }
 
   void g() { f<int[3]>(); } // expected-note {{in instantiation of}}

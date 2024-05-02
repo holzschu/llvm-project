@@ -4,8 +4,9 @@
 
 package(
     default_visibility = ["//visibility:public"],
-    licenses = ["notice"],
 )
+
+licenses(["notice"])
 
 cc_test(
     name = "ast_tests",
@@ -28,10 +29,12 @@ cc_test(
         "//clang:tooling",
         "//llvm:Core",
         "//llvm:Support",
+        "//llvm:TargetParser",
+        "//llvm:TestingAnnotations",
         "//llvm:TestingSupport",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -47,7 +50,7 @@ cc_library(
         "//clang:frontend",
         "//clang:testing",
         "//clang:tooling",
-        "//llvm:gtest",
+        "//third-party/unittest:gtest",
     ],
 )
 
@@ -66,9 +69,10 @@ cc_test(
         "//clang:frontend",
         "//clang:tooling",
         "//llvm:Support",
+        "//llvm:TargetParser",
         "//llvm:TestingSupport",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -86,8 +90,8 @@ cc_test(
         "//clang:frontend",
         "//clang:tooling",
         "//llvm:Support",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -110,9 +114,38 @@ cc_test(
         "//clang:parse",
         "//clang:tooling",
         "//llvm:Support",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "analysis_flow_sensitive_tests",
+    srcs = glob(
+        [
+            "Analysis/FlowSensitive/*.cpp",
+            "Analysis/FlowSensitive/*.h",
+        ],
+        allow_empty = False,
+    ),
+    deps = [
+        "//clang:analysis",
+        "//clang:ast",
+        "//clang:ast_matchers",
+        "//clang:basic",
+        "//clang:frontend",
+        "//clang:lex",
+        "//clang:serialization",
+        "//clang:testing",
+        "//clang:tooling",
+        "//llvm:Support",
+        "//llvm:TestingADT",
+        "//llvm:TestingAnnotations",
+        "//llvm:TestingSupport",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -130,9 +163,9 @@ cc_test(
         "//llvm:Support",
         "//llvm:TestingSupport",
         "//llvm:config",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -156,8 +189,9 @@ cc_test(
         "//clang:sema",
         "//llvm:Core",
         "//llvm:Support",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//llvm:TargetParser",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -173,15 +207,18 @@ cc_test(
         allow_empty = False,
     ),
     copts = ["$(STACK_FRAME_UNLIMITED)"],
+    features = ["-layering_check"],  # #include "../../lib/Format/TokenAnalyzer.h"
     shard_count = 20,
     deps = [
         "//clang:basic",
         "//clang:format",
         "//clang:frontend",
+        "//clang:rewrite",
         "//clang:tooling_core",
         "//llvm:Support",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -203,9 +240,10 @@ cc_test(
         "//clang:sema",
         "//clang:serialization",
         "//llvm:Support",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//llvm:TargetParser",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -223,14 +261,17 @@ cc_test(
     deps = [
         "//clang:ast",
         "//clang:basic",
+        "//clang:frontend",
         "//clang:lex",
         "//clang:parse",
         "//clang:sema",
         "//clang:serialization",
         "//llvm:Support",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//llvm:TestingAnnotations",
+        "//llvm:TestingSupport",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -252,7 +293,7 @@ cc_library(
         "//clang:tooling",
         "//clang:tooling_core",
         "//llvm:Support",
-        "//llvm:gtest",
+        "//third-party/unittest:gtest",
     ],
 )
 
@@ -277,8 +318,8 @@ cc_test(
         "//clang:tooling",
         "//clang:tooling_refactoring",
         "//llvm:Support",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -292,8 +333,8 @@ cc_test(
     deps = [
         "//clang:rewrite",
         "//clang:tooling",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -313,10 +354,11 @@ cc_test(
         "//clang:parse",
         "//clang:sema",
         "//clang:tooling",
+        "//llvm:TestingAnnotations",
         "//llvm:TestingSupport",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -335,7 +377,7 @@ cc_library(
         "//clang:static_analyzer_frontend",
         "//clang:testing",
         "//clang:tooling",
-        "//llvm:gtest",
+        "//third-party/unittest:gtest",
     ],
 )
 
@@ -352,15 +394,18 @@ cc_test(
     ),
     deps = [
         ":static_analyzer_test_headers",
+        "//clang:analysis",
+        "//clang:ast",
         "//clang:basic",
         "//clang:frontend",
         "//clang:static_analyzer_core",
         "//clang:static_analyzer_frontend",
+        "//clang:testing",
         "//clang:tooling",
         "//llvm:Support",
         "//llvm:config",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -379,21 +424,26 @@ cc_test(
         "//clang:ast",
         "//clang:ast_matchers",
         "//clang:basic",
+        "//clang:driver",
         "//clang:format",
         "//clang:frontend",
         "//clang:lex",
         "//clang:rewrite",
+        "//clang:testing",
         "//clang:tooling",
         "//clang:tooling_core",
         "//clang:tooling_dependency_scanning",
         "//clang:tooling_inclusions",
         "//clang:tooling_refactoring",
         "//clang:transformer",
+        "//llvm:MC",
         "//llvm:Support",
+        "//llvm:TargetParser",
+        "//llvm:TestingAnnotations",
         "//llvm:TestingSupport",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -415,7 +465,7 @@ cc_library(
         "//clang:tooling",
         "//clang:tooling_core",
         "//llvm:Support",
-        "//llvm:gtest",
+        "//third-party/unittest:gtest",
     ],
 )
 
@@ -437,10 +487,11 @@ cc_test(
         "//clang:tooling",
         "//clang:tooling_syntax",
         "//llvm:Support",
+        "//llvm:TargetParser",
         "//llvm:TestingSupport",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -465,10 +516,11 @@ cc_test(
         "//clang:tooling_core",
         "//clang:tooling_syntax",
         "//llvm:Support",
+        "//llvm:TestingAnnotations",
         "//llvm:TestingSupport",
-        "//llvm:gmock",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gmock",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )
 
@@ -482,7 +534,7 @@ cc_test(
         "libclang/TestUtils.h",
     ],
     args = select({
-        "@bazel_tools//src/conditions:windows": [
+        "@platforms//os:windows": [
             # Need to disable the VFS tests that don't use Windows friendly
             # paths. These are also disabled on Windows in the CMake build.
             "--gtest_filter=-*VirtualFileOverlay*",
@@ -492,7 +544,7 @@ cc_test(
     deps = [
         "//clang:libclang",
         "//llvm:Support",
-        "//llvm:gtest",
-        "//llvm:gtest_main",
+        "//third-party/unittest:gtest",
+        "//third-party/unittest:gtest_main",
     ],
 )

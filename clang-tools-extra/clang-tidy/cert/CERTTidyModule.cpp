@@ -16,6 +16,7 @@
 #include "../bugprone/SpuriouslyWakeUpFunctionsCheck.h"
 #include "../bugprone/SuspiciousMemoryComparisonCheck.h"
 #include "../bugprone/UnhandledSelfAssignmentCheck.h"
+#include "../bugprone/UnsafeFunctionsCheck.h"
 #include "../bugprone/UnusedReturnValueCheck.h"
 #include "../concurrency/ThreadCanceltypeAsynchronousCheck.h"
 #include "../google/UnnamedNamespaceInHeaderCheck.h"
@@ -227,8 +228,7 @@ const llvm::StringRef CertErr33CCheckedFunctions = "::aligned_alloc;"
 
 } // namespace
 
-namespace clang {
-namespace tidy {
+namespace clang::tidy {
 namespace cert {
 
 class CERTModule : public ClangTidyModule {
@@ -265,6 +265,8 @@ public:
     CheckFactories.registerCheck<LimitedRandomnessCheck>("cert-msc50-cpp");
     CheckFactories.registerCheck<ProperlySeededRandomGeneratorCheck>(
         "cert-msc51-cpp");
+    CheckFactories.registerCheck<bugprone::SignalHandlerCheck>(
+        "cert-msc54-cpp");
     // OOP
     CheckFactories.registerCheck<performance::MoveConstructorInitCheck>(
         "cert-oop11-cpp");
@@ -301,9 +303,13 @@ public:
     // FIO
     CheckFactories.registerCheck<misc::NonCopyableObjectsCheck>("cert-fio38-c");
     // MSC
+    CheckFactories.registerCheck<bugprone::UnsafeFunctionsCheck>(
+        "cert-msc24-c");
     CheckFactories.registerCheck<LimitedRandomnessCheck>("cert-msc30-c");
     CheckFactories.registerCheck<ProperlySeededRandomGeneratorCheck>(
         "cert-msc32-c");
+    CheckFactories.registerCheck<bugprone::UnsafeFunctionsCheck>(
+        "cert-msc33-c");
     // POS
     CheckFactories.registerCheck<bugprone::BadSignalToKillThreadCheck>(
         "cert-pos44-c");
@@ -322,6 +328,7 @@ public:
     ClangTidyOptions::OptionMap &Opts = Options.CheckOptions;
     Opts["cert-dcl16-c.NewSuffixes"] = "L;LL;LU;LLU";
     Opts["cert-err33-c.CheckedFunctions"] = CertErr33CCheckedFunctions;
+    Opts["cert-err33-c.AllowCastToVoid"] = "true";
     Opts["cert-oop54-cpp.WarnOnlyIfThisHasSuspiciousField"] = "false";
     Opts["cert-str34-c.DiagnoseSignedUnsignedCharComparisons"] = "false";
     return Options;
@@ -339,5 +346,4 @@ static ClangTidyModuleRegistry::Add<cert::CERTModule>
 // and thus register the CERTModule.
 volatile int CERTModuleAnchorSource = 0;
 
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy

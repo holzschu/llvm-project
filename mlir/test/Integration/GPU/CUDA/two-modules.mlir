@@ -1,15 +1,13 @@
 // RUN: mlir-opt %s \
-// RUN:   -gpu-kernel-outlining \
-// RUN:   -pass-pipeline='gpu.module(strip-debuginfo,convert-gpu-to-nvvm,gpu-to-cubin)' \
-// RUN:   -gpu-to-llvm \
+// RUN: | mlir-opt -gpu-lower-to-nvvm-pipeline="cubin-format=%gpu_compilation_format" \
 // RUN: | mlir-cpu-runner \
-// RUN:   --shared-libs=%linalg_test_lib_dir/libmlir_cuda_runtime%shlibext \
-// RUN:   --shared-libs=%linalg_test_lib_dir/libmlir_runner_utils%shlibext \
+// RUN:   --shared-libs=%mlir_cuda_runtime \
+// RUN:   --shared-libs=%mlir_runner_utils \
 // RUN:   --entry-point-result=void \
 // RUN: | FileCheck %s
 
 // CHECK: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-func @main() {
+func.func @main() {
   %arg = memref.alloc() : memref<13xi32>
   %dst = memref.cast %arg : memref<13xi32> to memref<?xi32>
   %one = arith.constant 1 : index
@@ -29,8 +27,8 @@ func @main() {
     memref.store %t0, %dst[%tx] : memref<?xi32>
     gpu.terminator
   }
-  call @print_memref_i32(%cast_dst) : (memref<*xi32>) -> ()
+  call @printMemrefI32(%cast_dst) : (memref<*xi32>) -> ()
   return
 }
 
-func private @print_memref_i32(%memref : memref<*xi32>)
+func.func private @printMemrefI32(%memref : memref<*xi32>)

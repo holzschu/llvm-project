@@ -1,13 +1,14 @@
 ; RUN: opt -S -loop-reduce %s | FileCheck %s
+; RUN: opt --try-experimental-debuginfo-iterators -S -loop-reduce %s | FileCheck %s
 
 ;; Ensure that scev-based salvaging in LSR does not select an IV containing
 ;; an 'undef' element.
 
 target triple = "x86_64-unknown-linux-gnu"
 
-define i16 @n() !dbg !8 {
+define i16 @n(i1 %c1) !dbg !8 {
 entry:
-  br i1 undef, label %m, label %for.body
+  br i1 %c1, label %m, label %for.body
 
 for.body:                                         ; preds = %for.body, %entry
   %iv = phi i16 [ %ivdec, %for.body ], [ 14, %entry ]
@@ -18,7 +19,7 @@ for.body:                                         ; preds = %for.body, %entry
 m:                                                ; preds = %m, %entry
   %0 = phi i16 [ 3, %m ], [ 6, %entry ]
   %gg = add i16 %0, 23
-  ; CHECK: call void @llvm.dbg.value(metadata i16 undef, metadata !{{[0-9]+}}, metadata !DIExpression()),
+  ; CHECK: call void @llvm.dbg.value(metadata i16 poison, metadata !{{[0-9]+}}, metadata !DIExpression()),
   call void @llvm.dbg.value(metadata i16 %0, metadata !14, metadata !DIExpression()), !dbg !19
   br label %m
 }

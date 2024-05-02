@@ -1,3 +1,10 @@
+set(SWIG_EXTRA_FLAGS -c++ -threads -python)
+
+if ("${SWIG_VERSION}" VERSION_LESS "4.1.0")
+  set(SWIG_EXTRA_FLAGS ${SWIG_EXTRA_FLAGS} -py3)
+  message(STATUS "SWIG version ${SWIG_VERSION} uses `-py3` flag.")
+endif()
+
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/LLDBWrapPython.cpp
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lldb.py
@@ -7,11 +14,7 @@ add_custom_command(
   COMMAND ${SWIG_EXECUTABLE}
       ${SWIG_COMMON_FLAGS}
       -I${CMAKE_CURRENT_SOURCE_DIR}
-      -c++
-      -shadow
-      -python
-      -py3
-      -threads
+      ${SWIG_EXTRA_FLAGS}
       -outdir ${CMAKE_CURRENT_BINARY_DIR}
       -o ${CMAKE_CURRENT_BINARY_DIR}/LLDBWrapPython.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/python.swig
@@ -60,13 +63,6 @@ function(finish_swig_python swig_target lldb_python_bindings_dir lldb_python_tar
     DEPENDS ${lldb_python_bindings_dir}/lldb.py
     COMMENT "Python script sym-linking LLDB Python API")
 
-  if(NOT LLDB_USE_SYSTEM_SIX)
-    add_custom_command(TARGET ${swig_target} POST_BUILD VERBATIM
-      COMMAND ${CMAKE_COMMAND} -E copy
-        "${LLDB_SOURCE_DIR}/third_party/Python/module/six/six.py"
-        "${lldb_python_target_dir}/../six.py")
-  endif()
-
   add_custom_command(TARGET ${swig_target} POST_BUILD VERBATIM
     COMMAND ${CMAKE_COMMAND} -E copy
       "${lldb_python_bindings_dir}/lldb.py"
@@ -107,13 +103,16 @@ function(finish_swig_python swig_target lldb_python_bindings_dir lldb_python_tar
     ${lldb_python_target_dir}
     "plugins"
     FILES
-    "${LLDB_SOURCE_DIR}/examples/python/scripted_process/scripted_process.py")
+    "${LLDB_SOURCE_DIR}/examples/python/templates/scripted_process.py"
+    "${LLDB_SOURCE_DIR}/examples/python/templates/scripted_platform.py"
+    "${LLDB_SOURCE_DIR}/examples/python/templates/operating_system.py")
 
   if(APPLE)
     create_python_package(
       ${swig_target}
       ${lldb_python_target_dir} "macosx"
       FILES "${LLDB_SOURCE_DIR}/examples/python/crashlog.py"
+            "${LLDB_SOURCE_DIR}/examples/python/crashlog_scripted_process.py"
             "${LLDB_SOURCE_DIR}/examples/darwin/heap_find/heap.py")
 
     create_python_package(
@@ -158,7 +157,7 @@ function(finish_swig_python swig_target lldb_python_bindings_dir lldb_python_tar
 
   # Install the LLDB python module
   if(LLDB_BUILD_FRAMEWORK)
-    set(LLDB_PYTHON_INSTALL_PATH ${LLDB_FRAMEWORK_INSTALL_DIR}/LLDB.framework/Resources/Python)
+    set(LLDB_PYTHON_INSTALL_PATH ${LLDB_FRAMEWORK_INSTALL_DIR}/LLDB.framework/Versions/${LLDB_FRAMEWORK_VERSION}/Resources/Python)
   else()
     set(LLDB_PYTHON_INSTALL_PATH ${LLDB_PYTHON_RELATIVE_PATH})
   endif()

@@ -13,31 +13,40 @@
 
 using namespace clang::ast_matchers;
 
-namespace clang {
-namespace tidy {
-namespace modernize {
+namespace clang::tidy::modernize {
 
 UseOverrideCheck::UseOverrideCheck(StringRef Name, ClangTidyContext *Context)
     : ClangTidyCheck(Name, Context),
       IgnoreDestructors(Options.get("IgnoreDestructors", false)),
+      IgnoreTemplateInstantiations(
+          Options.get("IgnoreTemplateInstantiations", false)),
       AllowOverrideAndFinal(Options.get("AllowOverrideAndFinal", false)),
       OverrideSpelling(Options.get("OverrideSpelling", "override")),
       FinalSpelling(Options.get("FinalSpelling", "final")) {}
 
 void UseOverrideCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "IgnoreDestructors", IgnoreDestructors);
+  Options.store(Opts, "IgnoreTemplateInstantiations",
+                IgnoreTemplateInstantiations);
   Options.store(Opts, "AllowOverrideAndFinal", AllowOverrideAndFinal);
   Options.store(Opts, "OverrideSpelling", OverrideSpelling);
   Options.store(Opts, "FinalSpelling", FinalSpelling);
 }
 
 void UseOverrideCheck::registerMatchers(MatchFinder *Finder) {
-  if (IgnoreDestructors)
-    Finder->addMatcher(
-        cxxMethodDecl(isOverride(), unless(cxxDestructorDecl())).bind("method"),
-        this);
-  else
-    Finder->addMatcher(cxxMethodDecl(isOverride()).bind("method"), this);
+
+  auto IgnoreDestructorMatcher =
+      IgnoreDestructors ? cxxMethodDecl(unless(cxxDestructorDecl()))
+                        : cxxMethodDecl();
+  auto IgnoreTemplateInstantiationsMatcher =
+      IgnoreTemplateInstantiations
+          ? cxxMethodDecl(unless(ast_matchers::isTemplateInstantiation()))
+          : cxxMethodDecl();
+  Finder->addMatcher(cxxMethodDecl(isOverride(),
+                                   IgnoreTemplateInstantiationsMatcher,
+                                   IgnoreDestructorMatcher)
+                         .bind("method"),
+                     this);
 }
 
 // Re-lex the tokens to get precise locations to insert 'override' and remove
@@ -76,8 +85,7 @@ parseTokens(CharSourceRange Range, const MatchFinder::MatchResult &Result) {
 }
 
 static StringRef getText(const Token &Tok, const SourceManager &Sources) {
-  return StringRef(Sources.getCharacterData(Tok.getLocation()),
-                   Tok.getLength());
+  return {Sources.getCharacterData(Tok.getLocation()), Tok.getLength()};
 }
 
 void UseOverrideCheck::check(const MatchFinder::MatchResult &Result) {
@@ -141,7 +149,7 @@ void UseOverrideCheck::check(const MatchFinder::MatchResult &Result) {
   // Add 'override' on inline declarations that don't already have it.
   if (!HasFinal && !HasOverride) {
     SourceLocation InsertLoc;
-    std::string ReplacementText = OverrideSpelling + " ";
+    std::string ReplacementText = (OverrideSpelling + " ").str();
     SourceLocation MethodLoc = Method->getLocation();
 
     for (Token T : Tokens) {
@@ -171,7 +179,7 @@ void UseOverrideCheck::check(const MatchFinder::MatchResult &Result) {
       // end of the declaration of the function, but prefer to put it on the
       // same line as the declaration if the beginning brace for the start of
       // the body falls on the next line.
-      ReplacementText = " " + OverrideSpelling;
+      ReplacementText = (" " + OverrideSpelling).str();
       auto *LastTokenIter = std::prev(Tokens.end());
       // When try statement is used instead of compound statement as
       // method body - insert override keyword before it.
@@ -192,14 +200,14 @@ void UseOverrideCheck::check(const MatchFinder::MatchResult &Result) {
         InsertLoc = Tokens[Tokens.size() - 2].getLocation();
         // Check if we need to insert a space.
         if ((Tokens[Tokens.size() - 2].getFlags() & Token::LeadingSpace) == 0)
-          ReplacementText = " " + OverrideSpelling + " ";
+          ReplacementText = (" " + OverrideSpelling + " ").str();
       } else if (getText(Tokens.back(), Sources) == "ABSTRACT")
         InsertLoc = Tokens.back().getLocation();
     }
 
     if (!InsertLoc.isValid()) {
       InsertLoc = FileRange.getEnd();
-      ReplacementText = " " + OverrideSpelling;
+      ReplacementText = (" " + OverrideSpelling).str();
     }
 
     // If the override macro has been specified just ensure it exists,
@@ -228,6 +236,4 @@ void UseOverrideCheck::check(const MatchFinder::MatchResult &Result) {
   }
 }
 
-} // namespace modernize
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::modernize

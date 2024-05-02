@@ -306,7 +306,6 @@ int foobar = a + longer_b; // expected-error {{use of undeclared identifier 'a';
                            // expected-error {{use of undeclared identifier 'longer_b'; did you mean 'NS::longer_b'?}}
 }
 
-// <rdar://problem/13853540>
 namespace N {
   struct X { };
   namespace N {
@@ -473,3 +472,10 @@ namespace DependentTemplateInTrivialNNSLoc {
     x: goto x;
   }
 }
+
+template <typename T>
+struct x; // expected-note {{template is declared here}}
+
+template <typename T>
+int issue55962 = x::a; // expected-error {{use of class template 'x' requires template arguments}} \
+                       // expected-warning {{variable templates are a C++14 extension}}

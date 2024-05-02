@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.core,debug.ExprInspection -analyzer-store=region -verify -Wno-null-dereference -Wno-tautological-undefined-compare -analyzer-config eagerly-assume=false %s
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,alpha.core,debug.ExprInspection -verify -Wno-null-dereference -Wno-tautological-undefined-compare -analyzer-config eagerly-assume=false %s
 
 void clang_analyzer_eval(bool);
 
@@ -59,7 +59,7 @@ char t6 (char* p) {
 }
 
 
-// PR13440 / <rdar://problem/11977113>
+// PR13440
 // Test that the array-to-pointer decay works for array references as well.
 // More generally, when we want an lvalue for a reference field, we still need
 // to do one level of load.

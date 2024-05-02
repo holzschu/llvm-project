@@ -18,12 +18,12 @@
 // (using the BufferViewFlowAnalysis class). Consider the following example:
 //
 // ^bb0(%arg0):
-//   cond_br %cond, ^bb1, ^bb2
+//   cf.cond_br %cond, ^bb1, ^bb2
 // ^bb1:
-//   br ^exit(%arg0)
+//   cf.br ^exit(%arg0)
 // ^bb2:
 //   %new_value = ...
-//   br ^exit(%new_value)
+//   cf.br ^exit(%new_value)
 // ^exit(%arg1):
 //   return %arg1;
 //
@@ -50,39 +50,50 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PassDetail.h"
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 
 #include "mlir/Dialect/Bufferization/IR/AllocationOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-#include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/Bufferization/Transforms/BufferUtils.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Transforms/BufferUtils.h"
 #include "llvm/ADT/SetOperations.h"
 
+namespace mlir {
+namespace bufferization {
+#define GEN_PASS_DEF_BUFFERDEALLOCATION
+#include "mlir/Dialect/Bufferization/Transforms/Passes.h.inc"
+} // namespace bufferization
+} // namespace mlir
+
 using namespace mlir;
+using namespace mlir::bufferization;
 
 /// Walks over all immediate return-like terminators in the given region.
-static LogicalResult
-walkReturnOperations(Region *region,
-                     llvm::function_ref<LogicalResult(Operation *)> func) {
+static LogicalResult walkReturnOperations(
+    Region *region,
+    llvm::function_ref<LogicalResult(RegionBranchTerminatorOpInterface)> func) {
   for (Block &block : *region) {
     Operation *terminator = block.getTerminator();
     // Skip non region-return-like terminators.
-    if (isRegionReturnLike(terminator)) {
-      if (failed(func(terminator)))
+    if (auto regionTerminator =
+            dyn_cast<RegionBranchTerminatorOpInterface>(terminator)) {
+      if (failed(func(regionTerminator)))
         return failure();
     }
   }
   return success();
 }
 
-/// Checks if all operations in a given region that have at least one attached
-/// region implement the RegionBranchOpInterface. This is not required in edge
-/// cases, where we have a single attached region and the parent operation has
-/// no results.
-static bool validateSupportedControlFlow(Region &region) {
-  bool success = true;
-  region.walk([&success](Operation *operation) {
+/// Checks if all operations that have at least one attached region implement
+/// the RegionBranchOpInterface. This is not required in edge cases, where we
+/// have a single attached region and the parent operation has no results.
+static bool validateSupportedControlFlow(Operation *op) {
+  WalkResult result = op->walk([&](Operation *operation) {
+    // Only check ops that are inside a function.
+    if (!operation->getParentOfType<func::FuncOp>())
+      return WalkResult::advance();
+
     auto regions = operation->getRegions();
     // Walk over all operations in a region and check if the operation has at
     // least one region and implements the RegionBranchOpInterface. If there
@@ -95,10 +106,11 @@ static bool validateSupportedControlFlow(Region &region) {
         !dyn_cast<RegionBranchOpInterface>(operation)) {
       operation->emitError("All operations with attached regions need to "
                            "implement the RegionBranchOpInterface.");
-      success = false;
     }
+
+    return WalkResult::advance();
   });
-  return success;
+  return !result.wasSkipped();
 }
 
 namespace {
@@ -221,12 +233,12 @@ public:
       aliasToAllocations[alloc] = allocationInterface;
 
       // Get the alias information for the current allocation node.
-      llvm::for_each(aliases.resolve(alloc), [&](Value alias) {
+      for (Value alias : aliases.resolve(alloc)) {
         // TODO: check for incompatible implementations of the
         // AllocationOpInterface. This could be realized by promoting the
         // AllocationOpInterface to a DialectInterface.
         aliasToAllocations[alias] = allocationInterface;
-      });
+      }
     }
     return success();
   }
@@ -248,7 +260,7 @@ private:
     // Initialize the set of values that require a dedicated memory free
     // operation since their operands cannot be safely deallocated in a post
     // dominator.
-    SmallPtrSet<Value, 8> valuesToFree;
+    SetVector<Value> valuesToFree;
     llvm::SmallDenseSet<std::tuple<Value, Block *>> visitedValues;
     SmallVector<std::tuple<Value, Block *>, 8> toProcess;
 
@@ -269,7 +281,7 @@ private:
         // defined in a non-dominated block or it is defined in the same block
         // but the current value is not dominated by the source value.
         if (!dominators.dominates(definingBlock, parentBlock) ||
-            (definingBlock == parentBlock && value.isa<BlockArgument>())) {
+            (definingBlock == parentBlock && isa<BlockArgument>(value))) {
           toProcess.emplace_back(value, parentBlock);
           valuesToFree.insert(value);
         } else if (visitedValues.insert(std::make_tuple(value, definingBlock))
@@ -296,8 +308,8 @@ private:
 
     // Add new allocs and additional clone operations.
     for (Value value : valuesToFree) {
-      if (failed(value.isa<BlockArgument>()
-                     ? introduceBlockArgCopy(value.cast<BlockArgument>())
+      if (failed(isa<BlockArgument>(value)
+                     ? introduceBlockArgCopy(cast<BlockArgument>(value))
                      : introduceValueCopyForRegionResult(value)))
         return failure();
 
@@ -321,25 +333,20 @@ private:
       // argument.
       Operation *terminator = (*it)->getTerminator();
       auto branchInterface = cast<BranchOpInterface>(terminator);
+      SuccessorOperands operands =
+          branchInterface.getSuccessorOperands(it.getSuccessorIndex());
+
       // Query the associated source value.
-      Value sourceValue =
-          branchInterface.getSuccessorOperands(it.getSuccessorIndex())
-              .getValue()[blockArg.getArgNumber()];
-      // Wire new clone and successor operand.
-      auto mutableOperands =
-          branchInterface.getMutableSuccessorOperands(it.getSuccessorIndex());
-      if (!mutableOperands) {
-        terminator->emitError() << "terminators with immutable successor "
-                                   "operands are not supported";
-        continue;
+      Value sourceValue = operands[blockArg.getArgNumber()];
+      if (!sourceValue) {
+        return failure();
       }
+      // Wire new clone and successor operand.
       // Create a new clone at the current location of the terminator.
       auto clone = introduceCloneBuffers(sourceValue, terminator);
       if (failed(clone))
         return failure();
-      mutableOperands.getValue()
-          .slice(blockArg.getArgNumber(), 1)
-          .assign(*clone);
+      operands.slice(blockArg.getArgNumber(), 1).assign(*clone);
     }
 
     // Check whether the block argument has implicitly defined predecessors via
@@ -349,7 +356,7 @@ private:
     Region *argRegion = block->getParent();
     Operation *parentOp = argRegion->getParentOp();
     RegionBranchOpInterface regionInterface;
-    if (!argRegion || &argRegion->front() != block ||
+    if (&argRegion->front() != block ||
         !(regionInterface = dyn_cast<RegionBranchOpInterface>(parentOp)))
       return success();
 
@@ -365,7 +372,8 @@ private:
     // parent operation. In this case, we have to introduce an additional clone
     // for buffer that is passed to the argument.
     SmallVector<RegionSuccessor, 2> successorRegions;
-    regionInterface.getSuccessorRegions(/*index=*/llvm::None, successorRegions);
+    regionInterface.getSuccessorRegions(/*point=*/RegionBranchPoint::parent(),
+                                        successorRegions);
     auto *it =
         llvm::find_if(successorRegions, [&](RegionSuccessor &successorRegion) {
           return successorRegion.getSuccessor() == argRegion;
@@ -375,17 +383,19 @@ private:
 
     // Determine the actual operand to introduce a clone for and rewire the
     // operand to point to the clone instead.
-    Value operand =
-        regionInterface.getSuccessorEntryOperands(argRegion->getRegionNumber())
-            [llvm::find(it->getSuccessorInputs(), blockArg).getIndex()];
+    auto operands = regionInterface.getEntrySuccessorOperands(argRegion);
+    size_t operandIndex =
+        llvm::find(it->getSuccessorInputs(), blockArg).getIndex() +
+        operands.getBeginOperandIndex();
+    Value operand = parentOp->getOperand(operandIndex);
+    assert(operand ==
+               operands[operandIndex - operands.getBeginOperandIndex()] &&
+           "region interface operands don't match parentOp operands");
     auto clone = introduceCloneBuffers(operand, parentOp);
     if (failed(clone))
       return failure();
 
-    auto op = llvm::find(parentOp->getOperands(), operand);
-    assert(op != parentOp->getOperands().end() &&
-           "parentOp does not contain operand");
-    parentOp->setOperand(op.getIndex(), *clone);
+    parentOp->setOperand(operandIndex, *clone);
     return success();
   }
 
@@ -421,8 +431,7 @@ private:
       // Query the regionInterface to get all successor regions of the current
       // one.
       SmallVector<RegionSuccessor, 2> successorRegions;
-      regionInterface.getSuccessorRegions(region.getRegionNumber(),
-                                          successorRegions);
+      regionInterface.getSuccessorRegions(region, successorRegions);
       // Try to find a matching region successor.
       RegionSuccessor *regionSuccessor =
           llvm::find_if(successorRegions, regionPredicate);
@@ -437,23 +446,24 @@ private:
       // Iterate over all immediate terminator operations to introduce
       // new buffer allocations. Thereby, the appropriate terminator operand
       // will be adjusted to point to the newly allocated buffer instead.
-      if (failed(walkReturnOperations(&region, [&](Operation *terminator) {
-            // Get the actual mutable operands for this terminator op.
-            auto terminatorOperands = *getMutableRegionBranchSuccessorOperands(
-                terminator, region.getRegionNumber());
-            // Extract the source value from the current terminator.
-            // This conversion needs to exist on a separate line due to a bug in
-            // GCC conversion analysis.
-            OperandRange immutableTerminatorOperands = terminatorOperands;
-            Value sourceValue = immutableTerminatorOperands[operandIndex];
-            // Create a new clone at the current location of the terminator.
-            auto clone = introduceCloneBuffers(sourceValue, terminator);
-            if (failed(clone))
-              return failure();
-            // Wire clone and terminator operand.
-            terminatorOperands.slice(operandIndex, 1).assign(*clone);
-            return success();
-          })))
+      if (failed(walkReturnOperations(
+              &region, [&](RegionBranchTerminatorOpInterface terminator) {
+                // Get the actual mutable operands for this terminator op.
+                auto terminatorOperands =
+                    terminator.getMutableSuccessorOperands(*regionSuccessor);
+                // Extract the source value from the current terminator.
+                // This conversion needs to exist on a separate line due to a
+                // bug in GCC conversion analysis.
+                OperandRange immutableTerminatorOperands = terminatorOperands;
+                Value sourceValue = immutableTerminatorOperands[operandIndex];
+                // Create a new clone at the current location of the terminator.
+                auto clone = introduceCloneBuffers(sourceValue, terminator);
+                if (failed(clone))
+                  return failure();
+                // Wire clone and terminator operand.
+                terminatorOperands.slice(operandIndex, 1).assign(*clone);
+                return success();
+              })))
         return failure();
     }
     return success();
@@ -615,57 +625,64 @@ private:
 // BufferDeallocationPass
 //===----------------------------------------------------------------------===//
 
-struct DefaultAllocationInterface
-    : public bufferization::AllocationOpInterface::ExternalModel<
-          DefaultAllocationInterface, memref::AllocOp> {
-  static Optional<Operation *> buildDealloc(OpBuilder &builder, Value alloc) {
-    return builder.create<memref::DeallocOp>(alloc.getLoc(), alloc)
-        .getOperation();
-  }
-  static Optional<Value> buildClone(OpBuilder &builder, Value alloc) {
-    return builder.create<bufferization::CloneOp>(alloc.getLoc(), alloc)
-        .getResult();
-  }
-};
-
 /// The actual buffer deallocation pass that inserts and moves dealloc nodes
 /// into the right positions. Furthermore, it inserts additional clones if
 /// necessary. It uses the algorithm described at the top of the file.
-struct BufferDeallocationPass : BufferDeallocationBase<BufferDeallocationPass> {
+struct BufferDeallocationPass
+    : public bufferization::impl::BufferDeallocationBase<
+          BufferDeallocationPass> {
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<bufferization::BufferizationDialect>();
     registry.insert<memref::MemRefDialect>();
-    registry.addOpInterface<memref::AllocOp, DefaultAllocationInterface>();
   }
 
-  void runOnFunction() override {
-    // Ensure that there are supported loops only.
-    FuncOp func = getFunction();
-    Backedges backedges(func);
-    if (backedges.size()) {
-      func.emitError("Only structured control-flow loops are supported.");
-      return signalPassFailure();
-    }
+  void runOnOperation() override {
+    func::FuncOp func = getOperation();
+    if (func.isExternal())
+      return;
 
-    // Check that the control flow structures are supported.
-    if (!validateSupportedControlFlow(func.getRegion()))
-      return signalPassFailure();
-
-    // Gather all required allocation nodes and prepare the deallocation phase.
-    BufferDeallocation deallocation(func);
-
-    // Check for supported AllocationOpInterface implementations and prepare the
-    // internal deallocation pass.
-    if (failed(deallocation.prepare()))
-      return signalPassFailure();
-
-    // Place all required temporary clone and dealloc nodes.
-    if (failed(deallocation.deallocate()))
-      return signalPassFailure();
+    if (failed(deallocateBuffers(func)))
+      signalPassFailure();
   }
 };
 
 } // namespace
+
+LogicalResult bufferization::deallocateBuffers(Operation *op) {
+  if (isa<ModuleOp>(op)) {
+    WalkResult result = op->walk([&](func::FuncOp funcOp) {
+      if (failed(deallocateBuffers(funcOp)))
+        return WalkResult::interrupt();
+      return WalkResult::advance();
+    });
+    return success(!result.wasInterrupted());
+  }
+
+  // Ensure that there are supported loops only.
+  Backedges backedges(op);
+  if (backedges.size()) {
+    op->emitError("Only structured control-flow loops are supported.");
+    return failure();
+  }
+
+  // Check that the control flow structures are supported.
+  if (!validateSupportedControlFlow(op))
+    return failure();
+
+  // Gather all required allocation nodes and prepare the deallocation phase.
+  BufferDeallocation deallocation(op);
+
+  // Check for supported AllocationOpInterface implementations and prepare the
+  // internal deallocation pass.
+  if (failed(deallocation.prepare()))
+    return failure();
+
+  // Place all required temporary clone and dealloc nodes.
+  if (failed(deallocation.deallocate()))
+    return failure();
+
+  return success();
+}
 
 //===----------------------------------------------------------------------===//
 // BufferDeallocationPass construction

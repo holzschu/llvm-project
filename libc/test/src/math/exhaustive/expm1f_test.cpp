@@ -1,4 +1,4 @@
-//===-- Exhaustive test for expm1f-----------------------------------------===//
+//===-- Exhaustive test for expm1f ----------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,23 +6,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "src/__support/FPUtil/FPBits.h"
-#include "src/__support/FPUtil/TestHelpers.h"
+#include "exhaustive_test.h"
 #include "src/math/expm1f.h"
 #include "utils/MPFRWrapper/MPFRUtils.h"
-#include <math.h>
 
-using FPBits = __llvm_libc::fputil::FPBits<float>;
+namespace mpfr = LIBC_NAMESPACE::testing::mpfr;
 
-namespace mpfr = __llvm_libc::testing::mpfr;
+using LlvmLibcExpm1fExhaustiveTest =
+    LlvmLibcUnaryOpExhaustiveMathTest<float, mpfr::Operation::Expm1,
+                                      LIBC_NAMESPACE::expm1f>;
 
-TEST(LlvmLibcExpm1fExhaustiveTest, AllValues) {
-  uint32_t bits = 0;
-  do {
-    FPBits x(bits);
-    if (!x.is_inf_or_nan() && float(x) < 88.70f) {
-      ASSERT_MPFR_MATCH(mpfr::Operation::Expm1, float(x),
-                        __llvm_libc::expm1f(float(x)), 1.5);
-    }
-  } while (bits++ < 0xffff'ffffU);
+// Range: [0, Inf];
+static constexpr uint32_t POS_START = 0x0000'0000U;
+static constexpr uint32_t POS_STOP = 0x7f80'0000U;
+
+TEST_F(LlvmLibcExpm1fExhaustiveTest, PostiveRange) {
+  test_full_range_all_roundings(POS_START, POS_STOP);
+}
+
+// Range: [-Inf, 0];
+static constexpr uint32_t NEG_START = 0xb000'0000U;
+static constexpr uint32_t NEG_STOP = 0xff80'0000U;
+
+TEST_F(LlvmLibcExpm1fExhaustiveTest, NegativeRange) {
+  test_full_range_all_roundings(NEG_START, NEG_STOP);
 }

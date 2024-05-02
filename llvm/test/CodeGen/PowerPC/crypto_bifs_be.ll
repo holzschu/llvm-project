@@ -10,11 +10,13 @@ define <16 x i8> @test_vpermxorb() local_unnamed_addr {
 ; CHECK-LE-P8-LABEL: test_vpermxorb:
 ; CHECK-LE-P8:       # %bb.0: # %entry
 ; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI0_0@toc@ha
-; CHECK-LE-P8-NEXT:    addis 4, 2, .LCPI0_1@toc@ha
 ; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI0_0@toc@l
-; CHECK-LE-P8-NEXT:    lvx 2, 0, 3
-; CHECK-LE-P8-NEXT:    addi 3, 4, .LCPI0_1@toc@l
-; CHECK-LE-P8-NEXT:    lvx 3, 0, 3
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI0_1@toc@ha
+; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI0_1@toc@l
+; CHECK-LE-P8-NEXT:    xxswapd 34, 0
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    xxswapd 35, 0
 ; CHECK-LE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-LE-P8-NEXT:    blr
 ;
@@ -32,11 +34,11 @@ define <16 x i8> @test_vpermxorb() local_unnamed_addr {
 ; CHECK-BE-P8-LABEL: test_vpermxorb:
 ; CHECK-BE-P8:       # %bb.0: # %entry
 ; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI0_0@toc@ha
-; CHECK-BE-P8-NEXT:    addis 4, 2, .LCPI0_1@toc@ha
 ; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI0_0@toc@l
-; CHECK-BE-P8-NEXT:    addi 4, 4, .LCPI0_1@toc@l
 ; CHECK-BE-P8-NEXT:    lxvw4x 34, 0, 3
-; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 4
+; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI0_1@toc@ha
+; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI0_1@toc@l
+; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 3
 ; CHECK-BE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-BE-P8-NEXT:    blr
 entry:
@@ -50,11 +52,13 @@ define <8 x i16> @test_vpermxorh() local_unnamed_addr {
 ; CHECK-LE-P8-LABEL: test_vpermxorh:
 ; CHECK-LE-P8:       # %bb.0: # %entry
 ; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI1_0@toc@ha
-; CHECK-LE-P8-NEXT:    addis 4, 2, .LCPI1_1@toc@ha
 ; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI1_0@toc@l
-; CHECK-LE-P8-NEXT:    lvx 2, 0, 3
-; CHECK-LE-P8-NEXT:    addi 3, 4, .LCPI1_1@toc@l
-; CHECK-LE-P8-NEXT:    lvx 3, 0, 3
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI1_1@toc@ha
+; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI1_1@toc@l
+; CHECK-LE-P8-NEXT:    xxswapd 34, 0
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    xxswapd 35, 0
 ; CHECK-LE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-LE-P8-NEXT:    blr
 ;
@@ -72,11 +76,11 @@ define <8 x i16> @test_vpermxorh() local_unnamed_addr {
 ; CHECK-BE-P8-LABEL: test_vpermxorh:
 ; CHECK-BE-P8:       # %bb.0: # %entry
 ; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI1_0@toc@ha
-; CHECK-BE-P8-NEXT:    addis 4, 2, .LCPI1_1@toc@ha
 ; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI1_0@toc@l
-; CHECK-BE-P8-NEXT:    addi 4, 4, .LCPI1_1@toc@l
 ; CHECK-BE-P8-NEXT:    lxvw4x 34, 0, 3
-; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 4
+; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI1_1@toc@ha
+; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI1_1@toc@l
+; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 3
 ; CHECK-BE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-BE-P8-NEXT:    blr
 entry:
@@ -89,11 +93,13 @@ define <4 x i32> @test_vpermxorw() local_unnamed_addr {
 ; CHECK-LE-P8-LABEL: test_vpermxorw:
 ; CHECK-LE-P8:       # %bb.0: # %entry
 ; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI2_0@toc@ha
-; CHECK-LE-P8-NEXT:    addis 4, 2, .LCPI2_1@toc@ha
 ; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI2_0@toc@l
-; CHECK-LE-P8-NEXT:    lvx 2, 0, 3
-; CHECK-LE-P8-NEXT:    addi 3, 4, .LCPI2_1@toc@l
-; CHECK-LE-P8-NEXT:    lvx 3, 0, 3
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI2_1@toc@ha
+; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI2_1@toc@l
+; CHECK-LE-P8-NEXT:    xxswapd 34, 0
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    xxswapd 35, 0
 ; CHECK-LE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-LE-P8-NEXT:    blr
 ;
@@ -111,11 +117,11 @@ define <4 x i32> @test_vpermxorw() local_unnamed_addr {
 ; CHECK-BE-P8-LABEL: test_vpermxorw:
 ; CHECK-BE-P8:       # %bb.0: # %entry
 ; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI2_0@toc@ha
-; CHECK-BE-P8-NEXT:    addis 4, 2, .LCPI2_1@toc@ha
 ; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI2_0@toc@l
-; CHECK-BE-P8-NEXT:    addi 4, 4, .LCPI2_1@toc@l
 ; CHECK-BE-P8-NEXT:    lxvw4x 34, 0, 3
-; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 4
+; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI2_1@toc@ha
+; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI2_1@toc@l
+; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 3
 ; CHECK-BE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-BE-P8-NEXT:    blr
 entry:
@@ -128,11 +134,13 @@ define <2 x i64> @test_vpermxord() local_unnamed_addr {
 ; CHECK-LE-P8-LABEL: test_vpermxord:
 ; CHECK-LE-P8:       # %bb.0: # %entry
 ; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI3_0@toc@ha
-; CHECK-LE-P8-NEXT:    addis 4, 2, .LCPI3_1@toc@ha
 ; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI3_0@toc@l
-; CHECK-LE-P8-NEXT:    lvx 2, 0, 3
-; CHECK-LE-P8-NEXT:    addi 3, 4, .LCPI3_1@toc@l
-; CHECK-LE-P8-NEXT:    lvx 3, 0, 3
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    addis 3, 2, .LCPI3_1@toc@ha
+; CHECK-LE-P8-NEXT:    addi 3, 3, .LCPI3_1@toc@l
+; CHECK-LE-P8-NEXT:    xxswapd 34, 0
+; CHECK-LE-P8-NEXT:    lxvd2x 0, 0, 3
+; CHECK-LE-P8-NEXT:    xxswapd 35, 0
 ; CHECK-LE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-LE-P8-NEXT:    blr
 ;
@@ -150,11 +158,11 @@ define <2 x i64> @test_vpermxord() local_unnamed_addr {
 ; CHECK-BE-P8-LABEL: test_vpermxord:
 ; CHECK-BE-P8:       # %bb.0: # %entry
 ; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI3_0@toc@ha
-; CHECK-BE-P8-NEXT:    addis 4, 2, .LCPI3_1@toc@ha
 ; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI3_0@toc@l
-; CHECK-BE-P8-NEXT:    addi 4, 4, .LCPI3_1@toc@l
 ; CHECK-BE-P8-NEXT:    lxvw4x 34, 0, 3
-; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 4
+; CHECK-BE-P8-NEXT:    addis 3, 2, .LCPI3_1@toc@ha
+; CHECK-BE-P8-NEXT:    addi 3, 3, .LCPI3_1@toc@l
+; CHECK-BE-P8-NEXT:    lxvw4x 35, 0, 3
 ; CHECK-BE-P8-NEXT:    vpermxor 2, 3, 2, 2
 ; CHECK-BE-P8-NEXT:    blr
 entry:

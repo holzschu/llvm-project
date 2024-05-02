@@ -17,7 +17,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -31,12 +30,12 @@ namespace llvm {
 class BinaryByteStream : public BinaryStream {
 public:
   BinaryByteStream() = default;
-  BinaryByteStream(ArrayRef<uint8_t> Data, llvm::support::endianness Endian)
+  BinaryByteStream(ArrayRef<uint8_t> Data, llvm::endianness Endian)
       : Endian(Endian), Data(Data) {}
-  BinaryByteStream(StringRef Data, llvm::support::endianness Endian)
+  BinaryByteStream(StringRef Data, llvm::endianness Endian)
       : Endian(Endian), Data(Data.bytes_begin(), Data.bytes_end()) {}
 
-  llvm::support::endianness getEndian() const override { return Endian; }
+  llvm::endianness getEndian() const override { return Endian; }
 
   Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
@@ -64,7 +63,7 @@ public:
   }
 
 protected:
-  llvm::support::endianness Endian;
+  llvm::endianness Endian;
   ArrayRef<uint8_t> Data;
 };
 
@@ -75,7 +74,7 @@ protected:
 class MemoryBufferByteStream : public BinaryByteStream {
 public:
   MemoryBufferByteStream(std::unique_ptr<MemoryBuffer> Buffer,
-                         llvm::support::endianness Endian)
+                         llvm::endianness Endian)
       : BinaryByteStream(Buffer->getBuffer(), Endian),
         MemBuffer(std::move(Buffer)) {}
 
@@ -90,10 +89,10 @@ class MutableBinaryByteStream : public WritableBinaryStream {
 public:
   MutableBinaryByteStream() = default;
   MutableBinaryByteStream(MutableArrayRef<uint8_t> Data,
-                          llvm::support::endianness Endian)
+                          llvm::endianness Endian)
       : Data(Data), ImmutableStream(Data, Endian) {}
 
-  llvm::support::endianness getEndian() const override {
+  llvm::endianness getEndian() const override {
     return ImmutableStream.getEndian();
   }
 
@@ -134,23 +133,22 @@ private:
 /// causing the underlying data to grow.  This class owns the underlying data.
 class AppendingBinaryByteStream : public WritableBinaryStream {
   std::vector<uint8_t> Data;
-  llvm::support::endianness Endian = llvm::support::little;
+  llvm::endianness Endian = llvm::endianness::little;
 
 public:
   AppendingBinaryByteStream() = default;
-  AppendingBinaryByteStream(llvm::support::endianness Endian)
-      : Endian(Endian) {}
+  AppendingBinaryByteStream(llvm::endianness Endian) : Endian(Endian) {}
 
   void clear() { Data.clear(); }
 
-  llvm::support::endianness getEndian() const override { return Endian; }
+  llvm::endianness getEndian() const override { return Endian; }
 
   Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {
     if (auto EC = checkOffsetForWrite(Offset, Buffer.size()))
       return EC;
 
-    Buffer = makeArrayRef(Data).slice(Offset, Size);
+    Buffer = ArrayRef(Data).slice(Offset, Size);
     return Error::success();
   }
 
@@ -163,7 +161,7 @@ public:
     if (auto EC = checkOffsetForWrite(Offset, 1))
       return EC;
 
-    Buffer = makeArrayRef(Data).slice(Offset);
+    Buffer = ArrayRef(Data).slice(Offset);
     return Error::success();
   }
 
@@ -193,9 +191,7 @@ public:
   Error commit() override { return Error::success(); }
 
   /// Return the properties of this stream.
-  virtual BinaryStreamFlags getFlags() const override {
-    return BSF_Write | BSF_Append;
-  }
+  BinaryStreamFlags getFlags() const override { return BSF_Write | BSF_Append; }
 
   MutableArrayRef<uint8_t> data() { return Data; }
 };
@@ -207,7 +203,7 @@ private:
   class StreamImpl : public MutableBinaryByteStream {
   public:
     StreamImpl(std::unique_ptr<FileOutputBuffer> Buffer,
-               llvm::support::endianness Endian)
+               llvm::endianness Endian)
         : MutableBinaryByteStream(
               MutableArrayRef<uint8_t>(Buffer->getBufferStart(),
                                        Buffer->getBufferEnd()),
@@ -233,12 +229,10 @@ private:
 
 public:
   FileBufferByteStream(std::unique_ptr<FileOutputBuffer> Buffer,
-                       llvm::support::endianness Endian)
+                       llvm::endianness Endian)
       : Impl(std::move(Buffer), Endian) {}
 
-  llvm::support::endianness getEndian() const override {
-    return Impl.getEndian();
-  }
+  llvm::endianness getEndian() const override { return Impl.getEndian(); }
 
   Error readBytes(uint64_t Offset, uint64_t Size,
                   ArrayRef<uint8_t> &Buffer) override {

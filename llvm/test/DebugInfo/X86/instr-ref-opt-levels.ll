@@ -8,6 +8,17 @@
 ; RUN:      -fast-isel -experimental-debug-variable-locations \
 ; RUN:    | FileCheck %s --check-prefix=FASTISEL --implicit-check-not=DBG_VALUE
 
+;; Repeat the tests using experimental debuginfo iterators.
+; RUN: llc --try-experimental-debuginfo-iterators -mtriple=x86_64-- %s -o - -O0 -stop-before=finalize-isel \
+; RUN:      -experimental-debug-variable-locations \
+; RUN:    | FileCheck %s --check-prefix=O0 --implicit-check-not=DBG_INSTR_REF
+; RUN: llc --try-experimental-debuginfo-iterators -mtriple=x86_64-- %s -o - -O2 -stop-before=finalize-isel \
+; RUN:      -experimental-debug-variable-locations \
+; RUN:    | FileCheck %s --check-prefix=O2 --implicit-check-not=DBG_VALUE
+; RUN: llc --try-experimental-debuginfo-iterators -mtriple=x86_64-- %s -o - -stop-before=finalize-isel \
+; RUN:      -fast-isel -experimental-debug-variable-locations \
+; RUN:    | FileCheck %s --check-prefix=FASTISEL --implicit-check-not=DBG_VALUE
+
 ; Test that instruction-referencing variable locations are issued at -O2, but
 ; normal DBG_VALUEs are issued at -O0. This behaviour is desired as the former
 ; is slow when applied to unoptimized code.
@@ -32,17 +43,17 @@
 
 define dso_local i32 @main() local_unnamed_addr !dbg !7 {
   %1 = alloca i32, align 4
-  %2 = load i32, i32* @b, align 1, !dbg !13
+  %2 = load i32, ptr @b, align 1, !dbg !13
   call void @llvm.dbg.value(metadata i32 %2, metadata !12, metadata !DIExpression()), !dbg !13
-  store i32 %2, i32* %1, align 4, !dbg !13
+  store i32 %2, ptr %1, align 4, !dbg !13
   ret i32 0, !dbg !13
 }
 
 define dso_local i32 @fn_optnone() local_unnamed_addr #0 !dbg !27 {
   %1 = alloca i32, align 4
-  %2 = load i32, i32* @b, align 1, !dbg !33
+  %2 = load i32, ptr @b, align 1, !dbg !33
   call void @llvm.dbg.value(metadata i32 %2, metadata !32, metadata !DIExpression()), !dbg !33
-  store i32 %2, i32* %1, align 4, !dbg !33
+  store i32 %2, ptr %1, align 4, !dbg !33
   ret i32 0, !dbg !33
 }
 

@@ -1,12 +1,10 @@
-// XFAIL:*
 // This test started failing recently for unknown reasons.
-
-// REQUIRES: lldb
-// UNSUPPORTED: system-windows
-//
+// XFAIL:*
+// RUN: %dexter_regression_test_build \
+// RUN:     -fdebug-prefix-map=%S=/changed %s -o %t
 // RUN: %dexter --fail-lt 1.0 -w \
-// RUN:     --builder 'clang' --debugger 'lldb' \
-// RUN:     --cflags "-O0 -glldb -fdebug-prefix-map=%S=/changed" \
+// RUN:     --binary %t \
+// RUN:     --debugger %dexter_regression_test_debugger \
 // RUN:     --source-root-dir=%S --debugger-use-relative-paths -- %s
 
 #include <stdio.h>

@@ -16,37 +16,37 @@ namespace Fortran::runtime::io {
 
 template <Direction DIR>
 InternalDescriptorUnit<DIR>::InternalDescriptorUnit(
-    Scalar scalar, std::size_t length) {
+    Scalar scalar, std::size_t length, int kind) {
+  internalIoCharKind = kind;
   recordLength = length;
   endfileRecordNumber = 2;
   void *pointer{reinterpret_cast<void *>(const_cast<char *>(scalar))};
-  descriptor().Establish(TypeCode{CFI_type_char}, length, pointer, 0, nullptr,
-      CFI_attribute_pointer);
+  descriptor().Establish(TypeCode{TypeCategory::Character, kind}, length * kind,
+      pointer, 0, nullptr, CFI_attribute_pointer);
 }
 
 template <Direction DIR>
 InternalDescriptorUnit<DIR>::InternalDescriptorUnit(
     const Descriptor &that, const Terminator &terminator) {
-  RUNTIME_CHECK(terminator, that.type().IsCharacter());
+  auto thatType{that.type().GetCategoryAndKind()};
+  RUNTIME_CHECK(terminator, thatType.has_value());
+  RUNTIME_CHECK(terminator, thatType->first == TypeCategory::Character);
   Descriptor &d{descriptor()};
   RUNTIME_CHECK(
       terminator, that.SizeInBytes() <= d.SizeInBytes(maxRank, true, 0));
   new (&d) Descriptor{that};
   d.Check();
+  internalIoCharKind = thatType->second;
   recordLength = d.ElementBytes();
   endfileRecordNumber = d.Elements() + 1;
 }
 
 template <Direction DIR> void InternalDescriptorUnit<DIR>::EndIoStatement() {
-  if constexpr (DIR == Direction::Output) { // blank fill
-    while (char *record{CurrentRecord()}) {
-      if (furthestPositionInRecord <
-          recordLength.value_or(furthestPositionInRecord)) {
-        std::fill_n(record + furthestPositionInRecord,
-            *recordLength - furthestPositionInRecord, ' ');
-      }
-      furthestPositionInRecord = 0;
-      ++currentRecordNumber;
+  if constexpr (DIR == Direction::Output) {
+    // Clear the remainder of the current record.
+    auto end{endfileRecordNumber.value_or(0)};
+    if (currentRecordNumber < end) {
+      BlankFillOutputRecord();
     }
   }
 }
@@ -75,8 +75,8 @@ bool InternalDescriptorUnit<DIR>::Emit(
       bytes = std::max(std::int64_t{0}, furthestAfter - positionInRecord);
       ok = false;
     } else if (positionInRecord > furthestPositionInRecord) {
-      std::fill_n(record + furthestPositionInRecord,
-          positionInRecord - furthestPositionInRecord, ' ');
+      BlankFill(record + furthestPositionInRecord,
+          positionInRecord - furthestPositionInRecord);
     }
     std::memcpy(record + positionInRecord, data, bytes);
     positionInRecord += bytes;
@@ -107,34 +107,13 @@ std::size_t InternalDescriptorUnit<DIR>::GetNextInputBytes(
 }
 
 template <Direction DIR>
-std::optional<char32_t> InternalDescriptorUnit<DIR>::GetCurrentChar(
-    IoErrorHandler &handler) {
-  const char *p{nullptr};
-  std::size_t bytes{GetNextInputBytes(p, handler)};
-  if (bytes == 0) {
-    return std::nullopt;
-  } else {
-    if (isUTF8) {
-      // TODO: UTF-8 decoding
-    }
-    return *p;
-  }
-}
-
-template <Direction DIR>
 bool InternalDescriptorUnit<DIR>::AdvanceRecord(IoErrorHandler &handler) {
   if (currentRecordNumber >= endfileRecordNumber.value_or(0)) {
     handler.SignalEnd();
     return false;
   }
-  if constexpr (DIR == Direction::Output) { // blank fill
-    if (furthestPositionInRecord <
-        recordLength.value_or(furthestPositionInRecord)) {
-      char *record{CurrentRecord()};
-      RUNTIME_CHECK(handler, record != nullptr);
-      std::fill_n(record + furthestPositionInRecord,
-          *recordLength - furthestPositionInRecord, ' ');
-    }
+  if constexpr (DIR == Direction::Output) {
+    BlankFillOutputRecord();
   }
   ++currentRecordNumber;
   BeginRecord();
@@ -142,10 +121,44 @@ bool InternalDescriptorUnit<DIR>::AdvanceRecord(IoErrorHandler &handler) {
 }
 
 template <Direction DIR>
+void InternalDescriptorUnit<DIR>::BlankFill(char *at, std::size_t bytes) {
+  switch (internalIoCharKind) {
+  case 2:
+    std::fill_n(reinterpret_cast<char16_t *>(at), bytes / 2,
+        static_cast<char16_t>(' '));
+    break;
+  case 4:
+    std::fill_n(reinterpret_cast<char32_t *>(at), bytes / 4,
+        static_cast<char32_t>(' '));
+    break;
+  default:
+    std::fill_n(at, bytes, ' ');
+    break;
+  }
+}
+
+template <Direction DIR>
+void InternalDescriptorUnit<DIR>::BlankFillOutputRecord() {
+  if constexpr (DIR == Direction::Output) {
+    if (furthestPositionInRecord <
+        recordLength.value_or(furthestPositionInRecord)) {
+      BlankFill(CurrentRecord() + furthestPositionInRecord,
+          *recordLength - furthestPositionInRecord);
+    }
+  }
+}
+
+template <Direction DIR>
 void InternalDescriptorUnit<DIR>::BackspaceRecord(IoErrorHandler &handler) {
   RUNTIME_CHECK(handler, currentRecordNumber > 1);
   --currentRecordNumber;
   BeginRecord();
+}
+
+template <Direction DIR>
+std::int64_t InternalDescriptorUnit<DIR>::InquirePos() {
+  return (currentRecordNumber - 1) * recordLength.value_or(0) +
+      positionInRecord + 1;
 }
 
 template class InternalDescriptorUnit<Direction::Output>;

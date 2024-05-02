@@ -15,18 +15,15 @@
 #include "lld/Common/Strings.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Compiler.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
-#include <vector>
 
-namespace lld {
-namespace elf {
+namespace lld::elf {
 
 class Defined;
 class InputFile;
@@ -34,8 +31,8 @@ class InputSection;
 class InputSectionBase;
 class OutputSection;
 class SectionBase;
-class Symbol;
 class ThunkSection;
+struct OutputDesc;
 
 // This represents an r-value in the linker script.
 struct ExprValue {
@@ -89,9 +86,9 @@ struct SectionCommand {
 
 // This represents ". = <expr>" or "<symbol> = <expr>".
 struct SymbolAssignment : SectionCommand {
-  SymbolAssignment(StringRef name, Expr e, std::string loc)
+  SymbolAssignment(StringRef name, Expr e, unsigned symOrder, std::string loc)
       : SectionCommand(AssignmentKind), name(name), expression(e),
-        location(loc) {}
+        symOrder(symOrder), location(loc) {}
 
   static bool classof(const SectionCommand *c) {
     return c->kind == AssignmentKind;
@@ -107,6 +104,11 @@ struct SymbolAssignment : SectionCommand {
   // Command attributes for PROVIDE, HIDDEN and PROVIDE_HIDDEN.
   bool provide = false;
   bool hidden = false;
+
+  // This assignment references DATA_SEGMENT_RELRO_END.
+  bool dataSegmentRelroEnd = false;
+
+  unsigned symOrder;
 
   // Holds file name and line number for error reporting.
   std::string location;
@@ -154,6 +156,9 @@ struct MemoryRegion {
   uint32_t negInvFlags;
   uint64_t curPos = 0;
 
+  uint64_t getOrigin() const { return origin().getValue(); }
+  uint64_t getLength() const { return length().getValue(); }
+
   bool compatibleWith(uint32_t secFlags) const {
     if ((secFlags & negFlags) || (~secFlags & negInvFlags))
       return false;
@@ -168,7 +173,7 @@ class SectionPattern {
   StringMatcher excludedFilePat;
 
   // Cache of the most recent input argument and result of excludesFile().
-  mutable llvm::Optional<std::pair<const InputFile *, bool>> excludesFileCache;
+  mutable std::optional<std::pair<const InputFile *, bool>> excludesFileCache;
 
 public:
   SectionPattern(StringMatcher &&pat1, StringMatcher &&pat2)
@@ -187,7 +192,7 @@ class InputSectionDescription : public SectionCommand {
   SingleStringMatcher filePat;
 
   // Cache of the most recent input argument and result of matchesFile().
-  mutable llvm::Optional<std::pair<const InputFile *, bool>> matchesFileCache;
+  mutable std::optional<std::pair<const InputFile *, bool>> matchesFileCache;
 
 public:
   InputSectionDescription(StringRef filePattern, uint64_t withFlags = 0,
@@ -254,7 +259,7 @@ struct PhdrsCommand {
   unsigned type = llvm::ELF::PT_NULL;
   bool hasFilehdr = false;
   bool hasPhdrs = false;
-  llvm::Optional<unsigned> flags;
+  std::optional<unsigned> flags;
   Expr lmaExpr = nullptr;
 };
 
@@ -271,7 +276,7 @@ class LinkerScript final {
     uint64_t tbssAddr = 0;
   };
 
-  llvm::DenseMap<StringRef, OutputSection *> nameToOutputSection;
+  llvm::DenseMap<llvm::CachedHashStringRef, OutputDesc *> nameToOutputSection;
 
   void addSymbol(SymbolAssignment *cmd);
   void assignSymbol(SymbolAssignment *cmd, bool inSec);
@@ -294,21 +299,21 @@ class LinkerScript final {
 
   void assignOffsets(OutputSection *sec);
 
-  // Ctx captures the local AddressState and makes it accessible
+  // This captures the local AddressState and makes it accessible
   // deliberately. This is needed as there are some cases where we cannot just
   // thread the current state through to a lambda function created by the
   // script parser.
   // This should remain a plain pointer as its lifetime is smaller than
   // LinkerScript.
-  AddressState *ctx = nullptr;
+  AddressState *state = nullptr;
 
   OutputSection *aether;
 
   uint64_t dot;
 
 public:
-  OutputSection *createOutputSection(StringRef name, StringRef location);
-  OutputSection *getOrCreateOutputSection(StringRef name);
+  OutputDesc *createOutputSection(StringRef name, StringRef location);
+  OutputDesc *getOrCreateOutputSection(StringRef name);
 
   bool hasPhdrsCommands() { return !phdrsCommands.empty(); }
   uint64_t getDot() { return dot; }
@@ -318,7 +323,8 @@ public:
 
   void addOrphanSections();
   void diagnoseOrphanHandling() const;
-  void adjustSectionsBeforeSorting();
+  void diagnoseMissingSGSectionAddress() const;
+  void adjustOutputSections();
   void adjustSectionsAfterSorting();
 
   SmallVector<PhdrEntry *, 0> createPhdrs();
@@ -336,6 +342,12 @@ public:
   // Used to handle INSERT AFTER statements.
   void processInsertCommands();
 
+  // Describe memory region usage.
+  void printMemoryUsage(raw_ostream &os);
+
+  // Check backward location counter assignment and memory region/LMA overflows.
+  void checkFinalScriptConditions() const;
+
   // SECTIONS command list.
   SmallVector<SectionCommand *, 0> sectionCommands;
 
@@ -343,7 +355,10 @@ public:
   SmallVector<PhdrsCommand, 0> phdrsCommands;
 
   bool hasSectionsCommand = false;
+  bool seenDataAlign = false;
+  bool seenRelroEnd = false;
   bool errorOnMissingSection = false;
+  std::string backwardDotErr;
 
   // List of section patterns specified with KEEP commands. They will
   // be kept even if they are unused and --gc-sections is specified.
@@ -360,15 +375,14 @@ public:
   SmallVector<InsertCommand, 0> insertCommands;
 
   // OutputSections specified by OVERWRITE_SECTIONS.
-  SmallVector<OutputSection *, 0> overwriteSections;
+  SmallVector<OutputDesc *, 0> overwriteSections;
 
   // Sections that will be warned/errored by --orphan-handling.
   SmallVector<const InputSectionBase *, 0> orphanSections;
 };
 
-extern std::unique_ptr<LinkerScript> script;
+LLVM_LIBRARY_VISIBILITY extern std::unique_ptr<LinkerScript> script;
 
-} // end namespace elf
-} // end namespace lld
+} // end namespace lld::elf
 
 #endif // LLD_ELF_LINKER_SCRIPT_H

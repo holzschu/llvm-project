@@ -14,6 +14,7 @@
 #ifndef MLIR_TESTTYPES_H
 #define MLIR_TESTTYPES_H
 
+#include <optional>
 #include <tuple>
 
 #include "TestTraits.h"
@@ -61,20 +62,34 @@ struct FieldParser<test::CustomParam> {
     auto value = FieldParser<int>::parse(parser);
     if (failed(value))
       return failure();
-    return test::CustomParam{value.getValue()};
+    return test::CustomParam{*value};
   }
 };
+
 inline mlir::AsmPrinter &operator<<(mlir::AsmPrinter &printer,
                                     test::CustomParam param) {
   return printer << param.value;
 }
 
+/// Overload the attribute parameter parser for optional integers.
+template <>
+struct FieldParser<std::optional<int>> {
+  static FailureOr<std::optional<int>> parse(AsmParser &parser) {
+    std::optional<int> value;
+    value.emplace();
+    OptionalParseResult result = parser.parseOptionalInteger(*value);
+    if (result.has_value()) {
+      if (succeeded(*result))
+        return value;
+      return failure();
+    }
+    value.reset();
+    return value;
+  }
+};
 } // namespace mlir
 
 #include "TestTypeInterfaces.h.inc"
-
-#define GET_TYPEDEF_CLASSES
-#include "TestTypeDefs.h.inc"
 
 namespace test {
 
@@ -83,8 +98,7 @@ namespace test {
 struct TestRecursiveTypeStorage : public ::mlir::TypeStorage {
   using KeyTy = ::llvm::StringRef;
 
-  explicit TestRecursiveTypeStorage(::llvm::StringRef key)
-      : name(key), body(::mlir::Type()) {}
+  explicit TestRecursiveTypeStorage(::llvm::StringRef key) : name(key) {}
 
   bool operator==(const KeyTy &other) const { return name == other; }
 
@@ -113,9 +127,12 @@ struct TestRecursiveTypeStorage : public ::mlir::TypeStorage {
 /// from type creation.
 class TestRecursiveType
     : public ::mlir::Type::TypeBase<TestRecursiveType, ::mlir::Type,
-                                    TestRecursiveTypeStorage> {
+                                    TestRecursiveTypeStorage,
+                                    ::mlir::TypeTrait::IsMutable> {
 public:
   using Base::Base;
+
+  static constexpr ::mlir::StringLiteral name = "test.recursive";
 
   static TestRecursiveType get(::mlir::MLIRContext *ctx,
                                ::llvm::StringRef name) {
@@ -124,12 +141,15 @@ public:
 
   /// Body getter and setter.
   ::mlir::LogicalResult setBody(Type body) { return Base::mutate(body); }
-  ::mlir::Type getBody() { return getImpl()->body; }
+  ::mlir::Type getBody() const { return getImpl()->body; }
 
   /// Name/key getter.
   ::llvm::StringRef getName() { return getImpl()->name; }
 };
 
 } // namespace test
+
+#define GET_TYPEDEF_CLASSES
+#include "TestTypeDefs.h.inc"
 
 #endif // MLIR_TESTTYPES_H

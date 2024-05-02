@@ -13,6 +13,7 @@
 #include "Plugins/SymbolFile/DWARF/LogChannelDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDwo.h"
 #include "lldb/Core/DataFileCache.h"
+#include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Progress.h"
 #include "lldb/Symbol/ObjectFile.h"
@@ -22,9 +23,12 @@
 #include "lldb/Utility/Timer.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/ThreadPool.h"
+#include <optional>
 
 using namespace lldb_private;
 using namespace lldb;
+using namespace lldb_private::dwarf;
+using namespace lldb_private::plugin::dwarf;
 
 void ManualDWARFIndex::Index() {
   if (m_indexed)
@@ -71,15 +75,14 @@ void ManualDWARFIndex::Index() {
   // Include 2 passes per unit to index for extracting DIEs from the unit and
   // indexing the unit, and then 8 extra entries for finalizing each index set.
   const uint64_t total_progress = units_to_index.size() * 2 + 8;
-  Progress progress(
-      llvm::formatv("Manually indexing DWARF for {0}", module_desc.GetData()),
-      total_progress);
+  Progress progress("Manually indexing DWARF", module_desc.GetData(),
+                    total_progress);
 
   std::vector<IndexSet> sets(units_to_index.size());
 
   // Keep memory down by clearing DIEs for any units if indexing
   // caused us to load the unit's DIEs.
-  std::vector<llvm::Optional<DWARFUnit::ScopedExtractDIEs>> clear_cu_dies(
+  std::vector<std::optional<DWARFUnit::ScopedExtractDIEs>> clear_cu_dies(
       units_to_index.size());
   auto parser_fn = [&](size_t cu_idx) {
     IndexUnit(*units_to_index[cu_idx], dwp_dwarf, sets[cu_idx]);
@@ -93,7 +96,7 @@ void ManualDWARFIndex::Index() {
 
   // Share one thread pool across operations to avoid the overhead of
   // recreating the threads.
-  llvm::ThreadPool pool(llvm::optimal_concurrency(units_to_index.size()));
+  llvm::ThreadPoolTaskGroup task_group(Debugger::GetThreadPool());
 
   // Create a task runner that extracts dies for each DWARF unit in a
   // separate thread.
@@ -104,14 +107,14 @@ void ManualDWARFIndex::Index() {
   // to wait until all units have been indexed in case a DIE in one
   // unit refers to another and the indexes accesses those DIEs.
   for (size_t i = 0; i < units_to_index.size(); ++i)
-    pool.async(extract_fn, i);
-  pool.wait();
+    task_group.async(extract_fn, i);
+  task_group.wait();
 
   // Now create a task runner that can index each DWARF unit in a
   // separate thread so we can index quickly.
   for (size_t i = 0; i < units_to_index.size(); ++i)
-    pool.async(parser_fn, i);
-  pool.wait();
+    task_group.async(parser_fn, i);
+  task_group.wait();
 
   auto finalize_fn = [this, &sets, &progress](NameToDIE(IndexSet::*index)) {
     NameToDIE &result = m_set.*index;
@@ -121,45 +124,74 @@ void ManualDWARFIndex::Index() {
     progress.Increment();
   };
 
-  pool.async(finalize_fn, &IndexSet::function_basenames);
-  pool.async(finalize_fn, &IndexSet::function_fullnames);
-  pool.async(finalize_fn, &IndexSet::function_methods);
-  pool.async(finalize_fn, &IndexSet::function_selectors);
-  pool.async(finalize_fn, &IndexSet::objc_class_selectors);
-  pool.async(finalize_fn, &IndexSet::globals);
-  pool.async(finalize_fn, &IndexSet::types);
-  pool.async(finalize_fn, &IndexSet::namespaces);
-  pool.wait();
+  task_group.async(finalize_fn, &IndexSet::function_basenames);
+  task_group.async(finalize_fn, &IndexSet::function_fullnames);
+  task_group.async(finalize_fn, &IndexSet::function_methods);
+  task_group.async(finalize_fn, &IndexSet::function_selectors);
+  task_group.async(finalize_fn, &IndexSet::objc_class_selectors);
+  task_group.async(finalize_fn, &IndexSet::globals);
+  task_group.async(finalize_fn, &IndexSet::types);
+  task_group.async(finalize_fn, &IndexSet::namespaces);
+  task_group.wait();
 
   SaveToCache();
 }
 
 void ManualDWARFIndex::IndexUnit(DWARFUnit &unit, SymbolFileDWARFDwo *dwp,
                                  IndexSet &set) {
-  Log *log = LogChannelDWARF::GetLogIfAll(DWARF_LOG_LOOKUPS);
+  Log *log = GetLog(DWARFLog::Lookups);
 
   if (log) {
     m_module.LogMessage(
-        log, "ManualDWARFIndex::IndexUnit for unit at .debug_info[0x%8.8x]",
+        log, "ManualDWARFIndex::IndexUnit for unit at .debug_info[{0:x16}]",
         unit.GetOffset());
   }
 
   const LanguageType cu_language = SymbolFileDWARF::GetLanguage(unit);
 
-  IndexUnitImpl(unit, cu_language, set);
-
-  if (SymbolFileDWARFDwo *dwo_symbol_file = unit.GetDwoSymbolFile()) {
-    // Type units in a dwp file are indexed separately, so we just need to
-    // process the split unit here. However, if the split unit is in a dwo file,
-    // then we need to process type units here.
-    if (dwo_symbol_file == dwp) {
-      IndexUnitImpl(unit.GetNonSkeletonUnit(), cu_language, set);
-    } else {
-      DWARFDebugInfo &dwo_info = dwo_symbol_file->DebugInfo();
-      for (size_t i = 0; i < dwo_info.GetNumUnits(); ++i)
-        IndexUnitImpl(*dwo_info.GetUnitAtIndex(i), cu_language, set);
+  // First check if the unit has a DWO ID. If it does then we only want to index
+  // the .dwo file or nothing at all. If we have a compile unit where we can't
+  // locate the .dwo/.dwp file we don't want to index anything from the skeleton
+  // compile unit because it is usally has no children unless
+  // -fsplit-dwarf-inlining was used at compile time. This option will add a
+  // copy of all DW_TAG_subprogram and any contained DW_TAG_inline_subroutine
+  // DIEs so that symbolication will still work in the absence of the .dwo/.dwp
+  // file, but the functions have no return types and all arguments and locals
+  // have been removed. So we don't want to index any of these hacked up
+  // function types. Types can still exist in the skeleton compile unit DWARF
+  // though as some functions have template parameter types and other things
+  // that cause extra copies of types to be included, but we should find these
+  // types in the .dwo file only as methods could have return types removed and
+  // we don't have to index incomplete types from the skeleton compile unit.
+  if (unit.GetDWOId()) {
+    // Index the .dwo or dwp instead of the skeleton unit.
+    if (SymbolFileDWARFDwo *dwo_symbol_file = unit.GetDwoSymbolFile()) {
+      // Type units in a dwp file are indexed separately, so we just need to
+      // process the split unit here. However, if the split unit is in a dwo
+      // file, then we need to process type units here.
+      if (dwo_symbol_file == dwp) {
+        IndexUnitImpl(unit.GetNonSkeletonUnit(), cu_language, set);
+      } else {
+        DWARFDebugInfo &dwo_info = dwo_symbol_file->DebugInfo();
+        for (size_t i = 0; i < dwo_info.GetNumUnits(); ++i)
+          IndexUnitImpl(*dwo_info.GetUnitAtIndex(i), cu_language, set);
+      }
+      return;
     }
+    // This was a DWARF5 skeleton CU and the .dwo file couldn't be located.
+    if (unit.GetVersion() >= 5 && unit.IsSkeletonUnit())
+      return;
+
+    // Either this is a DWARF 4 + fission CU with the .dwo file
+    // missing, or it's a -gmodules pch or pcm. Try to detect the
+    // latter by checking whether the first DIE is a DW_TAG_module.
+    // If it's a pch/pcm, continue indexing it.
+    if (unit.GetDIE(unit.GetFirstDIEOffset()).GetFirstChild().Tag() !=
+        llvm::dwarf::DW_TAG_module)
+      return;
   }
+  // We have a normal compile unit which we want to index.
+  IndexUnitImpl(unit, cu_language, set);
 }
 
 void ManualDWARFIndex::IndexUnitImpl(DWARFUnit &unit,
@@ -176,6 +208,7 @@ void ManualDWARFIndex::IndexUnitImpl(DWARFUnit &unit,
     case DW_TAG_enumeration_type:
     case DW_TAG_inlined_subroutine:
     case DW_TAG_namespace:
+    case DW_TAG_imported_declaration:
     case DW_TAG_string_type:
     case DW_TAG_structure_type:
     case DW_TAG_subprogram:
@@ -190,60 +223,58 @@ void ManualDWARFIndex::IndexUnitImpl(DWARFUnit &unit,
       continue;
     }
 
-    DWARFAttributes attributes;
     const char *name = nullptr;
     const char *mangled_cstr = nullptr;
     bool is_declaration = false;
-    // bool is_artificial = false;
     bool has_address = false;
     bool has_location_or_const_value = false;
     bool is_global_or_static_variable = false;
 
     DWARFFormValue specification_die_form;
-    const size_t num_attributes = die.GetAttributes(&unit, attributes);
-    if (num_attributes > 0) {
-      for (uint32_t i = 0; i < num_attributes; ++i) {
-        dw_attr_t attr = attributes.AttributeAtIndex(i);
-        DWARFFormValue form_value;
-        switch (attr) {
-        case DW_AT_name:
-          if (attributes.ExtractFormValueAtIndex(i, form_value))
-            name = form_value.AsCString();
-          break;
+    DWARFAttributes attributes = die.GetAttributes(&unit);
+    for (size_t i = 0; i < attributes.Size(); ++i) {
+      dw_attr_t attr = attributes.AttributeAtIndex(i);
+      DWARFFormValue form_value;
+      switch (attr) {
+      default:
+        break;
+      case DW_AT_name:
+        if (attributes.ExtractFormValueAtIndex(i, form_value))
+          name = form_value.AsCString();
+        break;
 
-        case DW_AT_declaration:
-          if (attributes.ExtractFormValueAtIndex(i, form_value))
-            is_declaration = form_value.Unsigned() != 0;
-          break;
+      case DW_AT_declaration:
+        if (attributes.ExtractFormValueAtIndex(i, form_value))
+          is_declaration = form_value.Unsigned() != 0;
+        break;
 
-        case DW_AT_MIPS_linkage_name:
-        case DW_AT_linkage_name:
-          if (attributes.ExtractFormValueAtIndex(i, form_value))
-            mangled_cstr = form_value.AsCString();
-          break;
+      case DW_AT_MIPS_linkage_name:
+      case DW_AT_linkage_name:
+        if (attributes.ExtractFormValueAtIndex(i, form_value))
+          mangled_cstr = form_value.AsCString();
+        break;
 
-        case DW_AT_low_pc:
-        case DW_AT_high_pc:
-        case DW_AT_ranges:
-          has_address = true;
-          break;
+      case DW_AT_low_pc:
+      case DW_AT_high_pc:
+      case DW_AT_ranges:
+        has_address = true;
+        break;
 
-        case DW_AT_entry_pc:
-          has_address = true;
-          break;
+      case DW_AT_entry_pc:
+        has_address = true;
+        break;
 
-        case DW_AT_location:
-        case DW_AT_const_value:
-          has_location_or_const_value = true;
-          is_global_or_static_variable = die.IsGlobalOrStaticScopeVariable();
+      case DW_AT_location:
+      case DW_AT_const_value:
+        has_location_or_const_value = true;
+        is_global_or_static_variable = die.IsGlobalOrStaticScopeVariable();
 
-          break;
+        break;
 
-        case DW_AT_specification:
-          if (attributes.ExtractFormValueAtIndex(i, form_value))
-            specification_die_form = form_value;
-          break;
-        }
+      case DW_AT_specification:
+        if (attributes.ExtractFormValueAtIndex(i, form_value))
+          specification_die_form = form_value;
+        break;
       }
     }
 
@@ -256,15 +287,16 @@ void ManualDWARFIndex::IndexUnitImpl(DWARFUnit &unit,
           bool is_objc_method = false;
           if (cu_language == eLanguageTypeObjC ||
               cu_language == eLanguageTypeObjC_plus_plus) {
-            ObjCLanguage::MethodName objc_method(name, true);
-            if (objc_method.IsValid(true)) {
+            std::optional<const ObjCLanguage::MethodName> objc_method =
+                ObjCLanguage::MethodName::Create(name, true);
+            if (objc_method) {
               is_objc_method = true;
               ConstString class_name_with_category(
-                  objc_method.GetClassNameWithCategory());
-              ConstString objc_selector_name(objc_method.GetSelector());
+                  objc_method->GetClassNameWithCategory());
+              ConstString objc_selector_name(objc_method->GetSelector());
               ConstString objc_fullname_no_category_name(
-                  objc_method.GetFullNameWithoutCategory(true));
-              ConstString class_name_no_category(objc_method.GetClassName());
+                  objc_method->GetFullNameWithoutCategory().c_str());
+              ConstString class_name_no_category(objc_method->GetClassName());
               set.function_fullnames.Insert(ConstString(name), ref);
               if (class_name_with_category)
                 set.objc_class_selectors.Insert(class_name_with_category, ref);
@@ -322,6 +354,7 @@ void ManualDWARFIndex::IndexUnitImpl(DWARFUnit &unit,
       break;
 
     case DW_TAG_namespace:
+    case DW_TAG_imported_declaration:
       if (name)
         set.namespaces.Insert(ConstString(name), ref);
       break;
@@ -367,7 +400,6 @@ void ManualDWARFIndex::GetGlobalVariables(
 
 void ManualDWARFIndex::GetGlobalVariables(
     DWARFUnit &unit, llvm::function_ref<bool(DWARFDIE die)> callback) {
-  lldbassert(!unit.GetSymbolFileDWARF().GetDwoNum());
   Index();
   m_set.globals.FindAllEntriesForUnit(unit, DIERefCallback(callback));
 }
@@ -409,10 +441,12 @@ void ManualDWARFIndex::GetNamespaces(
 }
 
 void ManualDWARFIndex::GetFunctions(
-    ConstString name, SymbolFileDWARF &dwarf,
-    const CompilerDeclContext &parent_decl_ctx, uint32_t name_type_mask,
+    const Module::LookupInfo &lookup_info, SymbolFileDWARF &dwarf,
+    const CompilerDeclContext &parent_decl_ctx,
     llvm::function_ref<bool(DWARFDIE die)> callback) {
   Index();
+  ConstString name = lookup_info.GetLookupName();
+  FunctionNameType name_type_mask = lookup_info.GetNameTypeMask();
 
   if (name_type_mask & eFunctionNameTypeFull) {
     if (!m_set.function_fullnames.Find(
@@ -503,7 +537,10 @@ enum DataID {
   kDataIDEnd = 255u,
 
 };
-constexpr uint32_t CURRENT_CACHE_VERSION = 1;
+
+// Version 2 changes the encoding of DIERef objects used in the DWARF manual
+// index name tables. See DIERef class for details.
+constexpr uint32_t CURRENT_CACHE_VERSION = 2;
 
 bool ManualDWARFIndex::IndexSet::Decode(const DataExtractor &data,
                                         lldb::offset_t *offset_ptr) {
@@ -617,7 +654,7 @@ void ManualDWARFIndex::IndexSet::Encode(DataEncoder &encoder) const {
 
   // Now that all strings have been gathered, we will emit the string table.
   strtab.Encode(encoder);
-  // Followed the the symbol table data.
+  // Followed by the symbol table data.
   encoder.AppendData(index_encoder.GetData());
 }
 

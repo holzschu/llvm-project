@@ -44,7 +44,7 @@ struct NSFastEnumerationState;
 @implementation A
 // PGOGEN: define {{.*}}+[A foreach:]
 // PGOUSE: define {{.*}}+[A foreach:]
-// PGOGEN: store {{.*}} @[[FRC]], i32 0, i32 0
+// PGOGEN: store {{.*}} @[[FRC]]
 + (void)foreach: (NSArray *)array
 {
   __block id result;
@@ -54,7 +54,7 @@ struct NSFastEnumerationState;
   for (id x in array) {
     // PGOGEN: define {{.*}}_block_invoke
     // PGOUSE: define {{.*}}_block_invoke
-    // PGOGEN: store {{.*}} @[[BLC]], i32 0, i32 0
+    // PGOGEN: store {{.*}} @[[BLC]]
     ^{
       static int init = 0;
       // PGOGEN: store {{.*}} @[[BLC]], i32 0, i32 1

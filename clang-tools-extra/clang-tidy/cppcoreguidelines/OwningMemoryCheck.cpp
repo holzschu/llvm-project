@@ -17,19 +17,7 @@
 using namespace clang::ast_matchers;
 using namespace clang::ast_matchers::internal;
 
-namespace clang {
-namespace tidy {
-namespace cppcoreguidelines {
-
-// FIXME: Copied from 'NoMallocCheck.cpp'. Has to be refactored into 'util' or
-// something like that.
-namespace {
-Matcher<FunctionDecl> hasAnyListedName(const std::string &FunctionNames) {
-  const std::vector<std::string> NameList =
-      utils::options::parseStringList(FunctionNames);
-  return hasAnyName(std::vector<StringRef>(NameList.begin(), NameList.end()));
-}
-} // namespace
+namespace clang::tidy::cppcoreguidelines {
 
 void OwningMemoryCheck::storeOptions(ClangTidyOptions::OptionMap &Opts) {
   Options.store(Opts, "LegacyResourceProducers", LegacyResourceProducers);
@@ -42,9 +30,10 @@ void OwningMemoryCheck::registerMatchers(MatchFinder *Finder) {
   const auto OwnerDecl = typeAliasTemplateDecl(hasName("::gsl::owner"));
   const auto IsOwnerType = hasType(OwnerDecl);
 
-  const auto LegacyCreatorFunctions = hasAnyListedName(LegacyResourceProducers);
+  const auto LegacyCreatorFunctions =
+      hasAnyName(utils::options::parseStringList(LegacyResourceProducers));
   const auto LegacyConsumerFunctions =
-      hasAnyListedName(LegacyResourceConsumers);
+      hasAnyName(utils::options::parseStringList(LegacyResourceConsumers));
 
   // Legacy functions that are use for resource management but cannot be
   // updated to use `gsl::owner<>`, like standard C memory management.
@@ -134,8 +123,8 @@ void OwningMemoryCheck::registerMatchers(MatchFinder *Finder) {
   // Matching on initialization operations where the initial value is a newly
   // created owner, but the LHS is not an owner.
   Finder->addMatcher(
-      traverse(TK_AsIs, namedDecl(varDecl(allOf(hasInitializer(CreatesOwner),
-                                                unless(IsOwnerType)))
+      traverse(TK_AsIs, namedDecl(varDecl(hasInitializer(CreatesOwner),
+                                          unless(IsOwnerType))
                                       .bind("bad_owner_creation_variable"))),
       this);
 
@@ -379,6 +368,4 @@ bool OwningMemoryCheck::handleOwnerMembers(const BoundNodes &Nodes) {
   return false;
 }
 
-} // namespace cppcoreguidelines
-} // namespace tidy
-} // namespace clang
+} // namespace clang::tidy::cppcoreguidelines

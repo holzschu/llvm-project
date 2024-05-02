@@ -15,10 +15,10 @@
 #include "WebAssemblyMCInstLower.h"
 #include "TargetInfo/WebAssemblyTargetInfo.h"
 #include "Utils/WebAssemblyTypeUtilities.h"
-#include "Utils/WebAssemblyUtilities.h"
 #include "WebAssemblyAsmPrinter.h"
 #include "WebAssemblyISelLowering.h"
 #include "WebAssemblyMachineFunctionInfo.h"
+#include "WebAssemblyUtilities.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/IR/Constants.h"
@@ -59,39 +59,7 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
       SmallVector<MVT, 1> VTs;
       computeLegalValueVTs(CurrentFunc, TM, GlobalVT, VTs);
 
-      // Tables are represented as Arrays in LLVM IR therefore
-      // they reach this point as aggregate Array types with an element type
-      // that is a reference type.
-      wasm::ValType Type;
-      bool IsTable = false;
-      if (GlobalVT->isArrayTy() &&
-          WebAssembly::isRefType(GlobalVT->getArrayElementType())) {
-        MVT VT;
-        IsTable = true;
-        switch (GlobalVT->getArrayElementType()->getPointerAddressSpace()) {
-        case WebAssembly::WasmAddressSpace::WASM_ADDRESS_SPACE_FUNCREF:
-          VT = MVT::funcref;
-          break;
-        case WebAssembly::WasmAddressSpace::WASM_ADDRESS_SPACE_EXTERNREF:
-          VT = MVT::externref;
-          break;
-        default:
-          report_fatal_error("unhandled address space type");
-        }
-        Type = WebAssembly::toValType(VT);
-      } else if (VTs.size() == 1) {
-        Type = WebAssembly::toValType(VTs[0]);
-      } else
-        report_fatal_error("Aggregate globals not yet implemented");
-
-      if (IsTable) {
-        WasmSym->setType(wasm::WASM_SYMBOL_TYPE_TABLE);
-        WasmSym->setTableType(Type);
-      } else {
-        WasmSym->setType(wasm::WASM_SYMBOL_TYPE_GLOBAL);
-        WasmSym->setGlobalType(
-            wasm::WasmGlobalType{uint8_t(Type), /*Mutable=*/true});
-      }
+      WebAssembly::wasmSymbolSetType(WasmSym, GlobalVT, VTs);
     }
     return WasmSym;
   }
@@ -172,8 +140,8 @@ MCOperand WebAssemblyMCInstLower::lowerSymbolOperand(const MachineOperand &MO,
 }
 
 MCOperand WebAssemblyMCInstLower::lowerTypeIndexOperand(
-    SmallVector<wasm::ValType, 1> &&Returns,
-    SmallVector<wasm::ValType, 4> &&Params) const {
+    SmallVectorImpl<wasm::ValType> &&Returns,
+    SmallVectorImpl<wasm::ValType> &&Params) const {
   auto Signature = std::make_unique<wasm::WasmSignature>(std::move(Returns),
                                                          std::move(Params));
   MCSymbol *Sym = Printer.createTempSymbol("typeindex");
@@ -184,25 +152,6 @@ MCOperand WebAssemblyMCInstLower::lowerTypeIndexOperand(
   const MCExpr *Expr =
       MCSymbolRefExpr::create(WasmSym, MCSymbolRefExpr::VK_WASM_TYPEINDEX, Ctx);
   return MCOperand::createExpr(Expr);
-}
-
-// Return the WebAssembly type associated with the given register class.
-static wasm::ValType getType(const TargetRegisterClass *RC) {
-  if (RC == &WebAssembly::I32RegClass)
-    return wasm::ValType::I32;
-  if (RC == &WebAssembly::I64RegClass)
-    return wasm::ValType::I64;
-  if (RC == &WebAssembly::F32RegClass)
-    return wasm::ValType::F32;
-  if (RC == &WebAssembly::F64RegClass)
-    return wasm::ValType::F64;
-  if (RC == &WebAssembly::V128RegClass)
-    return wasm::ValType::V128;
-  if (RC == &WebAssembly::EXTERNREFRegClass)
-    return wasm::ValType::EXTERNREF;
-  if (RC == &WebAssembly::FUNCREFRegClass)
-    return wasm::ValType::FUNCREF;
-  llvm_unreachable("Unexpected register class");
 }
 
 static void getFunctionReturns(const MachineInstr *MI,
@@ -245,7 +194,7 @@ void WebAssemblyMCInstLower::lower(const MachineInstr *MI,
     case MachineOperand::MO_Immediate: {
       unsigned DescIndex = I - NumVariadicDefs;
       if (DescIndex < Desc.NumOperands) {
-        const MCOperandInfo &Info = Desc.OpInfo[DescIndex];
+        const MCOperandInfo &Info = Desc.operands()[DescIndex];
         if (Info.OperandType == WebAssembly::OPERAND_TYPEINDEX) {
           SmallVector<wasm::ValType, 4> Returns;
           SmallVector<wasm::ValType, 4> Params;
@@ -253,10 +202,12 @@ void WebAssemblyMCInstLower::lower(const MachineInstr *MI,
           const MachineRegisterInfo &MRI =
               MI->getParent()->getParent()->getRegInfo();
           for (const MachineOperand &MO : MI->defs())
-            Returns.push_back(getType(MRI.getRegClass(MO.getReg())));
+            Returns.push_back(WebAssembly::regClassToValType(
+                MRI.getRegClass(MO.getReg())->getID()));
           for (const MachineOperand &MO : MI->explicit_uses())
             if (MO.isReg())
-              Params.push_back(getType(MRI.getRegClass(MO.getReg())));
+              Params.push_back(WebAssembly::regClassToValType(
+                  MRI.getRegClass(MO.getReg())->getID()));
 
           // call_indirect instructions have a callee operand at the end which
           // doesn't count as a param.

@@ -16,10 +16,13 @@
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/IR/ExtensibleDialect.h"
 #include "mlir/IR/Types.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/TypeSize.h"
+#include <optional>
 
 using namespace mlir;
 using namespace test;
@@ -84,6 +87,62 @@ static llvm::hash_code test::hash_value(const FieldInfo &fi) { // NOLINT
 }
 
 //===----------------------------------------------------------------------===//
+// TestCustomType
+//===----------------------------------------------------------------------===//
+
+static LogicalResult parseCustomTypeA(AsmParser &parser, int &aResult) {
+  return parser.parseInteger(aResult);
+}
+
+static void printCustomTypeA(AsmPrinter &printer, int a) { printer << a; }
+
+static LogicalResult parseCustomTypeB(AsmParser &parser, int a,
+                                      std::optional<int> &bResult) {
+  if (a < 0)
+    return success();
+  for (int i : llvm::seq(0, a))
+    if (failed(parser.parseInteger(i)))
+      return failure();
+  bResult.emplace(0);
+  return parser.parseInteger(*bResult);
+}
+
+static void printCustomTypeB(AsmPrinter &printer, int a, std::optional<int> b) {
+  if (a < 0)
+    return;
+  printer << ' ';
+  for (int i : llvm::seq(0, a))
+    printer << i << ' ';
+  printer << *b;
+}
+
+static LogicalResult parseFooString(AsmParser &parser, std::string &foo) {
+  std::string result;
+  if (parser.parseString(&result))
+    return failure();
+  foo = std::move(result);
+  return success();
+}
+
+static void printFooString(AsmPrinter &printer, StringRef foo) {
+  printer << '"' << foo << '"';
+}
+
+static LogicalResult parseBarString(AsmParser &parser, StringRef foo) {
+  return parser.parseKeyword(foo);
+}
+
+static void printBarString(AsmPrinter &printer, StringRef foo) {
+  printer << foo;
+}
+//===----------------------------------------------------------------------===//
+// Tablegen Generated Definitions
+//===----------------------------------------------------------------------===//
+
+#define GET_TYPEDEF_CLASSES
+#include "TestTypeDefs.cpp.inc"
+
+//===----------------------------------------------------------------------===//
 // CompoundAType
 //===----------------------------------------------------------------------===//
 
@@ -129,6 +188,54 @@ TestIntegerType::verify(function_ref<InFlightDiagnostic()> emitError,
   return success();
 }
 
+Type TestIntegerType::parse(AsmParser &parser) {
+  SignednessSemantics signedness;
+  int width;
+  if (parser.parseLess() || parseSignedness(parser, signedness) ||
+      parser.parseComma() || parser.parseInteger(width) ||
+      parser.parseGreater())
+    return Type();
+  Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
+  return getChecked(loc, loc.getContext(), width, signedness);
+}
+
+void TestIntegerType::print(AsmPrinter &p) const {
+  p << "<";
+  printSignedness(p, getSignedness());
+  p << ", " << getWidth() << ">";
+}
+
+//===----------------------------------------------------------------------===//
+// TestStructType
+//===----------------------------------------------------------------------===//
+
+Type StructType::parse(AsmParser &p) {
+  SmallVector<FieldInfo, 4> parameters;
+  if (p.parseLess())
+    return Type();
+  while (succeeded(p.parseOptionalLBrace())) {
+    Type type;
+    StringRef name;
+    if (p.parseKeyword(&name) || p.parseComma() || p.parseType(type) ||
+        p.parseRBrace())
+      return Type();
+    parameters.push_back(FieldInfo{name, type});
+    if (p.parseOptionalComma())
+      break;
+  }
+  if (p.parseGreater())
+    return Type();
+  return get(p.getContext(), parameters);
+}
+
+void StructType::print(AsmPrinter &p) const {
+  p << "<";
+  llvm::interleaveComma(getFields(), p, [&](const FieldInfo &field) {
+    p << "{" << field.name << "," << field.type << "}";
+  });
+  p << ">";
+}
+
 //===----------------------------------------------------------------------===//
 // TestType
 //===----------------------------------------------------------------------===//
@@ -152,19 +259,19 @@ void TestTypeWithLayoutType::print(AsmPrinter &printer) const {
   printer << "<" << getKey() << ">";
 }
 
-unsigned
+llvm::TypeSize
 TestTypeWithLayoutType::getTypeSizeInBits(const DataLayout &dataLayout,
                                           DataLayoutEntryListRef params) const {
-  return extractKind(params, "size");
+  return llvm::TypeSize::getFixed(extractKind(params, "size"));
 }
 
-unsigned
+uint64_t
 TestTypeWithLayoutType::getABIAlignment(const DataLayout &dataLayout,
                                         DataLayoutEntryListRef params) const {
   return extractKind(params, "alignment");
 }
 
-unsigned TestTypeWithLayoutType::getPreferredAlignment(
+uint64_t TestTypeWithLayoutType::getPreferredAlignment(
     const DataLayout &dataLayout, DataLayoutEntryListRef params) const {
   return extractKind(params, "preferred");
 }
@@ -181,39 +288,99 @@ TestTypeWithLayoutType::verifyEntries(DataLayoutEntryListRef params,
   for (DataLayoutEntryInterface entry : params) {
     // This is for testing purposes only, so assert well-formedness.
     assert(entry.isTypeEntry() && "unexpected identifier entry");
-    assert(entry.getKey().get<Type>().isa<TestTypeWithLayoutType>() &&
+    assert(llvm::isa<TestTypeWithLayoutType>(entry.getKey().get<Type>()) &&
            "wrong type passed in");
-    auto array = entry.getValue().dyn_cast<ArrayAttr>();
+    auto array = llvm::dyn_cast<ArrayAttr>(entry.getValue());
     assert(array && array.getValue().size() == 2 &&
            "expected array of two elements");
-    auto kind = array.getValue().front().dyn_cast<StringAttr>();
+    auto kind = llvm::dyn_cast<StringAttr>(array.getValue().front());
     (void)kind;
     assert(kind &&
            (kind.getValue() == "size" || kind.getValue() == "alignment" ||
             kind.getValue() == "preferred") &&
            "unexpected kind");
-    assert(array.getValue().back().isa<IntegerAttr>());
+    assert(llvm::isa<IntegerAttr>(array.getValue().back()));
   }
   return success();
 }
 
-unsigned TestTypeWithLayoutType::extractKind(DataLayoutEntryListRef params,
+uint64_t TestTypeWithLayoutType::extractKind(DataLayoutEntryListRef params,
                                              StringRef expectedKind) const {
   for (DataLayoutEntryInterface entry : params) {
-    ArrayRef<Attribute> pair = entry.getValue().cast<ArrayAttr>().getValue();
-    StringRef kind = pair.front().cast<StringAttr>().getValue();
+    ArrayRef<Attribute> pair =
+        llvm::cast<ArrayAttr>(entry.getValue()).getValue();
+    StringRef kind = llvm::cast<StringAttr>(pair.front()).getValue();
     if (kind == expectedKind)
-      return pair.back().cast<IntegerAttr>().getValue().getZExtValue();
+      return llvm::cast<IntegerAttr>(pair.back()).getValue().getZExtValue();
   }
   return 1;
 }
 
 //===----------------------------------------------------------------------===//
-// Tablegen Generated Definitions
+// Dynamic Types
 //===----------------------------------------------------------------------===//
 
-#define GET_TYPEDEF_CLASSES
-#include "TestTypeDefs.cpp.inc"
+/// Define a singleton dynamic type.
+static std::unique_ptr<DynamicTypeDefinition>
+getSingletonDynamicType(TestDialect *testDialect) {
+  return DynamicTypeDefinition::get(
+      "dynamic_singleton", testDialect,
+      [](function_ref<InFlightDiagnostic()> emitError,
+         ArrayRef<Attribute> args) {
+        if (!args.empty()) {
+          emitError() << "expected 0 type arguments, but had " << args.size();
+          return failure();
+        }
+        return success();
+      });
+}
+
+/// Define a dynamic type representing a pair.
+static std::unique_ptr<DynamicTypeDefinition>
+getPairDynamicType(TestDialect *testDialect) {
+  return DynamicTypeDefinition::get(
+      "dynamic_pair", testDialect,
+      [](function_ref<InFlightDiagnostic()> emitError,
+         ArrayRef<Attribute> args) {
+        if (args.size() != 2) {
+          emitError() << "expected 2 type arguments, but had " << args.size();
+          return failure();
+        }
+        return success();
+      });
+}
+
+static std::unique_ptr<DynamicTypeDefinition>
+getCustomAssemblyFormatDynamicType(TestDialect *testDialect) {
+  auto verifier = [](function_ref<InFlightDiagnostic()> emitError,
+                     ArrayRef<Attribute> args) {
+    if (args.size() != 2) {
+      emitError() << "expected 2 type arguments, but had " << args.size();
+      return failure();
+    }
+    return success();
+  };
+
+  auto parser = [](AsmParser &parser,
+                   llvm::SmallVectorImpl<Attribute> &parsedParams) {
+    Attribute leftAttr, rightAttr;
+    if (parser.parseLess() || parser.parseAttribute(leftAttr) ||
+        parser.parseColon() || parser.parseAttribute(rightAttr) ||
+        parser.parseGreater())
+      return failure();
+    parsedParams.push_back(leftAttr);
+    parsedParams.push_back(rightAttr);
+    return success();
+  };
+
+  auto printer = [](AsmPrinter &printer, ArrayRef<Attribute> params) {
+    printer << "<" << params[0] << ":" << params[1] << ">";
+  };
+
+  return DynamicTypeDefinition::get("dynamic_custom_assembly_format",
+                                    testDialect, std::move(verifier),
+                                    std::move(parser), std::move(printer));
+}
 
 //===----------------------------------------------------------------------===//
 // TestDialect
@@ -232,18 +399,29 @@ void TestDialect::registerTypes() {
 #include "TestTypeDefs.cpp.inc"
            >();
   SimpleAType::attachInterface<PtrElementModel>(*getContext());
+
+  registerDynamicType(getSingletonDynamicType(this));
+  registerDynamicType(getPairDynamicType(this));
+  registerDynamicType(getCustomAssemblyFormatDynamicType(this));
 }
 
-static Type parseTestType(AsmParser &parser, SetVector<Type> &stack) {
+Type TestDialect::parseType(DialectAsmParser &parser) const {
   StringRef typeTag;
-  if (failed(parser.parseKeyword(&typeTag)))
-    return Type();
-
   {
     Type genType;
-    auto parseResult = generatedTypeParser(parser, typeTag, genType);
-    if (parseResult.hasValue())
+    auto parseResult = generatedTypeParser(parser, &typeTag, genType);
+    if (parseResult.has_value())
       return genType;
+  }
+
+  {
+    Type dynType;
+    auto parseResult = parseOptionalDynamicType(typeTag, parser, dynType);
+    if (parseResult.has_value()) {
+      if (succeeded(parseResult.value()))
+        return dynType;
+      return Type();
+    }
   }
 
   if (typeTag != "test_rec") {
@@ -256,9 +434,12 @@ static Type parseTestType(AsmParser &parser, SetVector<Type> &stack) {
     return Type();
   auto rec = TestRecursiveType::get(parser.getContext(), name);
 
+  FailureOr<AsmParser::CyclicParseReset> cyclicParse =
+      parser.tryStartCyclicParse(rec);
+
   // If this type already has been parsed above in the stack, expect just the
   // name.
-  if (stack.contains(rec)) {
+  if (failed(cyclicParse)) {
     if (failed(parser.parseGreater()))
       return Type();
     return rec;
@@ -267,37 +448,79 @@ static Type parseTestType(AsmParser &parser, SetVector<Type> &stack) {
   // Otherwise, parse the body and update the type.
   if (failed(parser.parseComma()))
     return Type();
-  stack.insert(rec);
-  Type subtype = parseTestType(parser, stack);
-  stack.pop_back();
+  Type subtype = parseType(parser);
   if (!subtype || failed(parser.parseGreater()) || failed(rec.setBody(subtype)))
     return Type();
 
   return rec;
 }
 
-Type TestDialect::parseType(DialectAsmParser &parser) const {
-  SetVector<Type> stack;
-  return parseTestType(parser, stack);
-}
-
-static void printTestType(Type type, AsmPrinter &printer,
-                          SetVector<Type> &stack) {
+void TestDialect::printType(Type type, DialectAsmPrinter &printer) const {
   if (succeeded(generatedTypePrinter(type, printer)))
     return;
 
-  auto rec = type.cast<TestRecursiveType>();
+  if (succeeded(printIfDynamicType(type, printer)))
+    return;
+
+  auto rec = llvm::cast<TestRecursiveType>(type);
+
+  FailureOr<AsmPrinter::CyclicPrintReset> cyclicPrint =
+      printer.tryStartCyclicPrint(rec);
+
   printer << "test_rec<" << rec.getName();
-  if (!stack.contains(rec)) {
+  if (succeeded(cyclicPrint)) {
     printer << ", ";
-    stack.insert(rec);
-    printTestType(rec.getBody(), printer, stack);
-    stack.pop_back();
+    printType(rec.getBody(), printer);
   }
   printer << ">";
 }
 
-void TestDialect::printType(Type type, DialectAsmPrinter &printer) const {
-  SetVector<Type> stack;
-  printTestType(type, printer, stack);
+Type TestRecursiveAliasType::getBody() const { return getImpl()->body; }
+
+void TestRecursiveAliasType::setBody(Type type) { (void)Base::mutate(type); }
+
+StringRef TestRecursiveAliasType::getName() const { return getImpl()->name; }
+
+Type TestRecursiveAliasType::parse(AsmParser &parser) {
+  StringRef name;
+  if (parser.parseLess() || parser.parseKeyword(&name))
+    return Type();
+  auto rec = TestRecursiveAliasType::get(parser.getContext(), name);
+
+  FailureOr<AsmParser::CyclicParseReset> cyclicParse =
+      parser.tryStartCyclicParse(rec);
+
+  // If this type already has been parsed above in the stack, expect just the
+  // name.
+  if (failed(cyclicParse)) {
+    if (failed(parser.parseGreater()))
+      return Type();
+    return rec;
+  }
+
+  // Otherwise, parse the body and update the type.
+  if (failed(parser.parseComma()))
+    return Type();
+  Type subtype;
+  if (parser.parseType(subtype))
+    return nullptr;
+  if (!subtype || failed(parser.parseGreater()))
+    return Type();
+
+  rec.setBody(subtype);
+
+  return rec;
+}
+
+void TestRecursiveAliasType::print(AsmPrinter &printer) const {
+
+  FailureOr<AsmPrinter::CyclicPrintReset> cyclicPrint =
+      printer.tryStartCyclicPrint(*this);
+
+  printer << "<" << getName();
+  if (succeeded(cyclicPrint)) {
+    printer << ", ";
+    printer << getBody();
+  }
+  printer << ">";
 }

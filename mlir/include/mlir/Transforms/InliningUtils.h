@@ -10,20 +10,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MLIR_TRANSFORMS_INLINING_UTILS_H
-#define MLIR_TRANSFORMS_INLINING_UTILS_H
+#ifndef MLIR_TRANSFORMS_INLININGUTILS_H
+#define MLIR_TRANSFORMS_INLININGUTILS_H
 
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/DialectInterface.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/Region.h"
+#include "mlir/IR/ValueRange.h"
+#include <optional>
 
 namespace mlir {
 
 class Block;
-class BlockAndValueMapping;
+class IRMapping;
 class CallableOpInterface;
 class CallOpInterface;
-class FuncOp;
 class OpBuilder;
 class Operation;
 class Region;
@@ -68,7 +70,7 @@ public:
   /// used to examine what values will replace entry arguments into the 'src'
   /// region for example.
   virtual bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
-                               BlockAndValueMapping &valueMapping) const {
+                               IRMapping &valueMapping) const {
     return false;
   }
 
@@ -80,7 +82,7 @@ public:
   /// remapped values from within the 'src' region. This can be used to examine
   /// what values may potentially replace the operands to 'op'.
   virtual bool isLegalToInline(Operation *op, Region *dest, bool wouldBeCloned,
-                               BlockAndValueMapping &valueMapping) const {
+                               IRMapping &valueMapping) const {
     return false;
   }
 
@@ -115,7 +117,7 @@ public:
   /// operation). The given 'op' will be removed by the caller, after this
   /// function has been called.
   virtual void handleTerminator(Operation *op,
-                                ArrayRef<Value> valuesToReplace) const {
+                                ValueRange valuesToReplace) const {
     llvm_unreachable(
         "must implement handleTerminator in the case of one inlined block");
   }
@@ -139,6 +141,35 @@ public:
                                                Type resultType,
                                                Location conversionLoc) const {
     return nullptr;
+  }
+
+  /// Hook to transform the call arguments before using them to replace the
+  /// callee arguments. Returns a value of the same type or the `argument`
+  /// itself if nothing changed. The `argumentAttrs` dictionary is non-null even
+  /// if no attribute is present. The hook is called after converting the
+  /// callsite argument types using the materializeCallConversion callback, and
+  /// right before inlining the callee region. Any operations created using the
+  /// provided `builder` are inserted right before the inlined callee region. An
+  /// example use case is the insertion of copies for by value arguments.
+  virtual Value handleArgument(OpBuilder &builder, Operation *call,
+                               Operation *callable, Value argument,
+                               DictionaryAttr argumentAttrs) const {
+    return argument;
+  }
+
+  /// Hook to transform the callee results before using them to replace the call
+  /// results. Returns a value of the same type or the `result` itself if
+  /// nothing changed. The `resultAttrs` dictionary is non-null even if no
+  /// attribute is present. The hook is called right before handling
+  /// terminators, and obtains the callee result before converting its type
+  /// using the `materializeCallConversion` callback. Any operations created
+  /// using the provided `builder` are inserted right after the inlined callee
+  /// region. An example use case is the insertion of copies for by value
+  /// results. NOTE: This hook is invoked after inlining the `callable` region.
+  virtual Value handleResult(OpBuilder &builder, Operation *call,
+                             Operation *callable, Value result,
+                             DictionaryAttr resultAttrs) const {
+    return result;
   }
 
   /// Process a set of blocks that have been inlined for a call. This callback
@@ -171,9 +202,9 @@ public:
   virtual bool isLegalToInline(Operation *call, Operation *callable,
                                bool wouldBeCloned) const;
   virtual bool isLegalToInline(Region *dest, Region *src, bool wouldBeCloned,
-                               BlockAndValueMapping &valueMapping) const;
+                               IRMapping &valueMapping) const;
   virtual bool isLegalToInline(Operation *op, Region *dest, bool wouldBeCloned,
-                               BlockAndValueMapping &valueMapping) const;
+                               IRMapping &valueMapping) const;
   virtual bool shouldAnalyzeRecursively(Operation *op) const;
 
   //===--------------------------------------------------------------------===//
@@ -181,8 +212,15 @@ public:
   //===--------------------------------------------------------------------===//
 
   virtual void handleTerminator(Operation *op, Block *newDest) const;
-  virtual void handleTerminator(Operation *op,
-                                ArrayRef<Value> valuesToRepl) const;
+  virtual void handleTerminator(Operation *op, ValueRange valuesToRepl) const;
+
+  virtual Value handleArgument(OpBuilder &builder, Operation *call,
+                               Operation *callable, Value argument,
+                               DictionaryAttr argumentAttrs) const;
+  virtual Value handleResult(OpBuilder &builder, Operation *call,
+                             Operation *callable, Value result,
+                             DictionaryAttr resultAttrs) const;
+
   virtual void processInlinedCallBlocks(
       Operation *call, iterator_range<Region::iterator> inlinedBlocks) const;
 };
@@ -206,17 +244,16 @@ public:
 /// information. 'shouldCloneInlinedRegion' corresponds to whether the source
 /// region should be cloned into the 'inlinePoint' or spliced directly.
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
-                           Operation *inlinePoint, BlockAndValueMapping &mapper,
+                           Operation *inlinePoint, IRMapping &mapper,
                            ValueRange resultsToReplace,
                            TypeRange regionResultTypes,
-                           Optional<Location> inlineLoc = llvm::None,
+                           std::optional<Location> inlineLoc = std::nullopt,
                            bool shouldCloneInlinedRegion = true);
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
                            Block *inlineBlock, Block::iterator inlinePoint,
-                           BlockAndValueMapping &mapper,
-                           ValueRange resultsToReplace,
+                           IRMapping &mapper, ValueRange resultsToReplace,
                            TypeRange regionResultTypes,
-                           Optional<Location> inlineLoc = llvm::None,
+                           std::optional<Location> inlineLoc = std::nullopt,
                            bool shouldCloneInlinedRegion = true);
 
 /// This function is an overload of the above 'inlineRegion' that allows for
@@ -225,13 +262,13 @@ LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
                            Operation *inlinePoint, ValueRange inlinedOperands,
                            ValueRange resultsToReplace,
-                           Optional<Location> inlineLoc = llvm::None,
+                           std::optional<Location> inlineLoc = std::nullopt,
                            bool shouldCloneInlinedRegion = true);
 LogicalResult inlineRegion(InlinerInterface &interface, Region *src,
                            Block *inlineBlock, Block::iterator inlinePoint,
                            ValueRange inlinedOperands,
                            ValueRange resultsToReplace,
-                           Optional<Location> inlineLoc = llvm::None,
+                           std::optional<Location> inlineLoc = std::nullopt,
                            bool shouldCloneInlinedRegion = true);
 
 /// This function inlines a given region, 'src', of a callable operation,
@@ -246,4 +283,4 @@ LogicalResult inlineCall(InlinerInterface &interface, CallOpInterface call,
 
 } // namespace mlir
 
-#endif // MLIR_TRANSFORMS_INLINING_UTILS_H
+#endif // MLIR_TRANSFORMS_INLININGUTILS_H

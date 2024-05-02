@@ -1,5 +1,5 @@
-// Test the driver's control over the PIC behavior. These consist of tests of
-// the relocation model flags and the pic level flags passed to CC1.
+// Test the driver's control over the PIC behavior. These mainly consist of
+// tests of the relocation model flags and the pic level flags passed to CC1.
 //
 // CHECK-NO-PIC: "-mrelocation-model" "static"
 // CHECK-NO-PIC-NOT: "-pic-level"
@@ -44,6 +44,11 @@
 // CHECK-NO-PIE-NOT: "-pie"
 //
 // CHECK-NO-UNUSED-ARG-NOT: argument unused during compilation
+//
+// CHECK-NO-PIC-DATA-TEXT-REL: "-mcmodel=medium"
+// CHECK-PIC-DATA-TEXT-REL-NOT: "-mcmodel=medium"
+// CHECK-NO-PIC-DATA-TEXT-REL-NON-SYSTEMZ: error: unsupported option '-mno-pic-data-is-text-relative' for target 'arm-arm-none-eabi'
+// CHECK-PIC-DATA-TEXT-REL-NON-SYSTEMZ: error: unsupported option '-mpic-data-is-text-relative' for target 'arm-arm-none-eabi'
 //
 // RUN: %clang -c %s -target i386-unknown-unknown -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-PIC
@@ -127,11 +132,11 @@
 // RUN: --sysroot=%S/Inputs/basic_freebsd_tree 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE-LD
 // RUN: %clang %s -target i386-linux-gnu -fPIE -pie -### \
-// RUN: --gcc-toolchain="" -rtlib=platform \
+// RUN: --gcc-toolchain="" -rtlib=platform --unwindlib=platform \
 // RUN: --sysroot=%S/Inputs/basic_linux_tree 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE-LD
 // RUN: %clang %s -target i386-linux-gnu -fPIC -pie -### \
-// RUN: --gcc-toolchain="" -rtlib=platform \
+// RUN: --gcc-toolchain="" -rtlib=platform --unwindlib=platform \
 // RUN: --sysroot=%S/Inputs/basic_linux_tree 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE-LD
 //
@@ -161,11 +166,11 @@
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE2
 // RUN: %clang -c %s -target armv7-linux-musleabihf -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE2
-// RUN: %clang %s -target x86_64-linux-musl -nopie -### 2>&1 \
+// RUN: %clang %s --target=x86_64-linux-musl -no-pie -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-PIE
-// RUN: %clang %s -target x86_64-linux-musl -pie -nopie -### 2>&1 \
+// RUN: %clang %s --target=x86_64-linux-musl -pie -no-pie -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-PIE
-// RUN: %clang %s -target x86_64-linux-musl -nopie -pie -### 2>&1 \
+// RUN: %clang %s --target=x86_64-linux-musl -no-pie -pie -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE2
 //
 // Darwin is a beautiful and unique snowflake when it comes to these flags.
@@ -204,7 +209,7 @@
 // Darwin gets even more special with '-mdynamic-no-pic'. This flag is only
 // valid on Darwin, and it's behavior is very strange but needs to remain
 // consistent for compatibility.
-// RUN: %clang -c %s -target i386-unknown-unknown -mdynamic-no-pic -### 2>&1 \
+// RUN: not %clang -c %s --target=i386-unknown-unknown -mdynamic-no-pic -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NON-DARWIN-DYNAMIC-NO-PIC
 // RUN: %clang -c %s -target i386-apple-darwin -mdynamic-no-pic -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-DYNAMIC-NO-PIC-32
@@ -230,6 +235,8 @@
 // RUN: %clang -x assembler -c %s -target arm64-apple-ios7 -mkernel -no-integrated-as -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-STATIC
 // RUN: %clang -c %s -target armv7k-apple-watchos1 -fapple-kext -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CHECK-PIC2
+// RUN: %clang -c %s -target x86_64-apple-driverkit -fapple-kext -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIC2
 // RUN: %clang -c %s -target armv7-apple-ios5 -fapple-kext -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-PIC
@@ -273,9 +280,6 @@
 // RUN: %clang -c %s -target arm-linux-androideabi24 -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE2
 //
-// RUN: %clang -c %s -target mipsel-linux-android24 -### 2>&1 \
-// RUN:   | FileCheck %s --check-prefix=CHECK-PIE1
-//
 // 64-bit Android targets are always PIE.
 // RUN: %clang -c %s -target aarch64-linux-android -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIE2
@@ -311,3 +315,18 @@
 // RUN:   | FileCheck %s --check-prefix=CHECK-PIC2
 // RUN: %clang -fPIC -c %s -target armv7-pc-windows-gnu -### 2>&1 \
 // RUN:   | FileCheck %s --check-prefix=CHECK-NO-PIC
+
+// RUN: %clang -fpic -c --target=s390x-linux-gnu -mno-pic-data-is-text-relative %s \
+// RUN:   -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-PIC-DATA-TEXT-REL
+// RUN: %clang -fpic -c --target=s390x-linux-gnu -mpic-data-is-text-relative %s -### \
+// RUN:   2>&1 | FileCheck %s --check-prefix=CHECK-PIC-DATA-TEXT-REL
+// RUN: not %clang -fpic -c --target=arm-arm-none-eabi -mno-pic-data-is-text-relative %s \
+// RUN:   -### 2>&1 | FileCheck %s --check-prefix=CHECK-NO-PIC-DATA-TEXT-REL-NON-SYSTEMZ
+// RUN: not %clang -fpic -c --target=arm-arm-none-eabi -mpic-data-is-text-relative %s \
+// RUN:   -### 2>&1 | FileCheck %s --check-prefix=CHECK-PIC-DATA-TEXT-REL-NON-SYSTEMZ
+
+// On Haiku, PIC is enabled by default, and PIE is disabled by default.
+// RUN: %clang -c %s --target=x86_64-unknown-haiku -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CHECK-PIC2
+// RUN: %clang -c %s --target=i586-pc-haiku -### 2>&1 \
+// RUN:   | FileCheck %s --check-prefix=CHECK-PIC2

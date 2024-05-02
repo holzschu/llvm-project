@@ -262,7 +262,7 @@ int test2(int i32) {
 }
 
 // PR5887
-void test3() {
+void test3(void) {
   unsigned short x, y;
   unsigned int z;
   if ((x > y ? x : y) > z)
@@ -271,7 +271,7 @@ void test3() {
 
 // PR5961
 extern char *ptr4;
-void test4() {
+void test4(void) {
   long value;
   if (value < (unsigned long) &ptr4) // expected-warning {{comparison of integers of different signs}}
     return;
@@ -304,7 +304,7 @@ int test6(unsigned i, unsigned power) {
   return x != 3 ? 1 << power : i;
 }
 
-// <rdar://problem/8414119> enum >= (enum)0 comparison should not generate any warnings
+// enum >= (enum)0 comparison should not generate any warnings
 enum rdar8414119_Vals { X, Y, Z };
 #define ZERO 0
 #define CHECK(x) (x >= X)
@@ -320,7 +320,7 @@ int rdar8414119_bar(unsigned x) {
 #undef ZERO
 #undef CHECK
 
-int rdar8511238() {
+int rdar8511238(void) {
   enum A { A_foo, A_bar };
   enum A a;
 

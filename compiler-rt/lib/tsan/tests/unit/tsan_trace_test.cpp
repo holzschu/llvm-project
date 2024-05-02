@@ -16,12 +16,10 @@
 #include "gtest/gtest.h"
 #include "tsan_rtl.h"
 
-#if SANITIZER_MAC || !defined(__x86_64__)
-// These tests are currently crashing on Mac:
-// https://reviews.llvm.org/D107911
-// and on ppc64: https://reviews.llvm.org/D110546#3025422
+#if !defined(__x86_64__)
+// These tests are currently crashing on ppc64:
+// https://reviews.llvm.org/D110546#3025422
 // due to the way we create thread contexts
-// (but they crashed on Mac with normal pthread_create as well).
 // There must be some difference in thread initialization
 // between normal execution and unit tests.
 #  define TRACE_TEST(SUITE, NAME) TEST(SUITE, DISABLED_##NAME)
@@ -243,6 +241,18 @@ TRACE_TEST(Trace, MultiPart) {
   CHECK_EQ(mset.Get(1).addr, 0x5001);
   CHECK_EQ(mset.Get(1).write, false);
   CHECK_EQ(mset.Get(1).count, 1);
+}
+
+TRACE_TEST(Trace, DeepSwitch) {
+  ThreadArray<1> thr;
+  for (int i = 0; i < 2000; i++) {
+    FuncEntry(thr, 0x1000);
+    const uptr kEvents = sizeof(TracePart) / sizeof(Event);
+    for (uptr i = 0; i < kEvents; i++) {
+      TraceMutexLock(thr, EventType::kLock, 0x4000, 0x5000, 0x6000);
+      TraceMutexUnlock(thr, 0x5000);
+    }
+  }
 }
 
 void CheckTraceState(uptr count, uptr finished, uptr excess, uptr recycle) {

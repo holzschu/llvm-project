@@ -4,6 +4,14 @@
 
 """Defines variables that use selects to configure LLVM based on platform."""
 
+load(
+    "//:vars.bzl",
+    "LLVM_VERSION",
+    "LLVM_VERSION_MAJOR",
+    "LLVM_VERSION_MINOR",
+    "LLVM_VERSION_PATCH",
+)
+
 def native_arch_defines(arch, triple):
     return [
         r'LLVM_NATIVE_ARCH=\"{}\"'.format(arch),
@@ -28,7 +36,6 @@ posix_defines = [
     "HAVE_DEREGISTER_FRAME=1",
     "HAVE_LIBPTHREAD=1",
     "HAVE_PTHREAD_GETNAME_NP=1",
-    "HAVE_PTHREAD_GETSPECIFIC=1",
     "HAVE_PTHREAD_H=1",
     "HAVE_PTHREAD_SETNAME_NP=1",
     "HAVE_REGISTER_FRAME=1",
@@ -41,7 +48,6 @@ posix_defines = [
 linux_defines = posix_defines + [
     "_GNU_SOURCE",
     "HAVE_LINK_H=1",
-    "HAVE_LSEEK64=1",
     "HAVE_MALLINFO=1",
     "HAVE_SBRK=1",
     "HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC=1",
@@ -80,14 +86,29 @@ os_defines = select({
     "//conditions:default": linux_defines,
 })
 
+# HAVE_BUILTIN_THREAD_POINTER is true for on Linux (outside of ppc64) for
+# all recent toolchains. Add it here by default on Linux as we can't perform a
+# configure time check.
+builtin_thread_pointer = select({
+    "@bazel_tools//src/conditions:linux_ppc64le": [],
+    "@bazel_tools//src/conditions:linux": ["HAVE_BUILTIN_THREAD_POINTER"],
+    "//conditions:default": [],
+})
+
 # TODO: We should split out host vs. target here.
-llvm_config_defines = os_defines + select({
+llvm_config_defines = os_defines + builtin_thread_pointer + select({
     "@bazel_tools//src/conditions:windows": native_arch_defines("X86", "x86_64-pc-win32"),
     "@bazel_tools//src/conditions:darwin_arm64": native_arch_defines("AArch64", "arm64-apple-darwin"),
     "@bazel_tools//src/conditions:darwin_x86_64": native_arch_defines("X86", "x86_64-unknown-darwin"),
     "@bazel_tools//src/conditions:linux_aarch64": native_arch_defines("AArch64", "aarch64-unknown-linux-gnu"),
+    "@bazel_tools//src/conditions:linux_ppc64le": native_arch_defines("PowerPC", "powerpc64le-unknown-linux-gnu"),
+    "@bazel_tools//src/conditions:linux_s390x": native_arch_defines("SystemZ", "systemz-unknown-linux_gnu"),
     "//conditions:default": native_arch_defines("X86", "x86_64-unknown-linux-gnu"),
 }) + [
+    "LLVM_VERSION_MAJOR={}".format(LLVM_VERSION_MAJOR),
+    "LLVM_VERSION_MINOR={}".format(LLVM_VERSION_MINOR),
+    "LLVM_VERSION_PATCH={}".format(LLVM_VERSION_PATCH),
+    r'LLVM_VERSION_STRING=\"{}git\"'.format(LLVM_VERSION),
     # These shouldn't be needed by the C++11 standard, but are for some
     # platforms (e.g. glibc < 2.18. See
     # https://sourceware.org/bugzilla/show_bug.cgi?id=15366). These are also

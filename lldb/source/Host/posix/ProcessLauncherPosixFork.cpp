@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/Host/posix/ProcessLauncherPosixFork.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/HostProcess.h"
 #include "lldb/Host/Pipe.h"
@@ -14,7 +15,6 @@
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Log.h"
 #include "llvm/Support/Errno.h"
-#include "llvm/Support/FileSystem.h"
 
 #include <climits>
 #include <sys/ptrace.h>
@@ -71,7 +71,7 @@ static void DisableASLR(int error_fd) {
 }
 
 static void DupDescriptor(int error_fd, const char *file, int fd, int flags) {
-  int target_fd = llvm::sys::RetryAfterSignal(-1, ::open, file, flags, 0666);
+  int target_fd = FileSystem::Instance().Open(file, flags, 0666);
 
   if (target_fd == -1)
     ExitWithError(error_fd, "DupDescriptor-open");
@@ -282,10 +282,19 @@ ProcessLauncherPosixFork::LaunchProcess(const ProcessLaunchInfo &launch_info,
   // parent process
 
   pipe.CloseWriteFileDescriptor();
-  char buf[1000];
-  int r = read(pipe.GetReadFileDescriptor(), buf, sizeof buf);
+  llvm::SmallString<0> buf;
+  size_t pos = 0;
+  ssize_t r = 0;
+  do {
+    pos += r;
+    buf.resize_for_overwrite(pos + 100);
+    r = llvm::sys::RetryAfterSignal(-1, read, pipe.GetReadFileDescriptor(),
+                                    buf.begin() + pos, buf.size() - pos);
+  } while (r > 0);
+  assert(r != -1);
 
-  if (r == 0)
+  buf.resize(pos);
+  if (buf.empty())
     return HostProcess(pid); // No error. We're done.
 
   error.SetErrorString(buf);

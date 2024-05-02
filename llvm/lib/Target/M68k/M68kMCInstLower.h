@@ -44,11 +44,11 @@ public:
 
   MCOperand LowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym) const;
 
-  Optional<MCOperand> LowerOperand(const MachineInstr *MI,
-                                   const MachineOperand &MO) const;
+  std::optional<MCOperand> LowerOperand(const MachineInstr *MI,
+                                        const MachineOperand &MO) const;
 
   void Lower(const MachineInstr *MI, MCInst &OutMI) const;
 };
 } // namespace llvm
 
-#endif
+#endif // LLVM_LIB_TARGET_M68K_M68KMCINSTLOWER_H

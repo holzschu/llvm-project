@@ -15,13 +15,13 @@
 
 #include "SymbolTable.h"
 #include "Config.h"
-#include "LinkerScript.h"
+#include "InputFiles.h"
 #include "Symbols.h"
-#include "SyntheticSections.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Demangle/Demangle.h"
 
 using namespace llvm;
 using namespace llvm::object;
@@ -29,7 +29,7 @@ using namespace llvm::ELF;
 using namespace lld;
 using namespace lld::elf;
 
-std::unique_ptr<SymbolTable> elf::symtab;
+SymbolTable elf::symtab;
 
 void SymbolTable::wrap(Symbol *sym, Symbol *real, Symbol *wrap) {
   // Redirect __real_foo to the original foo and foo to the original __wrap_foo.
@@ -40,9 +40,15 @@ void SymbolTable::wrap(Symbol *sym, Symbol *real, Symbol *wrap) {
   idx2 = idx1;
   idx1 = idx3;
 
-  if (real->exportDynamic)
-    sym->exportDynamic = true;
-  if (!real->isUsedInRegularObj && sym->isUndefined())
+  // Propagate symbol usage information to the redirected symbols.
+  if (sym->isUsedInRegularObj)
+    wrap->isUsedInRegularObj = true;
+  if (real->isUsedInRegularObj)
+    sym->isUsedInRegularObj = true;
+  else if (!sym->isDefined())
+    // Now that all references to sym have been redirected to wrap, if there are
+    // no references to real (which has been redirected to sym), we only need to
+    // keep sym if it was defined, otherwise it's unused and can be dropped.
     sym->isUsedInRegularObj = false;
 
   // Now renaming is complete, and no one refers to real. We drop real from
@@ -82,28 +88,24 @@ Symbol *SymbolTable::insert(StringRef name) {
   Symbol *sym = reinterpret_cast<Symbol *>(make<SymbolUnion>());
   symVector.push_back(sym);
 
-  // *sym was not initialized by a constructor. Fields that may get referenced
-  // when it is a placeholder must be initialized here.
+  // *sym was not initialized by a constructor. Initialize all Symbol fields.
+  memset(sym, 0, sizeof(Symbol));
   sym->setName(name);
-  sym->symbolKind = Symbol::PlaceholderKind;
+  sym->partition = 1;
   sym->versionId = VER_NDX_GLOBAL;
-  sym->visibility = STV_DEFAULT;
-  sym->isUsedInRegularObj = false;
-  sym->exportDynamic = false;
-  sym->inDynamicList = false;
-  sym->canInline = true;
-  sym->referenced = false;
-  sym->traced = false;
-  sym->scriptDefined = false;
   if (pos != StringRef::npos)
     sym->hasVersionSuffix = true;
-  sym->partition = 1;
   return sym;
 }
 
-Symbol *SymbolTable::addSymbol(const Symbol &newSym) {
+// This variant of addSymbol is used by BinaryFile::parse to check duplicate
+// symbol errors.
+Symbol *SymbolTable::addAndCheckDuplicate(const Defined &newSym) {
   Symbol *sym = insert(newSym.getName());
+  if (sym->isDefined())
+    sym->checkDuplicate(newSym);
   sym->resolve(newSym);
+  sym->isUsedInRegularObj = true;
   return sym;
 }
 
@@ -142,14 +144,16 @@ StringMap<SmallVector<Symbol *, 0>> &SymbolTable::getDemangledSyms() {
       if (canBeVersioned(*sym)) {
         StringRef name = sym->getName();
         size_t pos = name.find('@');
+        std::string substr;
         if (pos == std::string::npos)
-          demangled = demangle(name, config->demangle);
-        else if (pos + 1 == name.size() || name[pos + 1] == '@')
-          demangled = demangle(name.substr(0, pos), config->demangle);
-        else
-          demangled = (demangle(name.substr(0, pos), config->demangle) +
-                       name.substr(pos))
-                          .str();
+          demangled = demangle(name);
+        else if (pos + 1 == name.size() || name[pos + 1] == '@') {
+          substr = name.substr(0, pos);
+          demangled = demangle(substr);
+        } else {
+          substr = name.substr(0, pos);
+          demangled = (demangle(substr) + name.substr(pos)).str();
+        }
         (*demangledSyms)[demangled].push_back(sym);
       }
   }
@@ -169,10 +173,11 @@ SmallVector<Symbol *, 0> SymbolTable::findAllByVersion(SymbolVersion ver,
                                                        bool includeNonDefault) {
   SmallVector<Symbol *, 0> res;
   SingleStringMatcher m(ver.name);
-  auto check = [&](StringRef name) {
-    size_t pos = name.find('@');
+  auto check = [&](const Symbol &sym) -> bool {
     if (!includeNonDefault)
-      return pos == StringRef::npos;
+      return !sym.hasVersionSuffix;
+    StringRef name = sym.getName();
+    size_t pos = name.find('@');
     return !(pos + 1 < name.size() && name[pos + 1] == '@');
   };
 
@@ -180,14 +185,13 @@ SmallVector<Symbol *, 0> SymbolTable::findAllByVersion(SymbolVersion ver,
     for (auto &p : getDemangledSyms())
       if (m.match(p.first()))
         for (Symbol *sym : p.second)
-          if (check(sym->getName()))
+          if (check(*sym))
             res.push_back(sym);
     return res;
   }
 
   for (Symbol *sym : symVector)
-    if (canBeVersioned(*sym) && check(sym->getName()) &&
-        m.match(sym->getName()))
+    if (canBeVersioned(*sym) && check(*sym) && m.match(sym->getName()))
       res.push_back(sym);
   return res;
 }
@@ -230,10 +234,9 @@ bool SymbolTable::assignExactVersion(SymbolVersion ver, uint16_t versionId,
         sym->getName().contains('@'))
       continue;
 
-    // If the version has not been assigned, verdefIndex is -1. Use an arbitrary
-    // number (0) to indicate the version has been assigned.
-    if (sym->verdefIndex == uint16_t(-1)) {
-      sym->verdefIndex = 0;
+    // If the version has not been assigned, assign versionId to the symbol.
+    if (!sym->versionScriptAssigned) {
+      sym->versionScriptAssigned = true;
       sym->versionId = versionId;
     }
     if (sym->versionId == versionId)
@@ -251,8 +254,8 @@ void SymbolTable::assignWildcardVersion(SymbolVersion ver, uint16_t versionId,
   // so we set a version to a symbol only if no version has been assigned
   // to the symbol. This behavior is compatible with GNU.
   for (Symbol *sym : findAllByVersion(ver, includeNonDefault))
-    if (sym->verdefIndex == uint16_t(-1)) {
-      sym->verdefIndex = 0;
+    if (!sym->versionScriptAssigned) {
+      sym->versionScriptAssigned = true;
       sym->versionId = versionId;
     }
 }
@@ -308,7 +311,7 @@ void SymbolTable::scanVersionScript() {
 
   // Then, assign versions to "*". In GNU linkers they have lower priority than
   // other wildcards.
-  for (VersionDefinition &v : config->versionDefinitions) {
+  for (VersionDefinition &v : llvm::reverse(config->versionDefinitions)) {
     for (SymbolVersion &pat : v.nonLocalPatterns)
       if (pat.hasWildcard && pat.name == "*")
         assignWildcard(pat, v.id, v.name);

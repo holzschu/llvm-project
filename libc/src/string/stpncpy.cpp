@@ -7,11 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "src/string/stpncpy.h"
-#include "src/string/memory_utils/memset_implementations.h"
+#include "src/string/memory_utils/inline_bzero.h"
 
 #include "src/__support/common.h"
 
-namespace __llvm_libc {
+namespace LIBC_NAMESPACE {
 
 LLVM_LIBC_FUNCTION(char *, stpncpy,
                    (char *__restrict dest, const char *__restrict src,
@@ -22,8 +22,8 @@ LLVM_LIBC_FUNCTION(char *, stpncpy,
     dest[i] = src[i];
   // When n>strlen(src), n-strlen(src) \0 are appended.
   if (n > i)
-    inline_memset(dest + i, 0, n - i);
+    inline_bzero(dest + i, n - i);
   return dest + i;
 }
 
-} // namespace __llvm_libc
+} // namespace LIBC_NAMESPACE

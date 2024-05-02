@@ -23,36 +23,40 @@ def FIRToLLVMLowering : Pass<"fir-to-llvm-ir", "mlir::ModuleOp"> {
     will also convert ops in the standard and FIRCG dialects.
   }];
   let constructor = "::fir::createFIRToLLVMPass()";
-  let dependentDialects = ["mlir::LLVM::LLVMDialect"];
+  let dependentDialects = ["mlir::LLVM::LLVMDialect", "mlir::DLTIDialect"];
   let options = [
     Option<"forcedTargetTriple", "target", "std::string", /*default=*/"",
-           "Override module's target triple.">
+           "Override module's target triple.">,
+    Option<"forcedDataLayout", "datalayout", "std::string", /*default=*/"",
+           "Override module's data layout.">,
+    Option<"applyTBAA", "apply-tbaa", "bool", /*default=*/"false",
+           "Attach TBAA tags to memory accessing operations.">
   ];
 }
 
-def CodeGenRewrite : Pass<"cg-rewrite"> {
+def CodeGenRewrite : Pass<"cg-rewrite", "mlir::ModuleOp"> {
   let summary = "Rewrite some FIR ops into their code-gen forms.";
   let description = [{
     Fuse specific subgraphs into single Ops for code generation.
   }];
-  let constructor = "fir::createFirCodeGenRewritePass()";
+  let constructor = "::fir::createFirCodeGenRewritePass()";
   let dependentDialects = [
-    "fir::FIROpsDialect", "fir::FIRCodeGenDialect", "mlir::BuiltinDialect",
-    "mlir::LLVM::LLVMDialect", "mlir::omp::OpenMPDialect"
+    "fir::FIROpsDialect", "fir::FIRCodeGenDialect"
   ];
   let statistics = [
     Statistic<"numDCE", "num-dce'd", "Number of operations eliminated">
   ];
 }
 
-def TargetRewrite : Pass<"target-rewrite", "mlir::ModuleOp"> {
+def TargetRewritePass : Pass<"target-rewrite", "mlir::ModuleOp"> {
   let summary = "Rewrite some FIR dialect into target specific forms.";
   let description = [{
       Certain abstractions in the FIR dialect need to be rewritten to reflect
       representations that may differ based on the target machine.
   }];
   let constructor = "::fir::createFirTargetRewritePass()";
-  let dependentDialects = [ "fir::FIROpsDialect" ];
+  let dependentDialects = [ "fir::FIROpsDialect", "mlir::func::FuncDialect",
+                            "mlir::DLTIDialect" ];
   let options = [
     Option<"forcedTargetTriple", "target", "std::string", /*default=*/"",
            "Override module's target triple.">,
@@ -61,7 +65,20 @@ def TargetRewrite : Pass<"target-rewrite", "mlir::ModuleOp"> {
            "Disable target-specific conversion of CHARACTER.">,
     Option<"noComplexConversion", "no-complex-conversion",
            "bool", /*default=*/"false",
-           "Disable target-specific conversion of COMPLEX.">
+           "Disable target-specific conversion of COMPLEX.">,
+    Option<"noStructConversion", "no-struct-conversion",
+           "bool", /*default=*/"false",
+           "Disable target-specific conversion of derived type value.">
+  ];
+}
+
+def BoxedProcedurePass : Pass<"boxed-procedure", "mlir::ModuleOp"> {
+  let constructor = "::fir::createBoxedProcedurePass()";
+  let options = [
+    Option<"useThunks", "use-thunks",
+           "bool", /*default=*/"true",
+           "Convert procedure pointer abstractions to a single code pointer, "
+           "deploying thunks wherever required.">
   ];
 }
 

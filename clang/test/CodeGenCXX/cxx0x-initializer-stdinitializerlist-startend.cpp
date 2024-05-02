@@ -33,15 +33,15 @@ namespace std {
 }
 
 // CHECK: @_ZGR15globalInitList1_ = internal constant [3 x i32] [i32 1, i32 2, i32 3]
-// CHECK: @globalInitList1 ={{.*}} global {{[^ ]+}} { i32* getelementptr inbounds ([3 x i32], [3 x i32]* @_ZGR15globalInitList1_, {{[^)]*}}), i32*
+// CHECK: @globalInitList1 ={{.*}} global {{[^ ]+}} { ptr @_ZGR15globalInitList1_, ptr
 std::initializer_list<int> globalInitList1 = {1, 2, 3};
 
 void fn1(int i) {
   // CHECK-LABEL: define{{.*}} void @_Z3fn1i
   // temporary array
   // CHECK: [[array:%[^ ]+]] = alloca [3 x i32]
-  // CHECK: getelementptr inbounds [3 x i32], [3 x i32]* [[array]], i{{32|64}} 0
-  // CHECK-NEXT: store i32 1, i32*
+  // CHECK: getelementptr inbounds [3 x i32], ptr [[array]], i{{32|64}} 0
+  // CHECK-NEXT: store i32 1, ptr
   // CHECK-NEXT: getelementptr
   // CHECK-NEXT: store
   // CHECK-NEXT: getelementptr
@@ -49,11 +49,11 @@ void fn1(int i) {
   // CHECK-NEXT: store
   // init the list
   // CHECK-NEXT: getelementptr
-  // CHECK-NEXT: getelementptr inbounds [3 x i32], [3 x i32]*
-  // CHECK-NEXT: store i32*
+  // CHECK-NEXT: getelementptr inbounds [3 x i32], ptr
+  // CHECK-NEXT: store ptr
   // CHECK-NEXT: getelementptr
-  // CHECK-NEXT: getelementptr inbounds [3 x i32], [3 x i32]* [[array]], i{{32|64}} 0, i{{32|64}} 3
-  // CHECK-NEXT: store i32*
+  // CHECK-NEXT: getelementptr inbounds [3 x i32], ptr [[array]], i{{32|64}} 0, i{{32|64}} 3
+  // CHECK-NEXT: store ptr
   std::initializer_list<int> intlist{1, 2, i};
 }
 

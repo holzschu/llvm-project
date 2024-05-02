@@ -1,15 +1,18 @@
 add_mlir_dialect_library(MLIRSCFTransforms
-  AffineCanonicalizationUtils.cpp
+  BufferDeallocationOpInterfaceImpl.cpp
+  BufferizableOpInterfaceImpl.cpp
   Bufferize.cpp
   ForToWhile.cpp
   LoopCanonicalization.cpp
   LoopPipelining.cpp
   LoopRangeFolding.cpp
   LoopSpecialization.cpp
+  OneToNTypeConversion.cpp
+  ParallelLoopCollapsing.cpp
   ParallelLoopFusion.cpp
   ParallelLoopTiling.cpp
   StructuralTypeConversions.cpp
-  Utils.cpp
+  TileUsingInterface.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${MLIR_MAIN_INCLUDE_DIR}/mlir/Dialect/SCF
@@ -18,16 +21,23 @@ add_mlir_dialect_library(MLIRSCFTransforms
   MLIRSCFPassIncGen
 
   LINK_LIBS PUBLIC
-  MLIRAffine
-  MLIRArithmetic
+  MLIRAffineDialect
+  MLIRAffineAnalysis
+  MLIRArithDialect
+  MLIRBufferizationDialect
   MLIRBufferizationTransforms
+  MLIRDestinationStyleOpInterface
+  MLIRDialectUtils
   MLIRIR
-  MLIRMemRef
+  MLIRMemRefDialect
   MLIRPass
-  MLIRSCF
-  MLIRStandard
+  MLIRSCFDialect
+  MLIRSCFUtils
+  MLIRSideEffectInterfaces
   MLIRSupport
-  MLIRTensor
+  MLIRTensorDialect
+  MLIRTensorTransforms
+  MLIRTilingInterface
   MLIRTransforms
   MLIRTransformUtils
 )

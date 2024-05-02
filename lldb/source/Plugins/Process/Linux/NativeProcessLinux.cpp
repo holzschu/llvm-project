@@ -15,6 +15,7 @@
 
 #include <fstream>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -38,11 +39,13 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/LLDBAssert.h"
+#include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/State.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StringExtractor.h"
 #include "llvm/ADT/ScopeExit.h"
 #include "llvm/Support/Errno.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Threading.h"
 
@@ -79,7 +82,7 @@ static bool ProcessVmReadvSupported() {
   static llvm::once_flag flag;
 
   llvm::call_once(flag, [] {
-    Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+    Log *log = GetLog(POSIXLog::Process);
 
     uint32_t source = 0x47424742;
     uint32_t dest = 0;
@@ -108,7 +111,7 @@ static bool ProcessVmReadvSupported() {
 }
 
 static void MaybeLogLaunchInfo(const ProcessLaunchInfo &info) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   if (!log)
     return;
 
@@ -143,7 +146,7 @@ static void DisplayBytes(StreamString &s, void *bytes, uint32_t count) {
 }
 
 static void PtraceDisplayBytes(int &req, void *data, size_t data_size) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PTRACE));
+  Log *log = GetLog(POSIXLog::Ptrace);
   if (!log)
     return;
   StreamString buf;
@@ -212,13 +215,55 @@ static Status EnsureFDFlags(int fd, int flags) {
   return error;
 }
 
-// Public Static Methods
+static llvm::Error AddPtraceScopeNote(llvm::Error original_error) {
+  Expected<int> ptrace_scope = GetPtraceScope();
+  if (auto E = ptrace_scope.takeError()) {
+    Log *log = GetLog(POSIXLog::Process);
+    LLDB_LOG(log, "error reading value of ptrace_scope: {0}", E);
+
+    // The original error is probably more interesting than not being able to
+    // read or interpret ptrace_scope.
+    return original_error;
+  }
+
+  // We only have suggestions to provide for 1-3.
+  switch (*ptrace_scope) {
+  case 1:
+  case 2:
+    return llvm::createStringError(
+        std::error_code(errno, std::generic_category()),
+        "The current value of ptrace_scope is %d, which can cause ptrace to "
+        "fail to attach to a running process. To fix this, run:\n"
+        "\tsudo sysctl -w kernel.yama.ptrace_scope=0\n"
+        "For more information, see: "
+        "https://www.kernel.org/doc/Documentation/security/Yama.txt.",
+        *ptrace_scope);
+  case 3:
+    return llvm::createStringError(
+        std::error_code(errno, std::generic_category()),
+        "The current value of ptrace_scope is 3, which will cause ptrace to "
+        "fail to attach to a running process. This value cannot be changed "
+        "without rebooting.\n"
+        "For more information, see: "
+        "https://www.kernel.org/doc/Documentation/security/Yama.txt.");
+  case 0:
+  default:
+    return original_error;
+  }
+}
+
+NativeProcessLinux::Manager::Manager(MainLoop &mainloop)
+    : NativeProcessProtocol::Manager(mainloop) {
+  Status status;
+  m_sigchld_handle = mainloop.RegisterSignal(
+      SIGCHLD, [this](MainLoopBase &) { SigchldHandler(); }, status);
+  assert(m_sigchld_handle && status.Success());
+}
 
 llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
-NativeProcessLinux::Factory::Launch(ProcessLaunchInfo &launch_info,
-                                    NativeDelegate &native_delegate,
-                                    MainLoop &mainloop) const {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+NativeProcessLinux::Manager::Launch(ProcessLaunchInfo &launch_info,
+                                    NativeDelegate &native_delegate) {
+  Log *log = GetLog(POSIXLog::Process);
 
   MaybeLogLaunchInfo(launch_info);
 
@@ -233,10 +278,10 @@ NativeProcessLinux::Factory::Launch(ProcessLaunchInfo &launch_info,
   }
 
   // Wait for the child process to trap on its call to execve.
-  int wstatus;
+  int wstatus = 0;
   ::pid_t wpid = llvm::sys::RetryAfterSignal(-1, ::waitpid, pid, &wstatus, 0);
   assert(wpid == pid);
-  (void)wpid;
+  UNUSED_IF_ASSERT_DISABLED(wpid);
   if (!WIFSTOPPED(wstatus)) {
     LLDB_LOG(log, "Could not sync with inferior process: wstatus={1}",
              WaitStatus::Decode(wstatus));
@@ -245,54 +290,47 @@ NativeProcessLinux::Factory::Launch(ProcessLaunchInfo &launch_info,
   }
   LLDB_LOG(log, "inferior started, now in stopped state");
 
-  ProcessInstanceInfo Info;
-  if (!Host::GetProcessInfo(pid, Info)) {
-    return llvm::make_error<StringError>("Cannot get process architecture",
-                                         llvm::inconvertibleErrorCode());
-  }
-
-  // Set the architecture to the exe architecture.
-  LLDB_LOG(log, "pid = {0:x}, detected architecture {1}", pid,
-           Info.GetArchitecture().GetArchitectureName());
-
   status = SetDefaultPtraceOpts(pid);
   if (status.Fail()) {
     LLDB_LOG(log, "failed to set default ptrace options: {0}", status);
     return status.ToError();
   }
 
+  llvm::Expected<ArchSpec> arch_or =
+      NativeRegisterContextLinux::DetermineArchitecture(pid);
+  if (!arch_or)
+    return arch_or.takeError();
+
   return std::unique_ptr<NativeProcessLinux>(new NativeProcessLinux(
       pid, launch_info.GetPTY().ReleasePrimaryFileDescriptor(), native_delegate,
-      Info.GetArchitecture(), mainloop, {pid}));
+      *arch_or, *this, {pid}));
 }
 
 llvm::Expected<std::unique_ptr<NativeProcessProtocol>>
-NativeProcessLinux::Factory::Attach(
-    lldb::pid_t pid, NativeProcessProtocol::NativeDelegate &native_delegate,
-    MainLoop &mainloop) const {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+NativeProcessLinux::Manager::Attach(
+    lldb::pid_t pid, NativeProcessProtocol::NativeDelegate &native_delegate) {
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "pid = {0:x}", pid);
-
-  // Retrieve the architecture for the running process.
-  ProcessInstanceInfo Info;
-  if (!Host::GetProcessInfo(pid, Info)) {
-    return llvm::make_error<StringError>("Cannot get process architecture",
-                                         llvm::inconvertibleErrorCode());
-  }
 
   auto tids_or = NativeProcessLinux::Attach(pid);
   if (!tids_or)
     return tids_or.takeError();
+  ArrayRef<::pid_t> tids = *tids_or;
+  llvm::Expected<ArchSpec> arch_or =
+      NativeRegisterContextLinux::DetermineArchitecture(tids[0]);
+  if (!arch_or)
+    return arch_or.takeError();
 
-  return std::unique_ptr<NativeProcessLinux>(new NativeProcessLinux(
-      pid, -1, native_delegate, Info.GetArchitecture(), mainloop, *tids_or));
+  return std::unique_ptr<NativeProcessLinux>(
+      new NativeProcessLinux(pid, -1, native_delegate, *arch_or, *this, tids));
 }
 
 NativeProcessLinux::Extension
-NativeProcessLinux::Factory::GetSupportedExtensions() const {
+NativeProcessLinux::Manager::GetSupportedExtensions() const {
   NativeProcessLinux::Extension supported =
       Extension::multiprocess | Extension::fork | Extension::vfork |
-      Extension::pass_signals | Extension::auxv | Extension::libraries_svr4;
+      Extension::pass_signals | Extension::auxv | Extension::libraries_svr4 |
+      Extension::siginfo_read;
 
 #ifdef __aarch64__
   // At this point we do not have a process so read auxv directly.
@@ -303,23 +341,98 @@ NativeProcessLinux::Factory::GetSupportedExtensions() const {
   return supported;
 }
 
+static std::optional<std::pair<lldb::pid_t, WaitStatus>> WaitPid() {
+  Log *log = GetLog(POSIXLog::Process);
+
+  int status;
+  ::pid_t wait_pid = llvm::sys::RetryAfterSignal(
+      -1, ::waitpid, -1, &status, __WALL | __WNOTHREAD | WNOHANG);
+
+  if (wait_pid == 0)
+    return std::nullopt;
+
+  if (wait_pid == -1) {
+    Status error(errno, eErrorTypePOSIX);
+    LLDB_LOG(log, "waitpid(-1, &status, _) failed: {1}", error);
+    return std::nullopt;
+  }
+
+  WaitStatus wait_status = WaitStatus::Decode(status);
+
+  LLDB_LOG(log, "waitpid(-1, &status, _) = {0}, status = {1}", wait_pid,
+           wait_status);
+  return std::make_pair(wait_pid, wait_status);
+}
+
+void NativeProcessLinux::Manager::SigchldHandler() {
+  Log *log = GetLog(POSIXLog::Process);
+  while (true) {
+    auto wait_result = WaitPid();
+    if (!wait_result)
+      return;
+    lldb::pid_t pid = wait_result->first;
+    WaitStatus status = wait_result->second;
+
+    // Ask each process whether it wants to handle the event. Each event should
+    // be handled by exactly one process, but thread creation events require
+    // special handling.
+    // Thread creation consists of two events (one on the parent and one on the
+    // child thread) and they can arrive in any order nondeterministically. The
+    // parent event carries the information about the child thread, but not
+    // vice-versa. This means that if the child event arrives first, it may not
+    // be handled by any process (because it doesn't know the thread belongs to
+    // it).
+    bool handled = llvm::any_of(m_processes, [&](NativeProcessLinux *process) {
+      return process->TryHandleWaitStatus(pid, status);
+    });
+    if (!handled) {
+      if (status.type == WaitStatus::Stop && status.status == SIGSTOP) {
+        // Store the thread creation event for later collection.
+        m_unowned_threads.insert(pid);
+      } else {
+        LLDB_LOG(log, "Ignoring waitpid event {0} for pid {1}", status, pid);
+      }
+    }
+  }
+}
+
+void NativeProcessLinux::Manager::CollectThread(::pid_t tid) {
+  Log *log = GetLog(POSIXLog::Process);
+
+  if (m_unowned_threads.erase(tid))
+    return; // We've encountered this thread already.
+
+  // The TID is not tracked yet, let's wait for it to appear.
+  int status = -1;
+  LLDB_LOG(log,
+           "received clone event for tid {0}. tid not tracked yet, "
+           "waiting for it to appear...",
+           tid);
+  ::pid_t wait_pid =
+      llvm::sys::RetryAfterSignal(-1, ::waitpid, tid, &status, __WALL);
+
+  // It's theoretically possible to get other events if the entire process was
+  // SIGKILLed before we got a chance to check this. In that case, we'll just
+  // clean everything up when we get the process exit event.
+
+  LLDB_LOG(log,
+           "waitpid({0}, &status, __WALL) => {1} (errno: {2}, status = {3})",
+           tid, wait_pid, errno, WaitStatus::Decode(status));
+}
+
 // Public Instance Methods
 
 NativeProcessLinux::NativeProcessLinux(::pid_t pid, int terminal_fd,
                                        NativeDelegate &delegate,
-                                       const ArchSpec &arch, MainLoop &mainloop,
+                                       const ArchSpec &arch, Manager &manager,
                                        llvm::ArrayRef<::pid_t> tids)
-    : NativeProcessELF(pid, terminal_fd, delegate), m_arch(arch),
-      m_main_loop(mainloop), m_intel_pt_manager(pid) {
+    : NativeProcessELF(pid, terminal_fd, delegate), m_manager(manager),
+      m_arch(arch), m_intel_pt_collector(*this) {
+  manager.AddProcess(*this);
   if (m_terminal_fd != -1) {
     Status status = EnsureFDFlags(m_terminal_fd, O_NONBLOCK);
     assert(status.Success());
   }
-
-  Status status;
-  m_sigchld_handle = mainloop.RegisterSignal(
-      SIGCHLD, [this](MainLoopBase &) { SigchldHandler(); }, status);
-  assert(m_sigchld_handle && status.Success());
 
   for (const auto &tid : tids) {
     NativeThreadLinux &thread = AddThread(tid, /*resume*/ false);
@@ -329,13 +442,10 @@ NativeProcessLinux::NativeProcessLinux(::pid_t pid, int terminal_fd,
   // Let our process instance know the thread has stopped.
   SetCurrentThreadID(tids[0]);
   SetState(StateType::eStateStopped, false);
-
-  // Proccess any signals we received before installing our handler
-  SigchldHandler();
 }
 
 llvm::Expected<std::vector<::pid_t>> NativeProcessLinux::Attach(::pid_t pid) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
 
   Status status;
   // Use a map to keep track of the threads which we have attached/need to
@@ -355,6 +465,11 @@ llvm::Expected<std::vector<::pid_t>> NativeProcessLinux::Attach(::pid_t pid) {
           if (status.GetError() == ESRCH) {
             it = tids_to_attach.erase(it);
             continue;
+          }
+          if (status.GetError() == EPERM) {
+            // Depending on the value of ptrace_scope, we can return a different
+            // error that suggests how to fix it.
+            return AddPtraceScopeNote(status.ToError());
           }
           return status.ToError();
         }
@@ -425,10 +540,24 @@ Status NativeProcessLinux::SetDefaultPtraceOpts(lldb::pid_t pid) {
   return PtraceWrapper(PTRACE_SETOPTIONS, pid, nullptr, (void *)ptrace_opts);
 }
 
-// Handles all waitpid events from the inferior process.
+bool NativeProcessLinux::TryHandleWaitStatus(lldb::pid_t pid,
+                                             WaitStatus status) {
+  if (pid == GetID() &&
+      (status.type == WaitStatus::Exit || status.type == WaitStatus::Signal)) {
+    // The process exited.  We're done monitoring.  Report to delegate.
+    SetExitStatus(status, true);
+    return true;
+  }
+  if (NativeThreadLinux *thread = GetThreadByID(pid)) {
+    MonitorCallback(*thread, status);
+    return true;
+  }
+  return false;
+}
+
 void NativeProcessLinux::MonitorCallback(NativeThreadLinux &thread,
                                          WaitStatus status) {
-  Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS));
+  Log *log = GetLog(LLDBLog::Process);
 
   // Certain activities differ based on whether the pid is the tid of the main
   // thread.
@@ -445,13 +574,7 @@ void NativeProcessLinux::MonitorCallback(NativeThreadLinux &thread,
     // This is a thread that exited.  Ensure we're not tracking it anymore.
     StopTrackingThread(thread);
 
-    if (is_main_thread) {
-      // The main thread exited.  We're done monitoring.  Report to delegate.
-      SetExitStatus(status, true);
-
-      // Notify delegate that our process has exited.
-      SetState(StateType::eStateExited, true);
-    }
+    assert(!is_main_thread && "Main thread exits handled elsewhere");
     return;
   }
 
@@ -499,30 +622,9 @@ void NativeProcessLinux::MonitorCallback(NativeThreadLinux &thread,
   }
 }
 
-void NativeProcessLinux::WaitForCloneNotification(::pid_t pid) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
-
-  // The PID is not tracked yet, let's wait for it to appear.
-  int status = -1;
-  LLDB_LOG(log,
-           "received clone event for pid {0}. pid not tracked yet, "
-           "waiting for it to appear...",
-           pid);
-  ::pid_t wait_pid =
-      llvm::sys::RetryAfterSignal(-1, ::waitpid, pid, &status, __WALL);
-
-  // It's theoretically possible to get other events if the entire process was
-  // SIGKILLed before we got a chance to check this. In that case, we'll just
-  // clean everything up when we get the process exit event.
-
-  LLDB_LOG(log,
-           "waitpid({0}, &status, __WALL) => {1} (errno: {2}, status = {3})",
-           pid, wait_pid, errno, WaitStatus::Decode(status));
-}
-
 void NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info,
                                         NativeThreadLinux &thread) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   const bool is_main_thread = (thread.GetID() == GetID());
 
   assert(info.si_signo == SIGTRAP && "Unexpected child signal!");
@@ -569,7 +671,7 @@ void NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info,
     SetCurrentThreadID(main_thread->GetID());
     main_thread->SetStoppedByExec();
 
-    // Tell coordinator about about the "new" (since exec) stopped main thread.
+    // Tell coordinator about the "new" (since exec) stopped main thread.
     ThreadWasCreated(*main_thread);
 
     // Let our delegate know we have just exec'd.
@@ -608,6 +710,13 @@ void NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info,
       state = eStateRunning;
     }
     ResumeThread(thread, state, LLDB_INVALID_SIGNAL_NUMBER);
+
+    if (is_main_thread) {
+      // Main thread report the read (WIFEXITED) event only after all threads in
+      // the process exit, so we need to stop tracking it here instead of in
+      // MonitorCallback
+      StopTrackingThread(thread);
+    }
 
     break;
   }
@@ -703,7 +812,7 @@ void NativeProcessLinux::MonitorSIGTRAP(const siginfo_t &info,
 }
 
 void NativeProcessLinux::MonitorTrace(NativeThreadLinux &thread) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "received trace event, pid = {0}", thread.GetID());
 
   // This thread is currently stopped.
@@ -713,8 +822,7 @@ void NativeProcessLinux::MonitorTrace(NativeThreadLinux &thread) {
 }
 
 void NativeProcessLinux::MonitorBreakpoint(NativeThreadLinux &thread) {
-  Log *log(
-      GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Process | LLDBLog::Breakpoints);
   LLDB_LOG(log, "received breakpoint event, pid = {0}", thread.GetID());
 
   // Mark the thread as stopped at breakpoint.
@@ -730,8 +838,7 @@ void NativeProcessLinux::MonitorBreakpoint(NativeThreadLinux &thread) {
 
 void NativeProcessLinux::MonitorWatchpoint(NativeThreadLinux &thread,
                                            uint32_t wp_index) {
-  Log *log(
-      GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_WATCHPOINTS));
+  Log *log = GetLog(LLDBLog::Process | LLDBLog::Watchpoints);
   LLDB_LOG(log, "received watchpoint event, pid = {0}, wp_index = {1}",
            thread.GetID(), wp_index);
 
@@ -749,7 +856,7 @@ void NativeProcessLinux::MonitorSignal(const siginfo_t &info,
   const int signo = info.si_signo;
   const bool is_from_llgs = info.si_pid == getpid();
 
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
 
   // POSIX says that process behaviour is undefined after it ignores a SIGFPE,
   // SIGILL, SIGSEGV, or SIGBUS *unless* that signal was generated by a kill(2)
@@ -833,11 +940,11 @@ void NativeProcessLinux::MonitorSignal(const siginfo_t &info,
 
 bool NativeProcessLinux::MonitorClone(NativeThreadLinux &parent,
                                       lldb::pid_t child_pid, int event) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "parent_tid={0}, child_pid={1}, event={2}", parent.GetID(),
            child_pid, event);
 
-  WaitForCloneNotification(child_pid);
+  m_manager.CollectThread(child_pid);
 
   switch (event) {
   case PTRACE_EVENT_CLONE: {
@@ -848,7 +955,7 @@ bool NativeProcessLinux::MonitorClone(NativeThreadLinux &parent,
     auto tgid_ret = getPIDForTID(child_pid);
     if (tgid_ret != child_pid) {
       // A new thread should have PGID matching our process' PID.
-      assert(!tgid_ret || tgid_ret.getValue() == GetID());
+      assert(!tgid_ret || *tgid_ret == GetID());
 
       NativeThreadLinux &child_thread = AddThread(child_pid, /*resume*/ true);
       ThreadWasCreated(child_thread);
@@ -858,13 +965,13 @@ bool NativeProcessLinux::MonitorClone(NativeThreadLinux &parent,
       break;
     }
   }
-    LLVM_FALLTHROUGH;
+    [[fallthrough]];
   case PTRACE_EVENT_FORK:
   case PTRACE_EVENT_VFORK: {
     bool is_vfork = event == PTRACE_EVENT_VFORK;
     std::unique_ptr<NativeProcessLinux> child_process{new NativeProcessLinux(
         static_cast<::pid_t>(child_pid), m_terminal_fd, m_delegate, m_arch,
-        m_main_loop, {static_cast<::pid_t>(child_pid)})};
+        m_manager, {static_cast<::pid_t>(child_pid)})};
     if (!is_vfork)
       child_process->m_software_breakpoints = m_software_breakpoints;
 
@@ -888,14 +995,17 @@ bool NativeProcessLinux::MonitorClone(NativeThreadLinux &parent,
 }
 
 bool NativeProcessLinux::SupportHardwareSingleStepping() const {
-  if (m_arch.GetMachine() == llvm::Triple::arm || m_arch.IsMIPS())
+  if (m_arch.IsMIPS() || m_arch.GetMachine() == llvm::Triple::arm ||
+      m_arch.GetTriple().isRISCV() || m_arch.GetTriple().isLoongArch())
     return false;
   return true;
 }
 
 Status NativeProcessLinux::Resume(const ResumeActionList &resume_actions) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "pid {0}", GetID());
+
+  NotifyTracersProcessWillResume();
 
   bool software_single_step = !SupportHardwareSingleStepping();
 
@@ -937,14 +1047,20 @@ Status NativeProcessLinux::Resume(const ResumeActionList &resume_actions) {
     case eStateStepping: {
       // Run the thread, possibly feeding it the signal.
       const int signo = action->signal;
-      ResumeThread(static_cast<NativeThreadLinux &>(*thread), action->state,
-                   signo);
+      Status error = ResumeThread(static_cast<NativeThreadLinux &>(*thread),
+                                  action->state, signo);
+      if (error.Fail())
+        return Status("NativeProcessLinux::%s: failed to resume thread "
+                      "for pid %" PRIu64 ", tid %" PRIu64 ", error = %s",
+                      __FUNCTION__, GetID(), thread->GetID(),
+                      error.AsCString());
+
       break;
     }
 
     case eStateSuspended:
     case eStateStopped:
-      llvm_unreachable("Unexpected state");
+      break;
 
     default:
       return Status("NativeProcessLinux::%s (): unexpected state %s specified "
@@ -969,9 +1085,6 @@ Status NativeProcessLinux::Halt() {
 Status NativeProcessLinux::Detach() {
   Status error;
 
-  // Stop monitoring the inferior.
-  m_sigchld_handle.reset();
-
   // Tell ptrace to detach from the process.
   if (GetID() == LLDB_INVALID_PROCESS_ID)
     return error;
@@ -983,7 +1096,7 @@ Status NativeProcessLinux::Detach() {
           e; // Save the error, but still attempt to detach from other threads.
   }
 
-  m_intel_pt_manager.Clear();
+  m_intel_pt_collector.Clear();
 
   return error;
 }
@@ -991,7 +1104,7 @@ Status NativeProcessLinux::Detach() {
 Status NativeProcessLinux::Signal(int signo) {
   Status error;
 
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "sending signal {0} ({1}) to pid {1}", signo,
            Host::GetSignalAsCString(signo), GetID());
 
@@ -1004,7 +1117,7 @@ Status NativeProcessLinux::Signal(int signo) {
 Status NativeProcessLinux::Interrupt() {
   // Pick a running thread (or if none, a not-dead stopped thread) as the
   // chosen thread that will be the stop-reason thread.
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
 
   NativeThreadProtocol *running_thread = nullptr;
   NativeThreadProtocol *stopped_thread = nullptr;
@@ -1045,7 +1158,7 @@ Status NativeProcessLinux::Interrupt() {
 }
 
 Status NativeProcessLinux::Kill() {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "pid {0}", GetID());
 
   Status error;
@@ -1150,7 +1263,7 @@ Status NativeProcessLinux::GetMemoryRegionInfo(lldb::addr_t load_addr,
 }
 
 Status NativeProcessLinux::PopulateMemoryRegionCache() {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
 
   // If our cache is empty, pull the latest.  There should always be at least
   // one memory region if memory region handling is supported.
@@ -1177,11 +1290,11 @@ Status NativeProcessLinux::PopulateMemoryRegionCache() {
 
   // Linux kernel since 2.6.14 has /proc/{pid}/smaps
   // if CONFIG_PROC_PAGE_MONITOR is enabled
-  auto BufferOrError = getProcFile(GetID(), "smaps");
+  auto BufferOrError = getProcFile(GetID(), GetCurrentThreadID(), "smaps");
   if (BufferOrError)
     ParseLinuxSMapRegions(BufferOrError.get()->getBuffer(), callback);
   else {
-    BufferOrError = getProcFile(GetID(), "maps");
+    BufferOrError = getProcFile(GetID(), GetCurrentThreadID(), "maps");
     if (!BufferOrError) {
       m_supports_mem_region = LazyBool::eLazyBoolNo;
       return BufferOrError.getError();
@@ -1213,7 +1326,7 @@ Status NativeProcessLinux::PopulateMemoryRegionCache() {
 }
 
 void NativeProcessLinux::DoStopIDBumped(uint32_t newBumpId) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+  Log *log = GetLog(POSIXLog::Process);
   LLDB_LOG(log, "newBumpId={0}", newBumpId);
   LLDB_LOG(log, "clearing {0} entries from memory region cache",
            m_mem_region_cache.size());
@@ -1224,7 +1337,8 @@ llvm::Expected<uint64_t>
 NativeProcessLinux::Syscall(llvm::ArrayRef<uint64_t> args) {
   PopulateMemoryRegionCache();
   auto region_it = llvm::find_if(m_mem_region_cache, [](const auto &pair) {
-    return pair.first.GetExecutable() == MemoryRegionInfo::eYes;
+    return pair.first.GetExecutable() == MemoryRegionInfo::eYes &&
+        pair.first.GetShared() != MemoryRegionInfo::eYes;
   });
   if (region_it == m_mem_region_cache.end())
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
@@ -1232,14 +1346,14 @@ NativeProcessLinux::Syscall(llvm::ArrayRef<uint64_t> args) {
 
   addr_t exe_addr = region_it->first.GetRange().GetRangeBase();
 
-  NativeThreadLinux &thread = *GetThreadByID(GetID());
+  NativeThreadLinux &thread = *GetCurrentThread();
   assert(thread.GetState() == eStateStopped);
   NativeRegisterContextLinux &reg_ctx = thread.GetRegisterContext();
 
   NativeRegisterContextLinux::SyscallData syscall_data =
       *reg_ctx.GetSyscallData();
 
-  DataBufferSP registers_sp;
+  WritableDataBufferSP registers_sp;
   if (llvm::Error Err = reg_ctx.ReadAllRegisterValues(registers_sp).ToError())
     return std::move(Err);
   auto restore_regs = llvm::make_scope_exit(
@@ -1306,7 +1420,7 @@ NativeProcessLinux::Syscall(llvm::ArrayRef<uint64_t> args) {
 llvm::Expected<addr_t>
 NativeProcessLinux::AllocateMemory(size_t size, uint32_t permissions) {
 
-  llvm::Optional<NativeRegisterContextLinux::MmapData> mmap_data =
+  std::optional<NativeRegisterContextLinux::MmapData> mmap_data =
       GetCurrentThread()->GetRegisterContext().GetMmapData();
   if (!mmap_data)
     return llvm::make_error<UnimplementedError>();
@@ -1331,7 +1445,7 @@ NativeProcessLinux::AllocateMemory(size_t size, uint32_t permissions) {
 }
 
 llvm::Error NativeProcessLinux::DeallocateMemory(lldb::addr_t addr) {
-  llvm::Optional<NativeRegisterContextLinux::MmapData> mmap_data =
+  std::optional<NativeRegisterContextLinux::MmapData> mmap_data =
       GetCurrentThread()->GetRegisterContext().GetMmapData();
   if (!mmap_data)
     return llvm::make_error<UnimplementedError>();
@@ -1364,10 +1478,9 @@ Status NativeProcessLinux::ReadMemoryTags(int32_t type, lldb::addr_t addr,
 
   // lldb will align the range it requests but it is not required to by
   // the protocol so we'll do it again just in case.
-  // Remove non address bits too. Ptrace calls may work regardless but that
+  // Remove tag bits too. Ptrace calls may work regardless but that
   // is not a guarantee.
-  MemoryTagManager::TagRange range(details->manager->RemoveNonAddressBits(addr),
-                                   len);
+  MemoryTagManager::TagRange range(details->manager->RemoveTagBits(addr), len);
   range = details->manager->ExpandToGranule(range);
 
   // Allocate enough space for all tags to be read
@@ -1385,8 +1498,9 @@ Status NativeProcessLinux::ReadMemoryTags(int32_t type, lldb::addr_t addr,
     tags_iovec.iov_len = num_tags;
 
     Status error = NativeProcessLinux::PtraceWrapper(
-        details->ptrace_read_req, GetID(), reinterpret_cast<void *>(read_addr),
-        static_cast<void *>(&tags_iovec), 0, nullptr);
+        details->ptrace_read_req, GetCurrentThreadID(),
+        reinterpret_cast<void *>(read_addr), static_cast<void *>(&tags_iovec),
+        0, nullptr);
 
     if (error.Fail()) {
       // Discard partial reads
@@ -1419,10 +1533,9 @@ Status NativeProcessLinux::WriteMemoryTags(int32_t type, lldb::addr_t addr,
 
   // lldb will align the range it requests but it is not required to by
   // the protocol so we'll do it again just in case.
-  // Remove non address bits too. Ptrace calls may work regardless but that
+  // Remove tag bits too. Ptrace calls may work regardless but that
   // is not a guarantee.
-  MemoryTagManager::TagRange range(details->manager->RemoveNonAddressBits(addr),
-                                   len);
+  MemoryTagManager::TagRange range(details->manager->RemoveTagBits(addr), len);
   range = details->manager->ExpandToGranule(range);
 
   // Not checking number of tags here, we may repeat them below
@@ -1455,7 +1568,7 @@ Status NativeProcessLinux::WriteMemoryTags(int32_t type, lldb::addr_t addr,
     tags_vec.iov_len = num_tags;
 
     Status error = NativeProcessLinux::PtraceWrapper(
-        details->ptrace_write_req, GetID(),
+        details->ptrace_write_req, GetCurrentThreadID(),
         reinterpret_cast<void *>(write_addr), static_cast<void *>(&tags_vec), 0,
         nullptr);
 
@@ -1509,9 +1622,9 @@ NativeProcessLinux::GetSoftwareBreakpointTrapOpcode(size_t size_hint) {
   case llvm::Triple::arm:
     switch (size_hint) {
     case 2:
-      return llvm::makeArrayRef(g_thumb_opcode);
+      return llvm::ArrayRef(g_thumb_opcode);
     case 4:
-      return llvm::makeArrayRef(g_arm_opcode);
+      return llvm::ArrayRef(g_arm_opcode);
     default:
       return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                      "Unrecognised trap opcode size hint!");
@@ -1527,18 +1640,17 @@ Status NativeProcessLinux::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
     // The process_vm_readv path is about 50 times faster than ptrace api. We
     // want to use this syscall if it is supported.
 
-    const ::pid_t pid = GetID();
-
     struct iovec local_iov, remote_iov;
     local_iov.iov_base = buf;
     local_iov.iov_len = size;
     remote_iov.iov_base = reinterpret_cast<void *>(addr);
     remote_iov.iov_len = size;
 
-    bytes_read = process_vm_readv(pid, &local_iov, 1, &remote_iov, 1, 0);
+    bytes_read = process_vm_readv(GetCurrentThreadID(), &local_iov, 1,
+                                  &remote_iov, 1, 0);
     const bool success = bytes_read == size;
 
-    Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
+    Log *log = GetLog(POSIXLog::Process);
     LLDB_LOG(log,
              "using process_vm_readv to read {0} bytes from inferior "
              "address {1:x}: {2}",
@@ -1554,12 +1666,12 @@ Status NativeProcessLinux::ReadMemory(lldb::addr_t addr, void *buf, size_t size,
   size_t remainder;
   long data;
 
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_MEMORY));
+  Log *log = GetLog(POSIXLog::Memory);
   LLDB_LOG(log, "addr = {0}, buf = {1}, size = {2}", addr, buf, size);
 
   for (bytes_read = 0; bytes_read < size; bytes_read += remainder) {
     Status error = NativeProcessLinux::PtraceWrapper(
-        PTRACE_PEEKDATA, GetID(), (void *)addr, nullptr, 0, &data);
+        PTRACE_PEEKDATA, GetCurrentThreadID(), (void *)addr, nullptr, 0, &data);
     if (error.Fail())
       return error;
 
@@ -1582,7 +1694,7 @@ Status NativeProcessLinux::WriteMemory(lldb::addr_t addr, const void *buf,
   size_t remainder;
   Status error;
 
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_MEMORY));
+  Log *log = GetLog(POSIXLog::Memory);
   LLDB_LOG(log, "addr = {0}, buf = {1}, size = {2}", addr, buf, size);
 
   for (bytes_written = 0; bytes_written < size; bytes_written += remainder) {
@@ -1594,8 +1706,8 @@ Status NativeProcessLinux::WriteMemory(lldb::addr_t addr, const void *buf,
       memcpy(&data, src, k_ptrace_word_size);
 
       LLDB_LOG(log, "[{0:x}]:{1:x}", addr, data);
-      error = NativeProcessLinux::PtraceWrapper(PTRACE_POKEDATA, GetID(),
-                                                (void *)addr, (void *)data);
+      error = NativeProcessLinux::PtraceWrapper(
+          PTRACE_POKEDATA, GetCurrentThreadID(), (void *)addr, (void *)data);
       if (error.Fail())
         return error;
     } else {
@@ -1622,7 +1734,7 @@ Status NativeProcessLinux::WriteMemory(lldb::addr_t addr, const void *buf,
   return error;
 }
 
-Status NativeProcessLinux::GetSignalInfo(lldb::tid_t tid, void *siginfo) {
+Status NativeProcessLinux::GetSignalInfo(lldb::tid_t tid, void *siginfo) const {
   return PtraceWrapper(PTRACE_GETSIGINFO, tid, nullptr, siginfo);
 }
 
@@ -1652,7 +1764,7 @@ bool NativeProcessLinux::HasThreadNoLock(lldb::tid_t thread_id) {
 }
 
 void NativeProcessLinux::StopTrackingThread(NativeThreadLinux &thread) {
-  Log *const log = ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD);
+  Log *const log = GetLog(POSIXLog::Thread);
   lldb::tid_t thread_id = thread.GetID();
   LLDB_LOG(log, "tid: {0}", thread_id);
 
@@ -1666,9 +1778,17 @@ void NativeProcessLinux::StopTrackingThread(NativeThreadLinux &thread) {
   SignalIfAllThreadsStopped();
 }
 
+void NativeProcessLinux::NotifyTracersProcessDidStop() {
+  m_intel_pt_collector.ProcessDidStop();
+}
+
+void NativeProcessLinux::NotifyTracersProcessWillResume() {
+  m_intel_pt_collector.ProcessWillResume();
+}
+
 Status NativeProcessLinux::NotifyTracersOfNewThread(lldb::tid_t tid) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD));
-  Status error(m_intel_pt_manager.OnThreadCreated(tid));
+  Log *log = GetLog(POSIXLog::Thread);
+  Status error(m_intel_pt_collector.OnThreadCreated(tid));
   if (error.Fail())
     LLDB_LOG(log, "Failed to trace a new thread with intel-pt, tid = {0}. {1}",
              tid, error.AsCString());
@@ -1676,8 +1796,8 @@ Status NativeProcessLinux::NotifyTracersOfNewThread(lldb::tid_t tid) {
 }
 
 Status NativeProcessLinux::NotifyTracersOfThreadDestroyed(lldb::tid_t tid) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD));
-  Status error(m_intel_pt_manager.OnThreadDestroyed(tid));
+  Log *log = GetLog(POSIXLog::Thread);
+  Status error(m_intel_pt_collector.OnThreadDestroyed(tid));
   if (error.Fail())
     LLDB_LOG(log,
              "Failed to stop a destroyed thread with intel-pt, tid = {0}. {1}",
@@ -1687,7 +1807,7 @@ Status NativeProcessLinux::NotifyTracersOfThreadDestroyed(lldb::tid_t tid) {
 
 NativeThreadLinux &NativeProcessLinux::AddThread(lldb::tid_t thread_id,
                                                  bool resume) {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD));
+  Log *log = GetLog(POSIXLog::Thread);
   LLDB_LOG(log, "pid {0} adding thread with tid {1}", GetID(), thread_id);
 
   assert(!HasThreadNoLock(thread_id) &&
@@ -1762,7 +1882,7 @@ NativeThreadLinux *NativeProcessLinux::GetCurrentThread() {
 
 Status NativeProcessLinux::ResumeThread(NativeThreadLinux &thread,
                                         lldb::StateType state, int signo) {
-  Log *const log = ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD);
+  Log *const log = GetLog(POSIXLog::Thread);
   LLDB_LOG(log, "tid: {0}", thread.GetID());
 
   // Before we do the resume below, first check if we have a pending stop
@@ -1802,7 +1922,7 @@ Status NativeProcessLinux::ResumeThread(NativeThreadLinux &thread,
 //===----------------------------------------------------------------------===//
 
 void NativeProcessLinux::StopRunningThreads(const lldb::tid_t triggering_tid) {
-  Log *const log = ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD);
+  Log *const log = GetLog(POSIXLog::Thread);
   LLDB_LOG(log, "about to process event: (triggering_tid: {0})",
            triggering_tid);
 
@@ -1829,8 +1949,7 @@ void NativeProcessLinux::SignalIfAllThreadsStopped() {
   }
 
   // We have a pending notification and all threads have stopped.
-  Log *log(
-      GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PROCESS | LIBLLDB_LOG_BREAKPOINTS));
+  Log *log = GetLog(LLDBLog::Process | LLDBLog::Breakpoints);
 
   // Clear any temporary breakpoints we used to implement software single
   // stepping.
@@ -1849,7 +1968,7 @@ void NativeProcessLinux::SignalIfAllThreadsStopped() {
 }
 
 void NativeProcessLinux::ThreadWasCreated(NativeThreadLinux &thread) {
-  Log *const log = ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_THREAD);
+  Log *const log = GetLog(POSIXLog::Thread);
   LLDB_LOG(log, "tid: {0}", thread.GetID());
 
   if (m_pending_notification_tid != LLDB_INVALID_THREAD_ID &&
@@ -1857,49 +1976,6 @@ void NativeProcessLinux::ThreadWasCreated(NativeThreadLinux &thread) {
     // We will need to wait for this new thread to stop as well before firing
     // the notification.
     thread.RequestStop();
-  }
-}
-
-void NativeProcessLinux::SigchldHandler() {
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PROCESS));
-
-  // Threads can appear or disappear as a result of event processing, so gather
-  // the events upfront.
-  llvm::DenseMap<lldb::tid_t, WaitStatus> tid_events;
-  for (const auto &thread_up : m_threads) {
-    int status = -1;
-    ::pid_t wait_pid =
-        llvm::sys::RetryAfterSignal(-1, ::waitpid, thread_up->GetID(), &status,
-                                    __WALL | __WNOTHREAD | WNOHANG);
-
-    if (wait_pid == 0)
-      continue; // Nothing to do for this thread.
-
-    if (wait_pid == -1) {
-      Status error(errno, eErrorTypePOSIX);
-      LLDB_LOG(log, "waitpid({0}, &status, _) failed: {1}", thread_up->GetID(),
-               error);
-      continue;
-    }
-
-    assert(wait_pid == static_cast<::pid_t>(thread_up->GetID()));
-
-    WaitStatus wait_status = WaitStatus::Decode(status);
-
-    LLDB_LOG(log, "waitpid({0})  got status = {1}", thread_up->GetID(),
-             wait_status);
-    tid_events.try_emplace(thread_up->GetID(), wait_status);
-  }
-
-  for (auto &KV : tid_events) {
-    LLDB_LOG(log, "processing {0}({1}) ...", KV.first, KV.second);
-    NativeThreadLinux *thread = GetThreadByID(KV.first);
-    if (thread) {
-      MonitorCallback(*thread, KV.second);
-    } else {
-      // This can happen if one of the events is an main thread exit.
-      LLDB_LOG(log, "... but the thread has disappeared");
-    }
   }
 }
 
@@ -1911,7 +1987,7 @@ Status NativeProcessLinux::PtraceWrapper(int req, lldb::pid_t pid, void *addr,
   Status error;
   long int ret;
 
-  Log *log(ProcessPOSIXLog::GetLogIfAllCategoriesSet(POSIX_LOG_PTRACE));
+  Log *log = GetLog(POSIXLog::Ptrace);
 
   PtraceDisplayBytes(req, data, data_size);
 
@@ -1941,7 +2017,7 @@ Status NativeProcessLinux::PtraceWrapper(int req, lldb::pid_t pid, void *addr,
 }
 
 llvm::Expected<TraceSupportedResponse> NativeProcessLinux::TraceSupported() {
-  if (IntelPTManager::IsSupported())
+  if (IntelPTCollector::IsSupported())
     return TraceSupportedResponse{"intel-pt", "Intel Processor Trace"};
   return NativeProcessProtocol::TraceSupported();
 }
@@ -1951,10 +2027,7 @@ Error NativeProcessLinux::TraceStart(StringRef json_request, StringRef type) {
     if (Expected<TraceIntelPTStartRequest> request =
             json::parse<TraceIntelPTStartRequest>(json_request,
                                                   "TraceIntelPTStartRequest")) {
-      std::vector<lldb::tid_t> process_threads;
-      for (auto &thread : m_threads)
-        process_threads.push_back(thread->GetID());
-      return m_intel_pt_manager.TraceStart(*request, process_threads);
+      return m_intel_pt_collector.TraceStart(*request);
     } else
       return request.takeError();
   }
@@ -1964,19 +2037,19 @@ Error NativeProcessLinux::TraceStart(StringRef json_request, StringRef type) {
 
 Error NativeProcessLinux::TraceStop(const TraceStopRequest &request) {
   if (request.type == "intel-pt")
-    return m_intel_pt_manager.TraceStop(request);
+    return m_intel_pt_collector.TraceStop(request);
   return NativeProcessProtocol::TraceStop(request);
 }
 
 Expected<json::Value> NativeProcessLinux::TraceGetState(StringRef type) {
   if (type == "intel-pt")
-    return m_intel_pt_manager.GetState();
+    return m_intel_pt_collector.GetState();
   return NativeProcessProtocol::TraceGetState(type);
 }
 
 Expected<std::vector<uint8_t>> NativeProcessLinux::TraceGetBinaryData(
     const TraceGetBinaryDataRequest &request) {
   if (request.type == "intel-pt")
-    return m_intel_pt_manager.GetBinaryData(request);
+    return m_intel_pt_collector.GetBinaryData(request);
   return NativeProcessProtocol::TraceGetBinaryData(request);
 }

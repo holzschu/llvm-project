@@ -44,7 +44,7 @@ class FastUnwindTest : public ::testing::Test {
   uhwptr fake_bottom;
   BufferedStackTrace trace;
 
-#if defined(__riscv)
+#if defined(__loongarch__) || defined(__riscv)
   const uptr kFpOffset = 4;
   const uptr kBpOffset = 2;
 #else
@@ -208,7 +208,7 @@ TEST_F(StackPrintTest, SKIP_ON_SPARC(TruncatesContents)) {
   char tinybuf[10];
   trace.PrintTo(tinybuf, sizeof(tinybuf));
 
-  // This the the truncation case.
+  // This the truncation case.
   ASSERT_GT(actual_len, sizeof(tinybuf));
 
   // The truncated contents should be a prefix of the full contents.

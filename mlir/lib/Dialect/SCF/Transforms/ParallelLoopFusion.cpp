@@ -10,15 +10,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "PassDetail.h"
+#include "mlir/Dialect/SCF/Transforms/Passes.h"
+
+#include "mlir/Analysis/AliasAnalysis.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/Passes.h"
-#include "mlir/Dialect/SCF/SCF.h"
-#include "mlir/Dialect/SCF/Transforms.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include "mlir/IR/BlockAndValueMapping.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/SCF/Transforms/Transforms.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/OpDefinition.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
+
+namespace mlir {
+#define GEN_PASS_DEF_SCFPARALLELLOOPFUSION
+#include "mlir/Dialect/SCF/Transforms/Passes.h.inc"
+} // namespace mlir
 
 using namespace mlir;
 using namespace mlir::scf;
@@ -53,19 +59,27 @@ static bool equalIterationSpaces(ParallelOp firstPloop,
 /// loop reads.
 static bool haveNoReadsAfterWriteExceptSameIndex(
     ParallelOp firstPloop, ParallelOp secondPloop,
-    const BlockAndValueMapping &firstToSecondPloopIndices) {
+    const IRMapping &firstToSecondPloopIndices,
+    llvm::function_ref<bool(Value, Value)> mayAlias) {
   DenseMap<Value, SmallVector<ValueRange, 1>> bufferStores;
+  SmallVector<Value> bufferStoresVec;
   firstPloop.getBody()->walk([&](memref::StoreOp store) {
-    bufferStores[store.getMemRef()].push_back(store.indices());
+    bufferStores[store.getMemRef()].push_back(store.getIndices());
+    bufferStoresVec.emplace_back(store.getMemRef());
   });
   auto walkResult = secondPloop.getBody()->walk([&](memref::LoadOp load) {
+    Value loadMem = load.getMemRef();
     // Stop if the memref is defined in secondPloop body. Careful alias analysis
     // is needed.
-    auto *memrefDef = load.getMemRef().getDefiningOp();
+    auto *memrefDef = loadMem.getDefiningOp();
     if (memrefDef && memrefDef->getBlock() == load->getBlock())
       return WalkResult::interrupt();
 
-    auto write = bufferStores.find(load.getMemRef());
+    for (Value store : bufferStoresVec)
+      if (store != loadMem && mayAlias(store, loadMem))
+        return WalkResult::interrupt();
+
+    auto write = bufferStores.find(loadMem);
     if (write == bufferStores.end())
       return WalkResult::advance();
 
@@ -76,7 +90,7 @@ static bool haveNoReadsAfterWriteExceptSameIndex(
     // Check that the load indices of secondPloop coincide with store indices of
     // firstPloop for the same memrefs.
     auto storeIndices = write->second.front();
-    auto loadIndices = load.indices();
+    auto loadIndices = load.getIndices();
     if (storeIndices.size() != loadIndices.size())
       return WalkResult::interrupt();
     for (int i = 0, e = storeIndices.size(); i < e; ++i) {
@@ -93,36 +107,39 @@ static bool haveNoReadsAfterWriteExceptSameIndex(
 /// write patterns.
 static LogicalResult
 verifyDependencies(ParallelOp firstPloop, ParallelOp secondPloop,
-                   const BlockAndValueMapping &firstToSecondPloopIndices) {
-  if (!haveNoReadsAfterWriteExceptSameIndex(firstPloop, secondPloop,
-                                            firstToSecondPloopIndices))
+                   const IRMapping &firstToSecondPloopIndices,
+                   llvm::function_ref<bool(Value, Value)> mayAlias) {
+  if (!haveNoReadsAfterWriteExceptSameIndex(
+          firstPloop, secondPloop, firstToSecondPloopIndices, mayAlias))
     return failure();
 
-  BlockAndValueMapping secondToFirstPloopIndices;
+  IRMapping secondToFirstPloopIndices;
   secondToFirstPloopIndices.map(secondPloop.getBody()->getArguments(),
                                 firstPloop.getBody()->getArguments());
   return success(haveNoReadsAfterWriteExceptSameIndex(
-      secondPloop, firstPloop, secondToFirstPloopIndices));
+      secondPloop, firstPloop, secondToFirstPloopIndices, mayAlias));
 }
 
-static bool
-isFusionLegal(ParallelOp firstPloop, ParallelOp secondPloop,
-              const BlockAndValueMapping &firstToSecondPloopIndices) {
+static bool isFusionLegal(ParallelOp firstPloop, ParallelOp secondPloop,
+                          const IRMapping &firstToSecondPloopIndices,
+                          llvm::function_ref<bool(Value, Value)> mayAlias) {
   return !hasNestedParallelOp(firstPloop) &&
          !hasNestedParallelOp(secondPloop) &&
          equalIterationSpaces(firstPloop, secondPloop) &&
          succeeded(verifyDependencies(firstPloop, secondPloop,
-                                      firstToSecondPloopIndices));
+                                      firstToSecondPloopIndices, mayAlias));
 }
 
 /// Prepends operations of firstPloop's body into secondPloop's body.
 static void fuseIfLegal(ParallelOp firstPloop, ParallelOp secondPloop,
-                        OpBuilder b) {
-  BlockAndValueMapping firstToSecondPloopIndices;
+                        OpBuilder b,
+                        llvm::function_ref<bool(Value, Value)> mayAlias) {
+  IRMapping firstToSecondPloopIndices;
   firstToSecondPloopIndices.map(firstPloop.getBody()->getArguments(),
                                 secondPloop.getBody()->getArguments());
 
-  if (!isFusionLegal(firstPloop, secondPloop, firstToSecondPloopIndices))
+  if (!isFusionLegal(firstPloop, secondPloop, firstToSecondPloopIndices,
+                     mayAlias))
     return;
 
   b.setInsertionPointToStart(secondPloop.getBody());
@@ -131,7 +148,8 @@ static void fuseIfLegal(ParallelOp firstPloop, ParallelOp secondPloop,
   firstPloop.erase();
 }
 
-void mlir::scf::naivelyFuseParallelOps(Region &region) {
+void mlir::scf::naivelyFuseParallelOps(
+    Region &region, llvm::function_ref<bool(Value, Value)> mayAlias) {
   OpBuilder b(region);
   // Consider every single block and attempt to fuse adjacent loops.
   for (auto &block : region) {
@@ -151,23 +169,28 @@ void mlir::scf::naivelyFuseParallelOps(Region &region) {
         continue;
       }
       // TODO: Handle region side effects properly.
-      noSideEffects &=
-          MemoryEffectOpInterface::hasNoEffect(&op) && op.getNumRegions() == 0;
+      noSideEffects &= isMemoryEffectFree(&op) && op.getNumRegions() == 0;
     }
     for (ArrayRef<ParallelOp> ploops : ploopChains) {
       for (int i = 0, e = ploops.size(); i + 1 < e; ++i)
-        fuseIfLegal(ploops[i], ploops[i + 1], b);
+        fuseIfLegal(ploops[i], ploops[i + 1], b, mayAlias);
     }
   }
 }
 
 namespace {
 struct ParallelLoopFusion
-    : public SCFParallelLoopFusionBase<ParallelLoopFusion> {
+    : public impl::SCFParallelLoopFusionBase<ParallelLoopFusion> {
   void runOnOperation() override {
+    auto &AA = getAnalysis<AliasAnalysis>();
+
+    auto mayAlias = [&](Value val1, Value val2) -> bool {
+      return !AA.alias(val1, val2).isNo();
+    };
+
     getOperation()->walk([&](Operation *child) {
       for (Region &region : child->getRegions())
-        naivelyFuseParallelOps(region);
+        naivelyFuseParallelOps(region, mayAlias);
     });
   }
 };

@@ -2,9 +2,11 @@
 //      Test that when a \DexDeclareAddress never resolves to a value, it is
 //      counted as a missing value in any \DexExpectWatchValues.
 //
-// REQUIRES: system-linux
+// The dbgeng driver doesn't support \DexDeclareAddress yet.
+// UNSUPPORTED: system-windows
 //
-// RUN: not %dexter_regression_test -- %s | FileCheck %s
+// RUN: %dexter_regression_test_build %s -o %t
+// RUN: not %dexter_regression_test_run --binary %t -- %s | FileCheck %s
 // CHECK: missing_dex_address.cpp
 
 int main() {

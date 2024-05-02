@@ -9,11 +9,13 @@
 
 class Dexception(Exception):
     """All dexter-specific exceptions derive from this."""
+
     pass
 
 
 class Error(Dexception):
     """Error.  Prints 'error: <message>' without a traceback."""
+
     pass
 
 
@@ -31,6 +33,7 @@ class DebuggerException(Dexception):
 
 class LoadDebuggerException(DebuggerException):
     """If specified debugger cannot be loaded."""
+
     pass
 
 
@@ -38,8 +41,9 @@ class NotYetLoadedDebuggerException(LoadDebuggerException):
     """If specified debugger has not yet been attempted to load."""
 
     def __init__(self):
-        super(NotYetLoadedDebuggerException,
-              self).__init__('not loaded', orig_exception=None)
+        super(NotYetLoadedDebuggerException, self).__init__(
+            "not loaded", orig_exception=None
+        )
 
 
 class CommandParseError(Dexception):
@@ -54,8 +58,18 @@ class CommandParseError(Dexception):
         self.caret = None
 
 
+class NonFloatValueInCommand(CommandParseError):
+    """If a command has the float_range arg but at least one of its expected
+    values cannot be converted to a float."""
+
+    def __init__(self, *args, **kwargs):
+        super(NonFloatValueInCommand, self).__init__(*args, **kwargs)
+        self.value = None
+
+
 class ToolArgumentError(Dexception):
     """If a tool argument is invalid."""
+
     pass
 
 
@@ -63,10 +77,11 @@ class BuildScriptException(Dexception):
     """If there is an error in a build script file."""
 
     def __init__(self, *args, **kwargs):
-        self.script_error = kwargs.pop('script_error', None)
+        self.script_error = kwargs.pop("script_error", None)
         super(BuildScriptException, self).__init__(*args, **kwargs)
 
 
 class HeuristicException(Dexception):
     """If there was a problem with the heuristic."""
+
     pass

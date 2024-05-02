@@ -13,10 +13,11 @@
 #include "Plugins/SymbolFile/DWARF/NameToDIE.h"
 #include "llvm/ADT/DenseSet.h"
 
+namespace lldb_private::plugin {
+namespace dwarf {
 class DWARFDebugInfo;
 class SymbolFileDWARFDwo;
 
-namespace lldb_private {
 class ManualDWARFIndex : public DWARFIndex {
 public:
   ManualDWARFIndex(Module &module, SymbolFileDWARF &dwarf,
@@ -46,9 +47,9 @@ public:
                 llvm::function_ref<bool(DWARFDIE die)> callback) override;
   void GetNamespaces(ConstString name,
                      llvm::function_ref<bool(DWARFDIE die)> callback) override;
-  void GetFunctions(ConstString name, SymbolFileDWARF &dwarf,
+  void GetFunctions(const Module::LookupInfo &lookup_info,
+                    SymbolFileDWARF &dwarf,
                     const CompilerDeclContext &parent_decl_ctx,
-                    uint32_t name_type_mask,
                     llvm::function_ref<bool(DWARFDIE die)> callback) override;
   void GetFunctions(const RegularExpression &regex,
                     llvm::function_ref<bool(DWARFDIE die)> callback) override;
@@ -173,6 +174,7 @@ private:
   IndexSet m_set;
   bool m_indexed = false;
 };
-} // namespace lldb_private
+} // namespace dwarf
+} // namespace lldb_private::plugin
 
 #endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_MANUALDWARFINDEX_H

@@ -50,6 +50,9 @@ public:
   /// Return the dialect that this interface represents.
   Dialect *getDialect() const { return dialect; }
 
+  /// Return the context that holds the parent dialect of this interface.
+  MLIRContext *getContext() const;
+
   /// Return the derived interface id.
   TypeID getID() const { return interfaceID; }
 
@@ -94,7 +97,8 @@ class DialectInterfaceCollectionBase {
   using InterfaceVectorT = std::vector<const DialectInterface *>;
 
 public:
-  DialectInterfaceCollectionBase(MLIRContext *ctx, TypeID interfaceKind);
+  DialectInterfaceCollectionBase(MLIRContext *ctx, TypeID interfaceKind,
+                                 StringRef interfaceName);
   virtual ~DialectInterfaceCollectionBase();
 
 protected:
@@ -126,10 +130,12 @@ protected:
   };
 
   /// Iterator access to the held interfaces.
-  template <typename InterfaceT> iterator<InterfaceT> interface_begin() const {
+  template <typename InterfaceT>
+  iterator<InterfaceT> interface_begin() const {
     return iterator<InterfaceT>(orderedInterfaces.begin());
   }
-  template <typename InterfaceT> iterator<InterfaceT> interface_end() const {
+  template <typename InterfaceT>
+  iterator<InterfaceT> interface_end() const {
     return iterator<InterfaceT>(orderedInterfaces.end());
   }
 
@@ -154,7 +160,8 @@ public:
   /// Collect the registered dialect interfaces within the provided context.
   DialectInterfaceCollection(MLIRContext *ctx)
       : detail::DialectInterfaceCollectionBase(
-            ctx, InterfaceType::getInterfaceID()) {}
+            ctx, InterfaceType::getInterfaceID(),
+            llvm::getTypeName<InterfaceType>()) {}
 
   /// Get the interface for a given object, or null if one is not registered.
   /// The object may be a dialect or an operation instance.

@@ -294,7 +294,7 @@ namespace tuple_tests {
 }
 
 namespace dependent {
-  template<typename T> struct X {
+  template<typename T> struct X { // expected-note 3{{here}}
     X(T);
   };
   template<typename T> int Var(T t) {
@@ -304,12 +304,26 @@ namespace dependent {
   template<typename T> int Cast(T t) {
     return X(X(t)) + 1; // expected-error {{invalid operands}}
   }
+  template<typename T> int Cast2(T t) {
+    return (X)(X)t + 1; // expected-error {{deduction not allowed}}
+  }
+  template<typename T> int Cast3(T t) {
+    return X{X{t}} + 1; // expected-error {{invalid operands}}
+  }
+  template<typename T> int Cast4(T t) {
+    return (X){(X){t}} + 1; // expected-error 2{{deduction not allowed}}
+  }
   template<typename T> int New(T t) {
     return X(new X(t)) + 1; // expected-error {{invalid operands}}
   };
+  template<typename T> int *New2(T t) {
+    return new X(X(t)) * 2; // expected-error {{invalid operands}}
+  };
   template int Var(float); // expected-note {{instantiation of}}
   template int Cast(float); // expected-note {{instantiation of}}
+  template int Cast3(float); // expected-note {{instantiation of}}
   template int New(float); // expected-note {{instantiation of}}
+  template int *New2(float); // expected-note {{instantiation of}}
   template<typename T> int operator+(X<T>, int);
   template int Var(int);
   template int Cast(int);
@@ -631,4 +645,37 @@ namespace undefined_warnings {
     auto test2 = TemplDObj(.0f);
   }
 }
+
+namespace GH51710 {
+template<typename T>
+struct A {
+  A(T f()) {}
+  A(int f(), T) {}
+
+  A(T array[10]) {}
+  A(int array[10], T) {}
+};
+
+template<typename T>
+struct B {
+   B(T array[]) {}
+   B(int array[], T) {}
+};
+
+
+int foo();
+
+void bar() {
+  A test1(foo);
+  A test2(foo, 1);
+
+  int array[10];
+  A test3(array);
+  A test4(array, 1);
+
+  B test5(array);
+  B test6(array, 1);
+}
+} // namespace GH51710
+
 #endif

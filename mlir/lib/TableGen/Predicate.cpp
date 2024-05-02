@@ -11,9 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/TableGen/Predicate.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -28,7 +28,7 @@ Pred::Pred(const llvm::Record *record) : def(record) {
 }
 
 // Construct a Predicate from an initializer.
-Pred::Pred(const llvm::Init *init) : def(nullptr) {
+Pred::Pred(const llvm::Init *init) {
   if (const auto *defInit = dyn_cast_or_null<llvm::DefInit>(init))
     def = defInit->getDef();
 }
@@ -46,7 +46,7 @@ bool Pred::isCombined() const {
   return def && def->isSubClassOf("CombinedPred");
 }
 
-ArrayRef<llvm::SMLoc> Pred::getLoc() const { return def->getLoc(); }
+ArrayRef<SMLoc> Pred::getLoc() const { return def->getLoc(); }
 
 CPred::CPred(const llvm::Record *record) : Pred(record) {
   assert(def->isSubClassOf("CPred") &&

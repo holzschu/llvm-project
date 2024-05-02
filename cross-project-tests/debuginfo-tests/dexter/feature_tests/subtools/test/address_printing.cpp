@@ -8,9 +8,11 @@
 //      display the address properly; if it is implemented, this test should be
 //      updated.
 //
-// REQUIRES: lldb, system-linux
+// The dbgeng driver doesn't support \DexLimitSteps yet.
+// UNSUPPORTED: system-windows
 //
-// RUN: not %dexter_regression_test -v -- %s | FileCheck %s
+// RUN: %dexter_regression_test_build %s -o %t
+// RUN: not %dexter_regression_test_run --binary %t -v -- %s | FileCheck %s
 
 // CHECK: Resolved Addresses:
 // CHECK-NEXT: 'x_2': 0x[[X2_VAL:[0-9a-f]+]]
@@ -29,8 +31,8 @@
 // CHECK-NEXT: address 'x_2' (0x[[X2_VAL]])
 // CHECK-NEXT: address 'y' (0x[[Y_VAL]])
 // CHECK: misordered result:
-// CHECK-NEXT: step 4 (0x[[Y_VAL]])
-// CHECK-NEXT: step 5 (0x[[X2_VAL]])
+// CHECK-NEXT: (0x[[Y_VAL]]): step 4
+// CHECK-NEXT: (0x[[X2_VAL]]): step 5
 
 int main() {
     int *x = new int(5);

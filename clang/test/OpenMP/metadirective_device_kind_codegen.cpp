@@ -37,14 +37,14 @@ void foo() {
 }
 
 // CHECK-LABEL: define {{.+}} void @_Z3foov()
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_1:@.+]] to void
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_1:@.+]])
 // CHECK-NEXT: @__kmpc_push_num_threads
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_2:@.+]] to void
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_3:@.+]] to void
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_4:@.+]] to void
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_5:@.+]] to void
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_6:@.+]] to void
-// CHECK: @__kmpc_fork_call(%struct.ident_t* {{.+}}, i32 0, void (i32*, i32*, ...)* bitcast (void (i32*, i32*)* [[OUTLINED_7:@.+]] to void
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_2:@.+]])
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_3:@.+]])
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_4:@.+]])
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_5:@.+]])
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_6:@.+]])
+// CHECK: @__kmpc_fork_call(ptr {{.+}}, i32 0, ptr [[OUTLINED_7:@.+]])
 // CHECK: ret void
 
 // CHECK: define internal void [[OUTLINED_1]](

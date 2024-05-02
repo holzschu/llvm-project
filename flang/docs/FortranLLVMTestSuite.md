@@ -1,8 +1,9 @@
 # Fortran Tests in the LLVM Test Suite
 
-```eval_rst
-.. contents::
-   :local:
+```{contents}
+---
+local:
+---
 ```
 
 The [LLVM Test Suite](https://github.com/llvm/llvm-test-suite) is a
@@ -33,6 +34,10 @@ This will configure the test-suite to run only the Fortran tests which
 are found in the Fortran subdirectory. To run the C/C++ tests
 alongside the Fortran tests omit the `-DTEST_SUITE_SUBDIRS` CMake
 variable.
+
+If your Fortran compiler is Flang, you may want to set the `NO_STOP_MESSAGE`
+environment variable to `1` in order to avoid test failures due to warnings
+about INEXACT signaling exceptions.
 
 
 ## Running the SPEC CPU 2017

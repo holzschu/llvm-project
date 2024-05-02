@@ -6,8 +6,8 @@
 
 ; ELF:      Relocations [
 ; ELF-NEXT:   Section (3) .rel.text {
-; ELF-NEXT:     0x{{[0-9a-f]*}} R_AMDGPU_ABS32 lds.external
-; ELF-NEXT:     0x{{[0-9a-f]*}} R_AMDGPU_ABS32 lds.defined
+; ELF-NEXT:     0x{{[0-9a-f]*}} R_AMDGPU_ABS32_LO lds.external
+; ELF-NEXT:     0x{{[0-9a-f]*}} R_AMDGPU_ABS32_LO lds.defined
 ; ELF-NEXT:   }
 ; ELF-NEXT: ]
 
@@ -44,11 +44,11 @@
 ; GCN: .amdgpu_lds lds.defined, 32, 8
 define amdgpu_gs float @test_basic(i32 inreg %wave, i32 %arg1) #0 {
 main_body:
-  %gep0 = getelementptr [0 x i32], [0 x i32] addrspace(3)* @lds.external, i32 0, i32 %arg1
-  %tmp = load i32, i32 addrspace(3)* %gep0
+  %gep0 = getelementptr [0 x i32], ptr addrspace(3) @lds.external, i32 0, i32 %arg1
+  %tmp = load i32, ptr addrspace(3) %gep0
 
-  %gep1 = getelementptr [8 x i32], [8 x i32] addrspace(3)* @lds.defined, i32 0, i32 %wave
-  store i32 123, i32 addrspace(3)* %gep1
+  %gep1 = getelementptr [8 x i32], ptr addrspace(3) @lds.defined, i32 0, i32 %wave
+  store i32 123, ptr addrspace(3) %gep1
 
   %r = bitcast i32 %tmp to float
   ret float %r

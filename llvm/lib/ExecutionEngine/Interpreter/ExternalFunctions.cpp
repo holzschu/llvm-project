@@ -664,26 +664,6 @@ void Interpreter::initializeExternalFunctions() {
   Fns.FuncNames["lle_X_exit"]         = lle_X_exit;
   Fns.FuncNames["lle_X_abort"]        = lle_X_abort;
 
-<<<<<<< HEAD
-  (*FuncNames)["lle_X_printf"]       = lle_X_printf;
-  (*FuncNames)["lle_X_sprintf"]      = lle_X_sprintf;
-  (*FuncNames)["lle_X_sscanf"]       = lle_X_sscanf;
-  (*FuncNames)["lle_X_scanf"]        = lle_X_scanf;
-  (*FuncNames)["lle_X_fprintf"]      = lle_X_fprintf;
-  (*FuncNames)["lle_X_memset"]       = lle_X_memset;
-  (*FuncNames)["lle_X_memcpy"]       = lle_X_memcpy;
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
-  // Variadic argument functions (vararg). 
-  (*FuncNames)["lle_X_open"]     = lle_X_open;
-  (*FuncNames)["lle_X__open"]     = lle_X_open;
-  (*FuncNames)["lle_X_err"]     = lle_X_err;
-  (*FuncNames)["lle_X_errx"]     = lle_X_errx;
-  (*FuncNames)["lle_X_warn"]     = lle_X_warn;
-  (*FuncNames)["lle_X_warnx"]     = lle_X_warnx;
-  // objective-C -- todo again
-  // (*FuncNames)["lle_X_objc_msgSend"]     = lle_X_objc_msgSend;
-#endif
-=======
   Fns.FuncNames["lle_X_printf"]       = lle_X_printf;
   Fns.FuncNames["lle_X_sprintf"]      = lle_X_sprintf;
   Fns.FuncNames["lle_X_sscanf"]       = lle_X_sscanf;
@@ -691,5 +671,15 @@ void Interpreter::initializeExternalFunctions() {
   Fns.FuncNames["lle_X_fprintf"]      = lle_X_fprintf;
   Fns.FuncNames["lle_X_memset"]       = lle_X_memset;
   Fns.FuncNames["lle_X_memcpy"]       = lle_X_memcpy;
->>>>>>> 79949fd94538724224a771e12aeaa68ceeaada20
+#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+  // Variadic argument functions (vararg). 
+  Fns.FuncNames["lle_X_open"]     = lle_X_open;
+  Fns.FuncNames["lle_X__open"]     = lle_X_open;
+  Fns.FuncNames["lle_X_err"]     = lle_X_err;
+  Fns.FuncNames["lle_X_errx"]     = lle_X_errx;
+  Fns.FuncNames["lle_X_warn"]     = lle_X_warn;
+  Fns.FuncNames["lle_X_warnx"]     = lle_X_warnx;
+  // objective-C -- todo again
+  // (*FuncNames)["lle_X_objc_msgSend"]     = lle_X_objc_msgSend;
+#endif
 }

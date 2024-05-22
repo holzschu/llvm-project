@@ -84,20 +84,22 @@ fi
 # libc; impossible to configure
 # compiler-rt; tries to set macosx-version-min
 # openmp: requires compiler-rt and?
-# 0903: try with compiler-rt, not openmp. ;openmp
+# 2023/03/09: try with compiler-rt, not openmp. ;openmp
+# 2024/05: fails with openmp. Try without.
 # flang: issue with mlir-tblgen, also not cross-compiling.
 pushd $IOS_BUILDDIR
 cmake -G Ninja \
 -DLLVM_LINK_LLVM_DYLIB=ON \
 -DLLVM_TARGET_ARCH=AArch64 \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
--DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt;openmp' \
+-DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt' \
 -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
 -DCMAKE_BUILD_TYPE=Release \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
--DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
+-DLLVM_ENABLE_LIBCXX=OFF \
+-DLLVM_ENABLE_LIBEDIT=OFF \
 -DCMAKE_CROSSCOMPILING=TRUE \
 -DLLVM_TABLEGEN=${OSX_BUILDDIR}/bin/llvm-tblgen \
 -DCLANG_TABLEGEN=${OSX_BUILDDIR}/bin/clang-tblgen \
@@ -133,7 +135,7 @@ rm -f lib/libllc.a
 rm -f lib/libclang_tool.a
 rm -f lib/libopt.a
 ar -r lib/libclang_tool.a tools/clang/tools/driver/CMakeFiles/clang.dir/driver.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1_main.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1as_main.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1gen_reproducer_main.cpp.o  
-ar -r lib/libopt.a  tools/opt/CMakeFiles/opt.dir/AnalysisWrappers.cpp.o tools/opt/CMakeFiles/opt.dir/BreakpointPrinter.cpp.o tools/opt/CMakeFiles/opt.dir/GraphPrinters.cpp.o tools/opt/CMakeFiles/opt.dir/NewPMDriver.cpp.o tools/opt/CMakeFiles/opt.dir/PassPrinters.cpp.o tools/opt/CMakeFiles/opt.dir/PrintSCC.cpp.o tools/opt/CMakeFiles/opt.dir/opt.cpp.o
+ar -r lib/libopt.a tools/opt/CMakeFiles/opt.dir/NewPMDriver.cpp.o  tools/opt/CMakeFiles/opt.dir/opt.cpp.o
 # No need to make static libraries for these:
 # lli: tools/lli/CMakeFiles/lli.dir/lli.cpp.o 
 # llvm-link: tools/llvm-link/CMakeFiles/llvm-link.dir/llvm-link.cpp.o
@@ -172,13 +174,14 @@ cmake -G Ninja \
 -DLLVM_LINK_LLVM_DYLIB=ON \
 -DLLVM_TARGET_ARCH=X86 \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
--DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt;openmp' \
+-DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt' \
 -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin19.6.0 \
 -DCMAKE_BUILD_TYPE=Release \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
--DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
+-DLLVM_ENABLE_LIBCXX=OFF \
+-DLLVM_ENABLE_LIBEDIT=OFF \
 -DCMAKE_CROSSCOMPILING=TRUE \
 -DLLVM_TABLEGEN=${OSX_BUILDDIR}/bin/llvm-tblgen \
 -DCLANG_TABLEGEN=${OSX_BUILDDIR}/bin/clang-tblgen \
@@ -214,7 +217,7 @@ rm -f lib/libllc.a
 rm -f lib/libclang_tool.a
 rm -f lib/libopt.a
 ar -r lib/libclang_tool.a tools/clang/tools/driver/CMakeFiles/clang.dir/driver.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1_main.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1as_main.cpp.o tools/clang/tools/driver/CMakeFiles/clang.dir/cc1gen_reproducer_main.cpp.o  
-ar -r lib/libopt.a  tools/opt/CMakeFiles/opt.dir/AnalysisWrappers.cpp.o tools/opt/CMakeFiles/opt.dir/BreakpointPrinter.cpp.o tools/opt/CMakeFiles/opt.dir/GraphPrinters.cpp.o tools/opt/CMakeFiles/opt.dir/NewPMDriver.cpp.o tools/opt/CMakeFiles/opt.dir/PassPrinters.cpp.o tools/opt/CMakeFiles/opt.dir/PrintSCC.cpp.o tools/opt/CMakeFiles/opt.dir/opt.cpp.o
+ar -r lib/libopt.a tools/opt/CMakeFiles/opt.dir/NewPMDriver.cpp.o tools/opt/CMakeFiles/opt.dir/opt.cpp.o
 # No need to make static libraries for these:
 # lli: tools/lli/CMakeFiles/lli.dir/lli.cpp.o 
 # llvm-link: tools/llvm-link/CMakeFiles/llvm-link.dir/llvm-link.cpp.o

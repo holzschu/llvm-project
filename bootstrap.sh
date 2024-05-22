@@ -10,7 +10,7 @@ IOS_BUILDDIR=$(pwd)/build-iphoneos
 SIM_BUILDDIR=$(pwd)/build-iphonesimulator
 
 echo "Downloading ios_system Framework:"
-IOS_SYSTEM_VER="v3.0.0"
+IOS_SYSTEM_VER="v3.0.2"
 HHROOT="https://github.com/holzschu"
 
 echo "Downloading header file:"

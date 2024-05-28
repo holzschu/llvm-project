@@ -47,7 +47,7 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include "ios_error.h"
 #undef exit
 #define exit(a) { llvm_shutdown(); ios_exit(a); }
@@ -204,9 +204,11 @@ public:
     if (Opt.hasArgStr())
       return;
     if (!SC->OptionsMap.insert(std::make_pair(Name, &Opt)).second) {
-      errs() << ProgramName << ": CommandLine Error: Option '" << Name
+#if !TARGET_OS_IPHONE
+		errs() << ProgramName << ": CommandLine Error: Option '" << Name
              << "' registered more than once!\n";
       report_fatal_error("inconsistency in registered CommandLine options");
+#endif
     }
   }
 
@@ -224,9 +226,11 @@ public:
 
       // Add argument to the argument map!
       if (!SC->OptionsMap.insert(std::make_pair(O->ArgStr, O)).second) {
-        errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
+#if !TARGET_OS_IPHONE
+		  errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
                << "' registered more than once!\n";
         HadErrors = true;
+#endif
       }
     }
 
@@ -321,9 +325,13 @@ public:
   void updateArgStr(Option *O, StringRef NewName, SubCommand *SC) {
     SubCommand &Sub = *SC;
     if (!Sub.OptionsMap.insert(std::make_pair(NewName, O)).second) {
-      errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
+#if !TARGET_OS_IPHONE
+		errs() << ProgramName << ": CommandLine Error: Option '" << O->ArgStr
              << "' registered more than once!\n";
       report_fatal_error("inconsistency in registered CommandLine options");
+#else
+	  return;
+#endif
     }
     Sub.OptionsMap.erase(O->ArgStr);
   }
@@ -412,7 +420,12 @@ private:
 
 } // namespace
 
-static ManagedStatic<CommandLineParser> GlobalParser;
+#if TARGET_OS_IPHONE
+thread_local
+#else
+static
+#endif
+ManagedStatic<CommandLineParser> GlobalParser;
 
 void cl::AddLiteralOption(Option &O, StringRef Name) {
   GlobalParser->addLiteralOption(O, Name);
@@ -1468,15 +1481,23 @@ void CommandLineParser::ResetAllOptionOccurrences() {
   // Options might be reset twice (they can be reference in both OptionsMap
   // and one of the other members), but that does not harm.
   for (auto *SC : RegisteredSubCommands) {
-    for (auto &O : SC->OptionsMap)
+  	  fprintf(stderr, "ResetAllOptionOccurrences  for subcommand: %x %s\n", SC, SC->getName()); fflush(stderr); 
+    for (auto &O : SC->OptionsMap) {
+    	fprintf(stderr, "Clearing OptionsMap O: %x\n"); fflush(stderr);
       O.second->reset();
+	}
+    fprintf(stderr, "Done OptionsMap\n"); fflush(stderr); 
     for (Option *O : SC->PositionalOpts)
       O->reset();
+    fprintf(stderr, "Done PositionalOpts\n"); fflush(stderr); 
     for (Option *O : SC->SinkOpts)
       O->reset();
+    fprintf(stderr, "Done SinkOpts\n"); fflush(stderr); 
     if (SC->ConsumeAfterOpt)
       SC->ConsumeAfterOpt->reset();
+    fprintf(stderr, "Done ConsumeAfterOpt\n"); fflush(stderr); 
   }
+  fprintf(stderr, "Leaving ResetAllOptionOccurrences\n"); fflush(stderr);
 }
 
 bool CommandLineParser::ParseCommandLineOptions(int argc,

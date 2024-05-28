@@ -28,7 +28,7 @@ using namespace sys;
 
 #ifdef __APPLE__ 
 #include <TargetConditionals.h>
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_IPHONE
 #include "ios_error.h"
 #undef exit
 #undef getenv

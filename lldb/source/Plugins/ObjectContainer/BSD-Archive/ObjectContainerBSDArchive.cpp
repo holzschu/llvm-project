@@ -8,7 +8,11 @@
 
 #include "ObjectContainerBSDArchive.h"
 
-#if defined(_WIN32) || defined(__ANDROID__)
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
+#if defined(_WIN32) || defined(__ANDROID__) || defined(TARGET_OS_IPHONE)
 // Defines from ar, missing on Windows
 #define SARMAG 8
 #define ARFMAG "`\n"

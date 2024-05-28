@@ -25,10 +25,14 @@ list(APPEND PLUGIN_PLATFORM_MACOSX_DARWIN_ONLY_SOURCES
   )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  add_subdirectory(objcxx)
-  set(OBJC_LIBS "lldbPluginPlatformMacOSXObjCXX")
-  list(APPEND PLUGIN_PLATFORM_MACOSX_SOURCES
-    ${PLUGIN_PLATFORM_MACOSX_DARWIN_ONLY_SOURCES})
+	if(CMAKE_OSX_SYSROOT MATCHES iphoneos)
+		message("Ignoring objcxx for iphoneos")
+	else()
+		add_subdirectory(objcxx)
+		set(OBJC_LIBS "lldbPluginPlatformMacOSXObjCXX")
+		list(APPEND PLUGIN_PLATFORM_MACOSX_SOURCES
+			${PLUGIN_PLATFORM_MACOSX_DARWIN_ONLY_SOURCES})
+	endif()
 else()
   list(APPEND LLVM_OPTIONAL_SOURCES
     ${PLUGIN_PLATFORM_MACOSX_DARWIN_ONLY_SOURCES})

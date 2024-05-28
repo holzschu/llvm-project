@@ -36,7 +36,11 @@ struct __cxa_exception;
 _LIBCPP_OVERRIDABLE_FUNC_VIS __cxa_exception* __cxa_init_primary_exception(
     void*,
     std::type_info*,
+# ifndef __USING_WASM_EXCEPTIONS__
     void(
+#else
+	void*(
+#endif
 #  if defined(_WIN32)
         __thiscall
 #  endif
@@ -90,6 +94,9 @@ _LIBCPP_HIDE_FROM_ABI exception_ptr make_exception_ptr(_Ep __e) _NOEXCEPT {
   void* __ex = __cxxabiv1::__cxa_allocate_exception(sizeof(_Ep));
   (void)__cxxabiv1::__cxa_init_primary_exception(__ex, const_cast<std::type_info*>(&typeid(_Ep)), [](void* __p) {
     std::__destroy_at(static_cast<_Ep2*>(__p));
+#ifdef __USING_WASM_EXCEPTIONS__
+    return __p;
+#endif
   });
 
   try {

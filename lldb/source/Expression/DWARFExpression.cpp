@@ -42,6 +42,10 @@
 
 #include "Plugins/SymbolFile/DWARF/DWARFUnit.h"
 
+#include "Plugins/Process/wasm/wasmRegisterContext.h"
+#include "Plugins/SymbolFile/DWARF/DWARFUnit.h"
+#include "Plugins/SymbolFile/DWARF/DWARFWasm.h"
+
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::dwarf;
@@ -94,8 +98,8 @@ void DWARFExpression::SetRegisterKind(RegisterKind reg_kind) {
   m_reg_kind = reg_kind;
 }
 
-
-static bool ReadRegisterValueAsScalar(RegisterContext *reg_ctx,
+// static 
+bool DWARFExpression::ReadRegisterValueAsScalar(RegisterContext *reg_ctx,
                                       lldb::RegisterKind reg_kind,
                                       uint32_t reg_num, Status *error_ptr,
                                       Value &value) {
@@ -344,6 +348,16 @@ static offset_t GetOpcodeDataSize(const DataExtractor &data,
   {
     uint64_t subexpr_len = data.GetULEB128(&offset);
     return (offset - data_offset) + subexpr_len;
+  }
+
+  case DW_OP_WASM_location: {
+    DWARFWasmLocation wasm_location =
+        static_cast<DWARFWasmLocation>(data.GetU8(&offset));
+    if (wasm_location == DWARFWasmLocation::eGlobalU32)
+      data.GetU32(&offset);
+    else
+      data.GetULEB128(&offset);
+    return offset - data_offset;
   }
 
   default:
@@ -2051,8 +2065,12 @@ bool DWARFExpression::Evaluate(
           Scalar value;
           if (frame->GetFrameBaseValue(value, error_ptr)) {
             int64_t fbreg_offset = opcodes.GetSLEB128(&offset);
-            value += fbreg_offset;
-            stack.push_back(value);
+            if (!target || target->GetArchitecture().GetCore() != ArchSpec::eCore_wasm32) {
+              value += fbreg_offset;
+              stack.push_back(value);
+            } else {
+              stack.push_back(Scalar(value.ULong() + fbreg_offset));
+            }
             stack.back().SetValueType(Value::ValueType::LoadAddress);
           } else
             return false;
@@ -2595,10 +2613,44 @@ bool DWARFExpression::Evaluate(
       break;
     }
 
+	case DW_OP_WASM_location: {
+      uint8_t wasm_op = opcodes.GetU8(&offset);
+      if (wasm_op > DWARFWasmLocation::eGlobalU32) {
+        if (error_ptr)
+          error_ptr->SetErrorString("Invalid Wasm location index");
+        return false;
+      }
+      DWARFWasmLocation wasm_location = static_cast<DWARFWasmLocation>(wasm_op);
+
+      /* LLDB doesn't have an address space to represents WebAssembly locals,
+       * globals and operand stacks.
+       * We encode these elements into virtual registers:
+       *   | WasmVirtualRegisterKinds: 2 bits | index: 30 bits |
+       */
+      uint32_t index;
+      if (wasm_location == DWARFWasmLocation::eGlobalU32) {
+        index = opcodes.GetU32(&offset);
+      } else {
+        index = opcodes.GetULEB128(&offset);
+      }
+      wasm::WasmVirtualRegisterKinds register_tag =
+          wasm::WasmVirtualRegisterInfo::VirtualRegisterKindFromDWARFLocation(
+              wasm_location);
+      reg_num = (register_tag << wasm::WasmRegisterContext::kTagShift) |
+                (index & wasm::WasmRegisterContext::kIndexMask);
+
+      if (ReadRegisterValueAsScalar(reg_ctx, reg_kind, reg_num, error_ptr, tmp))
+        stack.push_back(tmp);
+      else
+        return false;
+
+      break;
+    }
+
     default:
       if (dwarf_cu) {
         if (dwarf_cu->GetSymbolFileDWARF().ParseVendorDWARFOpcode(
-                op, opcodes, offset, stack)) {
+			op, reg_ctx, opcodes, reg_kind, offset, stack, error_ptr)) {
           break;
         }
       }

@@ -37,6 +37,13 @@
 
 #include <string>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include "ios_error.h"
+#endif
+#endif 
+
 #ifndef _POSIX_SPAWN_DISABLE_ASLR
 #define _POSIX_SPAWN_DISABLE_ASLR 0x0100
 #endif

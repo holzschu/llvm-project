@@ -13,14 +13,14 @@ echo "Downloading ios_system Framework:"
 IOS_SYSTEM_VER="v3.0.2"
 HHROOT="https://github.com/holzschu"
 
-echo "Downloading header file:"
-curl -OL $HHROOT/ios_system/releases/download/$IOS_SYSTEM_VER/ios_error.h 
-
-echo "Downloading ios_system Framework:"
-rm -rf ios_system.xcframework
-curl -OL $HHROOT/ios_system/releases/download/$IOS_SYSTEM_VER/ios_system.xcframework.zip
-unzip ios_system.xcframework.zip
-rm ios_system.xcframework.zip
+# echo "Downloading header file:"
+# curl -OL $HHROOT/ios_system/releases/download/$IOS_SYSTEM_VER/ios_error.h 
+# 
+# echo "Downloading ios_system Framework:"
+# rm -rf ios_system.xcframework
+# curl -OL $HHROOT/ios_system/releases/download/$IOS_SYSTEM_VER/ios_system.xcframework.zip
+# unzip ios_system.xcframework.zip
+# rm ios_system.xcframework.zip
 
 OSX_SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
 IOS_SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
@@ -54,8 +54,11 @@ fi
 pushd $OSX_BUILDDIR
 cmake -G Ninja \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
--DLLVM_ENABLE_PROJECTS='clang;compiler-rt;lld;flang;openmp' \
+-DLLVM_ENABLE_PROJECTS='clang;compiler-rt;lld;lldb' \
+-DLLVM_ENABLE_EH=ON \
+-DLLVM_ENABLE_RTTI=ON \
 -DLLVM_LINK_LLVM_DYLIB=ON \
+-DLLDB_INCLUDE_TESTS=OFF \
 -DCMAKE_BUILD_TYPE=Release \
 -DCMAKE_OSX_SYSROOT=${OSX_SDKROOT} \
 -DCMAKE_C_COMPILER=$(xcrun --sdk macosx -f clang) \
@@ -92,15 +95,26 @@ cmake -G Ninja \
 -DLLVM_LINK_LLVM_DYLIB=ON \
 -DLLVM_TARGET_ARCH=AArch64 \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
--DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt' \
+-DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt;lldb' \
 -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
 -DCMAKE_BUILD_TYPE=Release \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
+-DLLVM_ENABLE_EH=ON \
+-DLLVM_ENABLE_RTTI=ON \
 -DLLVM_ENABLE_LIBCXX=OFF \
 -DLLVM_ENABLE_LIBEDIT=OFF \
+-DLLVM_ENABLE_ZSTD=OFF \
+-DLLDB_INCLUDE_TESTS=OFF \
+-DLIBCXX_ENABLE_EXCEPTIONS=ON \
+-DLIBCXXABI_ENABLE_EXCEPTIONS=ON \
 -DCMAKE_CROSSCOMPILING=TRUE \
+-DLLDB_EXPORT_ALL_SYMBOLS=TRUE \
+-DLLDB_ENABLE_LZMA=FALSE \
+-DLLDB_ENABLE_PYTHON=FALSE \
+-DLLDB_USE_SYSTEM_DEBUGSERVER=TRUE \
+-DLLDB_TABLEGEN_EXE=${OSX_BUILDDIR}/bin/lldb-tblgen \
 -DLLVM_TABLEGEN=${OSX_BUILDDIR}/bin/llvm-tblgen \
 -DCLANG_TABLEGEN=${OSX_BUILDDIR}/bin/clang-tblgen \
 -DCMAKE_OSX_SYSROOT=${IOS_SDKROOT} \
@@ -114,8 +128,8 @@ cmake -G Ninja \
 -DCOMPILER_RT_BUILD_PROFILE=OFF \
 -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
 -DCOMPILER_RT_BUILD_XRAY=OFF \
--DLIBOMP_LDFLAGS="-L lib/clang/14.0.0/lib/darwin -lclang_rt.cc_kext_ios" \
--DCMAKE_C_FLAGS="-arch arm64 -target arm64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS  -I${OSX_BUILDDIR}/include/ -I${OSX_BUILDDIR}/include/c++/v1/ -I${LLVM_SRCDIR} -miphoneos-version-min=14  " \
+-DLIBOMP_LDFLAGS="-L lib/clang/18/lib/darwin -lclang_rt.cc_kext_ios" \
+-DCMAKE_C_FLAGS="-arch arm64 -target arm64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS  -I${OSX_BUILDDIR}/include/ -I${OSX_BUILDDIR}/include/c++/v1/ -I${LLVM_SRCDIR} -miphoneos-version-min=14 -fwasm-exceptions  " \
 -DCMAKE_CXX_FLAGS="-arch arm64 -target arm64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS -I${OSX_BUILDDIR}/include/  -I${LLVM_SRCDIR} -miphoneos-version-min=14 " \
 -DCMAKE_MODULE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 " \
 -DCMAKE_SHARED_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 " \
@@ -158,6 +172,7 @@ xcodebuild -project frameworks.xcodeproj -target link -sdk iphoneos -configurati
 xcodebuild -project frameworks.xcodeproj -target lld -sdk iphoneos -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target lli -sdk iphoneos -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target llc -sdk iphoneos -configuration Release -quiet
+xcodebuild -project frameworks.xcodeproj -target lldb -sdk iphoneos -configuration Release -quiet
 # xcodebuild -project frameworks.xcodeproj -alltargets -sdk iphoneos -configuration Release -quiet
 popd
 
@@ -174,15 +189,26 @@ cmake -G Ninja \
 -DLLVM_LINK_LLVM_DYLIB=ON \
 -DLLVM_TARGET_ARCH=X86 \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
--DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt' \
+-DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt;lldb' \
 -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-apple-darwin19.6.0 \
 -DCMAKE_BUILD_TYPE=Release \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
+-DLLVM_ENABLE_EH=ON \
+-DLLVM_ENABLE_RTTI=ON \
+-DLLDB_ENABLE_LZMA=FALSE \
+-DLLDB_ENABLE_PYTHON=FALSE \
+-DLLVM_ENABLE_ZSTD=OFF \
+-DLLDB_INCLUDE_TESTS=OFF \
+-DLLDB_EXPORT_ALL_SYMBOLS=TRUE \
+-DLLDB_USE_SYSTEM_DEBUGSERVER=TRUE \
 -DLLVM_ENABLE_LIBCXX=OFF \
 -DLLVM_ENABLE_LIBEDIT=OFF \
+-DLIBCXX_ENABLE_EXCEPTIONS=ON \
+-DLIBCXXABI_ENABLE_EXCEPTIONS=ON \
 -DCMAKE_CROSSCOMPILING=TRUE \
+-DLLDB_TABLEGEN_EXE=${OSX_BUILDDIR}/bin/lldb-tblgen \
 -DLLVM_TABLEGEN=${OSX_BUILDDIR}/bin/llvm-tblgen \
 -DCLANG_TABLEGEN=${OSX_BUILDDIR}/bin/clang-tblgen \
 -DCMAKE_OSX_SYSROOT=${SIM_SDKROOT} \
@@ -196,12 +222,12 @@ cmake -G Ninja \
 -DCOMPILER_RT_BUILD_PROFILE=OFF \
 -DCOMPILER_RT_BUILD_SANITIZERS=OFF \
 -DCOMPILER_RT_BUILD_XRAY=OFF \
--DLIBOMP_LDFLAGS="-L lib/clang/14.0.0/lib/darwin -lclang_rt.cc_kext_ios" \
+-DLIBOMP_LDFLAGS="-L lib/clang/18/lib/darwin -lclang_rt.cc_kext_ios" \
 -DCMAKE_C_FLAGS="-target x86_64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS  -I${OSX_BUILDDIR}/include/ -I${OSX_BUILDDIR}/include/c++/v1/ -I${LLVM_SRCDIR} -mios-simulator-version-min=14.0  " \
 -DCMAKE_CXX_FLAGS="-target x86_64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS -I${OSX_BUILDDIR}/include/  -I${LLVM_SRCDIR} -mios-simulator-version-min=14.0 " \
 -DCMAKE_MODULE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64_x86_64-simulator -O2 -framework ios_system -lobjc -lc -lc++ -mios-simulator-version-min=14.0 " \
 -DCMAKE_SHARED_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64_x86_64-simulator -O2 -framework ios_system -lobjc -lc -lc++ -mios-simulator-version-min=14.0 " \
--DCMAKE_EXE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64_x86_64-simulator -O2 -framework ios_system -lobjc -lc -lc++ -mios-simulator-version-min=14.0 " \
+-DCMAKE_EXE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64_x86_64-simulator -O2 -framework ios_system -lobjc -lc -lc++ -mios-simulator-version-min=14.0 -fwasm-exceptions " \
 ../llvm
 ninja
 # We could add X86 to target architectures, but that increases the app size too much
@@ -240,12 +266,13 @@ xcodebuild -project frameworks.xcodeproj -target link -sdk iphonesimulator -arch
 xcodebuild -project frameworks.xcodeproj -target lld -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target lli -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target llc -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
+xcodebuild -project frameworks.xcodeproj -target lldb -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
 popd
 
 # 6)
 echo "Merging into xcframeworks:"
 
-for framework in ar lld llc clang dis libLLVM link lli nm opt
+for framework in ar lld llc clang dis libLLVM link lli nm opt lldb
 do
    rm -rf $framework.xcframework
    xcodebuild -create-xcframework -framework build-iphoneos/build/Release-iphoneos/$framework.framework -framework build-iphonesimulator/build/Release-iphonesimulator/$framework.framework -output $framework.xcframework

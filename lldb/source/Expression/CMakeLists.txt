@@ -1,4 +1,4 @@
-add_lldb_library(lldbExpression NO_PLUGIN_DEPENDENCIES
+add_lldb_library(lldbExpression 
   DiagnosticManager.cpp
   DWARFExpression.cpp
   DWARFExpressionList.cpp
@@ -26,6 +26,7 @@ add_lldb_library(lldbExpression NO_PLUGIN_DEPENDENCIES
     lldbSymbol
     lldbTarget
     lldbUtility
+    lldbPluginProcessGDBRemote
 
   LINK_COMPONENTS
     Core

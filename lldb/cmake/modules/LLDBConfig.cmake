@@ -311,7 +311,11 @@ endif()
 # Figure out if lldb could use debugserver.  If so, then we'll
 # ensure we build debugserver when we build lldb.
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    set(LLDB_CAN_USE_DEBUGSERVER ON)
+	if(CMAKE_OSX_SYSROOT MATCHES iphoneos)
+		set(LLDB_CAN_USE_DEBUGSERVER OFF)
+	else()
+		set(LLDB_CAN_USE_DEBUGSERVER ON)
+	endif()
 else()
     set(LLDB_CAN_USE_DEBUGSERVER OFF)
 endif()

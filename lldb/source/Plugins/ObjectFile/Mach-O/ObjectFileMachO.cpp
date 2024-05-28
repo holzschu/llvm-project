@@ -2670,7 +2670,8 @@ void ObjectFileMachO::ParseSymtab(Symtab &symtab) {
   typedef std::set<ConstString> IndirectSymbols;
   IndirectSymbols indirect_symbol_names;
 
-#if TARGET_OS_IPHONE
+  // iOS change: deactivated this part
+#if 0
 
   // Some recent builds of the dyld_shared_cache (hereafter: DSC) have been
   // optimized by moving LOCAL symbols out of the memory mapped portion of

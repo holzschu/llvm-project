@@ -27,12 +27,13 @@
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ManagedStatic.h"
 
 #include <system_error>
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include "ios_error.h"
 #include "llvm/Support/ManagedStatic.h"
 #undef exit

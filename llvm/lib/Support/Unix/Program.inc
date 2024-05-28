@@ -48,7 +48,7 @@
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #undef HAVE_POSIX_SPAWN // function is present, but not working
 #include "ios_error.h"
 #include <libgen.h>

@@ -5176,8 +5176,11 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // We normally speed up the clang process a bit by skipping destructors at
   // exit, but when we're generating diagnostics we can rely on some of the
   // cleanup.
+#if 0
   if (!C.isForDiagnostics())
     CmdArgs.push_back("-disable-free");
+#endif
+  
   CmdArgs.push_back("-clear-ast-before-backend");
 
 #ifdef NDEBUG

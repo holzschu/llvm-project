@@ -180,6 +180,8 @@
 #endif
 #define _LIBUNWIND_HIGHEST_DWARF_REGISTER                                      \
   _LIBUNWIND_HIGHEST_DWARF_REGISTER_LOONGARCH
+#elif defined(__wasm__)
+#  define _LIBUNWIND_TARGET_WASM 1
 # else
 #  error "Unsupported architecture."
 # endif

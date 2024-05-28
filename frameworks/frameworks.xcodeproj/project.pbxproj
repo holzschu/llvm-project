@@ -148,6 +148,16 @@
 		224ADB1D278DB281009AC3B9 /* liblldMachO.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 22BAC5D2259CADCE00B51FD6 /* liblldMachO.a */; };
 		22608588244C3B4E00B88587 /* llvm-ar.cpp.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 22608587244C3B4E00B88587 /* llvm-ar.cpp.o */; };
 		2260858C244C3C7700B88587 /* ar.h in Headers */ = {isa = PBXBuildFile; fileRef = 2260858B244C3C7700B88587 /* ar.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		226D9CB62C00A3F20076155E /* libLLVM.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2237943E209B523500B15016 /* libLLVM.framework */; };
+		226D9CB82C00A3F20076155E /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 22C505CC209A3CB500FDDFA9 /* libc++.tbd */; };
+		226D9CBA2C00A3F20076155E /* opt.h in Headers */ = {isa = PBXBuildFile; fileRef = 22379397209B047C00B15016 /* opt.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		226D9CC22C00A4B10076155E /* liblldb.18.1.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CC12C00A4B10076155E /* liblldb.18.1.5.dylib */; platformFilter = ios; };
+		226D9CC42C00A4C70076155E /* liblldb_tool.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CC32C00A4C70076155E /* liblldb_tool.a */; };
+		226D9CC52C00A4F20076155E /* ios_system.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22BAC58F259CA67700B51FD6 /* ios_system.xcframework */; };
+		226D9CC92C04AAED0076155E /* clang-driver.cpp.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CC82C04AAED0076155E /* clang-driver.cpp.o */; platformFilter = ios; };
+		226D9CCB2C04AB6D0076155E /* llvm-ar-driver.cpp.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CCA2C04AB6D0076155E /* llvm-ar-driver.cpp.o */; platformFilter = ios; };
+		226D9CCD2C04ABF80076155E /* llvm-nm-driver.cpp.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CCC2C04ABF80076155E /* llvm-nm-driver.cpp.o */; platformFilter = ios; };
+		226D9CCF2C04AC210076155E /* lld-driver.cpp.o in Frameworks */ = {isa = PBXBuildFile; fileRef = 226D9CCE2C04AC200076155E /* lld-driver.cpp.o */; platformFilter = ios; };
 		22720AA52386E2CB005BEB9E /* libLLVMBitstreamReader.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 22720AA42386E2CB005BEB9E /* libLLVMBitstreamReader.a */; };
 		22720AA72386E6E9005BEB9E /* libLLVMTextAPI.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 22720AA62386E6E9005BEB9E /* libLLVMTextAPI.a */; };
 		22720AA92386E7F0005BEB9E /* libLLVMRemarks.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 22720AA82386E7EF005BEB9E /* libLLVMRemarks.a */; };
@@ -329,6 +339,14 @@
 		224ADB1A278DB22D009AC3B9 /* liblldMinGW.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblldMinGW.a; path = lib/liblldMinGW.a; sourceTree = "<group>"; };
 		22608587244C3B4E00B88587 /* llvm-ar.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-ar.cpp.o"; path = "./tools/llvm-ar/CMakeFiles/llvm-ar.dir/llvm-ar.cpp.o"; sourceTree = "<group>"; };
 		2260858B244C3C7700B88587 /* ar.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ar.h; path = ../frameworks/ar/ar.h; sourceTree = SOURCE_ROOT; };
+		226D9CBF2C00A3F20076155E /* lldb.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = lldb.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		226D9CC02C00A3F50076155E /* lldb-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "lldb-Info.plist"; path = "../frameworks/lldb-Info.plist"; sourceTree = "<absolute>"; };
+		226D9CC12C00A4B10076155E /* liblldb.18.1.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblldb.18.1.5.dylib; path = lib/liblldb.18.1.5.dylib; sourceTree = "<group>"; };
+		226D9CC32C00A4C70076155E /* liblldb_tool.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = liblldb_tool.a; path = lib/liblldb_tool.a; sourceTree = "<group>"; };
+		226D9CC82C04AAED0076155E /* clang-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "clang-driver.cpp.o"; path = "tools/clang/tools/driver/CMakeFiles/clang.dir/clang-driver.cpp.o"; sourceTree = "<group>"; };
+		226D9CCA2C04AB6D0076155E /* llvm-ar-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-ar-driver.cpp.o"; path = "tools/llvm-ar/CMakeFiles/llvm-ar.dir/llvm-ar-driver.cpp.o"; sourceTree = "<group>"; };
+		226D9CCC2C04ABF80076155E /* llvm-nm-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-nm-driver.cpp.o"; path = "tools/llvm-nm/CMakeFiles/llvm-nm.dir/llvm-nm-driver.cpp.o"; sourceTree = "<group>"; };
+		226D9CCE2C04AC200076155E /* lld-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "lld-driver.cpp.o"; path = "tools/lld/tools/lld/CMakeFiles/lld.dir/lld-driver.cpp.o"; sourceTree = "<group>"; };
 		22720AA42386E2CB005BEB9E /* libLLVMBitstreamReader.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libLLVMBitstreamReader.a; path = ./lib/libLLVMBitstreamReader.a; sourceTree = "<group>"; };
 		22720AA62386E6E9005BEB9E /* libLLVMTextAPI.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libLLVMTextAPI.a; path = ./lib/libLLVMTextAPI.a; sourceTree = "<group>"; };
 		22720AA82386E7EF005BEB9E /* libLLVMRemarks.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libLLVMRemarks.a; path = ./lib/libLLVMRemarks.a; sourceTree = "<group>"; };
@@ -422,6 +440,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2207FAAD244B916A00C28F86 /* libLLVM.framework in Frameworks */,
+				226D9CCB2C04AB6D0076155E /* llvm-ar-driver.cpp.o in Frameworks */,
 				22BAC6E6259CB21100B51FD6 /* ios_system.xcframework in Frameworks */,
 				22608588244C3B4E00B88587 /* llvm-ar.cpp.o in Frameworks */,
 				2207FAAF244B916A00C28F86 /* libc++.tbd in Frameworks */,
@@ -434,6 +453,7 @@
 			files = (
 				223794CF209B573A00B15016 /* libLLVM.framework in Frameworks */,
 				22BAC5BA259CAC8900B51FD6 /* ios_system.xcframework in Frameworks */,
+				226D9CC92C04AAED0076155E /* clang-driver.cpp.o in Frameworks */,
 				22720AB12386EC03005BEB9E /* libclangToolingSyntax.a in Frameworks */,
 				223793AD209B277E00B15016 /* libclang_tool.a in Frameworks */,
 				223793F4209B29B200B15016 /* libclangLex.a in Frameworks */,
@@ -488,6 +508,7 @@
 			files = (
 				223794D1209B574B00B15016 /* libLLVM.framework in Frameworks */,
 				22379407209B2BCE00B15016 /* llvm-nm.cpp.o in Frameworks */,
+				226D9CCD2C04ABF80076155E /* llvm-nm-driver.cpp.o in Frameworks */,
 				22379409209B2C0B00B15016 /* libc++.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -613,6 +634,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		226D9CB52C00A3F20076155E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				226D9CC52C00A4F20076155E /* ios_system.xcframework in Frameworks */,
+				226D9CC42C00A4C70076155E /* liblldb_tool.a in Frameworks */,
+				226D9CC22C00A4B10076155E /* liblldb.18.1.5.dylib in Frameworks */,
+				226D9CB62C00A3F20076155E /* libLLVM.framework in Frameworks */,
+				226D9CB82C00A3F20076155E /* libc++.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		228B13EC23A81EC700FE5B43 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -624,6 +657,7 @@
 				228B13ED23A81EC700FE5B43 /* libLLVM.framework in Frameworks */,
 				22BAC5C5259CAD1700B51FD6 /* ios_system.xcframework in Frameworks */,
 				224ADB17278DB212009AC3B9 /* liblldCommon.a in Frameworks */,
+				226D9CCF2C04AC210076155E /* lld-driver.cpp.o in Frameworks */,
 				224ADB1C278DB264009AC3B9 /* libc++.tbd in Frameworks */,
 				224ADB1D278DB281009AC3B9 /* liblldMachO.a in Frameworks */,
 				224ADB1B278DB22D009AC3B9 /* liblldMinGW.a in Frameworks */,
@@ -725,6 +759,7 @@
 				2237943F209B523500B15016 /* libLLVM */,
 				22C505BD209A3B5800FDDFA9 /* Products */,
 				22C505C7209A3B8700FDDFA9 /* Frameworks */,
+				226D9CC02C00A3F50076155E /* lldb-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -741,6 +776,7 @@
 				89DD5C73239D1A1D00382F34 /* llc.framework */,
 				228B141523A81EC700FE5B43 /* lld.framework */,
 				2207FAB6244B916A00C28F86 /* ar.framework */,
+				226D9CBF2C00A3F20076155E /* lldb.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -748,6 +784,10 @@
 		22C505C7209A3B8700FDDFA9 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				226D9CCE2C04AC200076155E /* lld-driver.cpp.o */,
+				226D9CCC2C04ABF80076155E /* llvm-nm-driver.cpp.o */,
+				226D9CC32C00A4C70076155E /* liblldb_tool.a */,
+				226D9CC12C00A4B10076155E /* liblldb.18.1.5.dylib */,
 				222BE5832BE6323D002E4272 /* NewPMDriver.cpp.o */,
 				222BE5812BE6313A002E4272 /* libz.tbd */,
 				224ADB1A278DB22D009AC3B9 /* liblldMinGW.a */,
@@ -766,7 +806,9 @@
 				22C1E8AC24BF70D500C57472 /* libLLVMX86Desc.a */,
 				22C1E8AD24BF70D500C57472 /* libLLVMX86Disassembler.a */,
 				22C1E8AE24BF70D500C57472 /* libLLVMX86Info.a */,
+				226D9CC82C04AAED0076155E /* clang-driver.cpp.o */,
 				22608587244C3B4E00B88587 /* llvm-ar.cpp.o */,
+				226D9CCA2C04AB6D0076155E /* llvm-ar-driver.cpp.o */,
 				228B14B523A8209F00FE5B43 /* Driver.cpp.o */,
 				228B149D23A8208100FE5B43 /* AArch64.cpp.o */,
 				228B149E23A8208100FE5B43 /* AMDGPU.cpp.o */,
@@ -1021,6 +1063,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		226D9CB92C00A3F20076155E /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				226D9CBA2C00A3F20076155E /* opt.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		228B140F23A81EC700FE5B43 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -1176,6 +1226,24 @@
 			productReference = 2237943E209B523500B15016 /* libLLVM.framework */;
 			productType = "com.apple.product-type.framework";
 		};
+		226D9CB32C00A3F20076155E /* lldb */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 226D9CBC2C00A3F20076155E /* Build configuration list for PBXNativeTarget "lldb" */;
+			buildPhases = (
+				226D9CB42C00A3F20076155E /* Sources */,
+				226D9CB52C00A3F20076155E /* Frameworks */,
+				226D9CB92C00A3F20076155E /* Headers */,
+				226D9CBB2C00A3F20076155E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = lldb;
+			productName = opt;
+			productReference = 226D9CBF2C00A3F20076155E /* lldb.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		228B13EA23A81EC700FE5B43 /* lld */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 228B141223A81EC700FE5B43 /* Build configuration list for PBXNativeTarget "lld" */;
@@ -1293,15 +1361,16 @@
 			projectRoot = "";
 			targets = (
 				2237943D209B523500B15016 /* libLLVM */,
-				22C505BB209A3B5800FDDFA9 /* lli */,
+				2207FAAA244B916A00C28F86 /* ar */,
 				22379385209B028600B15016 /* clang */,
-				22379394209B047C00B15016 /* opt */,
-				223793FD209B2B8B00B15016 /* nm */,
 				22379410209B4E3900B15016 /* dis */,
-				22379424209B4F2300B15016 /* link */,
 				89DD5C66239D1A1D00382F34 /* llc */,
 				228B13EA23A81EC700FE5B43 /* lld */,
-				2207FAAA244B916A00C28F86 /* ar */,
+				22C505BB209A3B5800FDDFA9 /* lli */,
+				223793FD209B2B8B00B15016 /* nm */,
+				22379394209B047C00B15016 /* opt */,
+				22379424209B4F2300B15016 /* link */,
+				226D9CB32C00A3F20076155E /* lldb */,
 			);
 		};
 /* End PBXProject section */
@@ -1350,6 +1419,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		2237943C209B523500B15016 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		226D9CBB2C00A3F20076155E /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1423,6 +1499,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		22379439209B523500B15016 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		226D9CB42C00A3F20076155E /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1884,6 +1967,76 @@
 			};
 			name = Release;
 		};
+		226D9CBD2C00A3F20076155E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = VG8Z23C8YL;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = "../frameworks/lldb-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/lib",
+				);
+				OTHER_LDFLAGS = (
+					"-all_load",
+					"-L",
+					"../build${EFFECTIVE_PLATFORM_NAME}/lib",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "Nicolas-Holzschuch.opt";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		226D9CBE2C00A3F20076155E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = VG8Z23C8YL;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_BITCODE = NO;
+				INFOPLIST_FILE = "../frameworks/lldb-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/lib",
+				);
+				OTHER_LDFLAGS = (
+					"-all_load",
+					"-L",
+					"../build${EFFECTIVE_PLATFORM_NAME}/lib",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "Nicolas-Holzschuch.opt";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		228B141323A81EC700FE5B43 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2277,6 +2430,15 @@
 			buildConfigurations = (
 				22379444209B523600B15016 /* Debug */,
 				22379445209B523600B15016 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		226D9CBC2C00A3F20076155E /* Build configuration list for PBXNativeTarget "lldb" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				226D9CBD2C00A3F20076155E /* Debug */,
+				226D9CBE2C00A3F20076155E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

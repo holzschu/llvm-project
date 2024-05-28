@@ -56,7 +56,7 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include <CoreFoundation/CoreFoundation.h>
 #include <objc/objc.h>
 #include <objc/message.h>

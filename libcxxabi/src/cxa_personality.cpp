@@ -770,8 +770,10 @@ static void scan_eh_tab(scan_results &results, _Unwind_Action actions,
                         {
                             // Found a matching handler. This is either search
                             // phase or forced unwinding.
-                            assert(actions &
+#ifndef __USING_WASM_EXCEPTIONS__ 
+							assert(actions &
                                    (_UA_SEARCH_PHASE | _UA_FORCE_UNWIND));
+#endif
                             results.ttypeIndex = ttypeIndex;
                             results.actionRecord = actionRecord;
                             results.adjustedPtr = adjustedPtr;
@@ -804,7 +806,9 @@ static void scan_eh_tab(scan_results &results, _Unwind_Action actions,
                         {
                             // Native exception caught by exception
                             // specification.
-                            assert(actions & _UA_SEARCH_PHASE);
+#ifndef __USING_WASM_EXCEPTIONS__ 
+							assert(actions & _UA_SEARCH_PHASE);
+#endif
                             results.ttypeIndex = ttypeIndex;
                             results.actionRecord = actionRecord;
                             results.adjustedPtr = adjustedPtr;
@@ -996,6 +1000,16 @@ __gxx_personality_v0
       exception_header->catchTemp = 0;
 #endif
     }
+#ifdef __USING_WASM_EXCEPTIONS__
+	// Wasm uses only one phase in _UA_CLEANUP_PHASE, so we should set
+	// these here.
+	__cxa_exception* exception_header = (__cxa_exception*)(unwind_exception+1) - 1;
+	exception_header->handlerSwitchValue = static_cast<int>(results.ttypeIndex);
+	exception_header->actionRecord = results.actionRecord;
+	exception_header->languageSpecificData = results.languageSpecificData;
+	exception_header->catchTemp = reinterpret_cast<void*>(results.landingPad);
+	exception_header->adjustedPtr = results.adjustedPtr;
+#endif
     return _URC_INSTALL_CONTEXT;
 }
 

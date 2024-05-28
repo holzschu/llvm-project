@@ -45,6 +45,18 @@
 
 #if !defined(__APPLE__)
 #include "llvm/Support/DataTypes.h"
+#else
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include "ios_error.h"
+#undef stdin
+#undef stdout
+#undef stderr
+#define stdin thread_stdin
+#define stdout thread_stdout
+#define stderr thread_stderr
+#define isatty ios_isatty
+#endif
 #endif
 
 using namespace lldb;
@@ -90,10 +102,12 @@ static Driver *g_driver = nullptr;
 // In the Driver::MainLoop, we change the terminal settings.  This function is
 // added as an atexit handler to make sure we clean them up.
 static void reset_stdin_termios() {
+#if !TARGET_OS_IPHONE
   if (g_old_stdin_termios_is_valid) {
     g_old_stdin_termios_is_valid = false;
     ::tcsetattr(STDIN_FILENO, TCSANOW, &g_old_stdin_termios);
   }
+#endif
 }
 
 Driver::Driver()
@@ -423,10 +437,12 @@ std::string EscapeString(std::string arg) {
 }
 
 int Driver::MainLoop() {
+#if !TARGET_OS_IPHONE
   if (::tcgetattr(STDIN_FILENO, &g_old_stdin_termios) == 0) {
     g_old_stdin_termios_is_valid = true;
     atexit(reset_stdin_termios);
   }
+#endif
 
 #ifndef _MSC_VER
   // Disabling stdin buffering with MSVC's 2015 CRT exposes a bug in fgets
@@ -443,12 +459,14 @@ int Driver::MainLoop() {
 
   m_debugger.SetUseExternalEditor(m_option_data.m_use_external_editor);
 
+#if !TARGET_OS_IPHONE
   struct winsize window_size;
   if ((isatty(STDIN_FILENO) != 0) &&
       ::ioctl(STDIN_FILENO, TIOCGWINSZ, &window_size) == 0) {
     if (window_size.ws_col > 0)
       m_debugger.SetTerminalWidth(window_size.ws_col);
   }
+#endif
 
   SBCommandInterpreter sb_interpreter = m_debugger.GetCommandInterpreter();
 
@@ -739,7 +757,12 @@ EXAMPLES:
   llvm::outs() << examples << '\n';
 }
 
-int main(int argc, char const *argv[]) {
+#ifdef LLDB_NO_SYSTEM
+int lldb_main(int argc, char const *argv[])
+#else
+int main(int argc, char const *argv[])
+#endif
+{
   // Editline uses for example iswprint which is dependent on LC_CTYPE.
   std::setlocale(LC_ALL, "");
   std::setlocale(LC_CTYPE, "");

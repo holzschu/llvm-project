@@ -56,7 +56,7 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include "ios_error.h"
 #endif
 #endif
@@ -241,11 +241,15 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   PCHOps->registerWriter(std::make_unique<ObjectFilePCHContainerWriter>());
   PCHOps->registerReader(std::make_unique<ObjectFilePCHContainerReader>());
 
-  // Initialize targets first, so that --version shows registered targets.
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
+  static bool initialized = false;
+  if (!initialized) {
+	  // Initialize targets first, so that --version shows registered targets.
+	  llvm::InitializeAllTargets();
+	  llvm::InitializeAllTargetMCs();
+	  llvm::InitializeAllAsmPrinters();
+	  llvm::InitializeAllAsmParsers();
+	  initialized = true;
+  }
 
   // Buffer diagnostics from argument parsing so that we can output them using a
   // well formed diagnostic object.

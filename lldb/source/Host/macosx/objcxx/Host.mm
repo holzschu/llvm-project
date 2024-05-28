@@ -44,7 +44,9 @@
 #include <cstdlib>
 #include <dlfcn.h>
 #include <grp.h>
+#if !TARGET_OS_IPHONE
 #include <libproc.h>
+#endif
 #include <pwd.h>
 #include <spawn.h>
 #include <sys/proc.h>

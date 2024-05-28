@@ -379,6 +379,10 @@ static int ExecuteCC1Tool(SmallVectorImpl<const char *> &ArgV,
 
 int clang_main(int Argc, char **Argv, const llvm::ToolContext &ToolContext) {
   noteBottomOfStack();
+#if TARGET_OS_IPHONE
+  // Reset command line option parser (WIP, related to clang f1.c f2.c):
+  llvm::cl::ResetCommandLineParser();
+#endif
   llvm::setBugReportMsg("PLEASE submit a bug report to " BUG_REPORT_URL
                         " and include the crash backtrace, preprocessed "
                         "source, and associated run script.\n");

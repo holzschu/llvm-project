@@ -24,7 +24,7 @@
 #include "Registers.hpp"
 
 #ifndef _LIBUNWIND_USE_DLADDR
-  #if !(defined(_LIBUNWIND_IS_BAREMETAL) || defined(_WIN32) || defined(_AIX))
+  #if !(defined(_LIBUNWIND_IS_BAREMETAL) || defined(_WIN32) || defined(_AIX) || defined(__wasi__))
     #define _LIBUNWIND_USE_DLADDR 1
   #else
     #define _LIBUNWIND_USE_DLADDR 0

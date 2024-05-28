@@ -39,7 +39,6 @@
 #include <copyfile.h>
 #include <mach-o/dyld.h>
 #include <sys/attr.h>
-#include <TargetConditionals.h>
 #if __has_include(<sys/clonefile.h>)
 #include <sys/clonefile.h>
 #endif
@@ -193,6 +192,7 @@ static char *getprogpath(char ret[PATH_MAX], const char *bin) {
 /// value of argv[0] from program startup.
 std::string getMainExecutable(const char *argv0, void *MainAddr) {
 #if defined(__APPLE__)
+#include <TargetConditionals.h>
 char exe_path[PATH_MAX];
 #if TARGET_OS_IPHONE || TARGET_OS_SIMULATOR
   // On iOS, we can't get the actual executable path (because of ios_system)

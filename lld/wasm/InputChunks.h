@@ -29,6 +29,10 @@
 #include "llvm/Object/Wasm.h"
 #include <optional>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 namespace lld {
 namespace wasm {
 
@@ -226,6 +230,12 @@ public:
       : InputChunk(nullptr, InputChunk::MergedChunk, name, alignment, flags),
         builder(llvm::StringTableBuilder::RAW, llvm::Align(1ULL << alignment)) {
   }
+#if TARGET_OS_IPHONE
+  // Make sure we release the memory:
+  ~SyntheticMergedChunk() {
+  	  builder.clear();
+  }
+#endif
 
   static bool classof(const InputChunk *c) {
     return c->kind() == InputChunk::MergedChunk;

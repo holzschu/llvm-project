@@ -11,6 +11,12 @@
 #include "lld/Common/Memory.h"
 
 #include "llvm/CodeGen/CommandFlags.h"
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include "ios_error.h"
+#endif
+#endif
 
 using namespace llvm;
 using namespace lld;
@@ -20,7 +26,12 @@ using namespace lld;
 // as in https://reviews.llvm.org/D108850?id=370678 where each thread can be
 // associated with a LLD instance. Only then will LLD be free of global
 // state.
-static CommonLinkerContext *lctx;
+#if TARGET_OS_IPHONE
+thread_local
+#else
+static
+#endif
+CommonLinkerContext *lctx;
 
 CommonLinkerContext::CommonLinkerContext() {
   lctx = this;

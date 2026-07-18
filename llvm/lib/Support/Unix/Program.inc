@@ -294,10 +294,10 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
 #if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
     // Child process: Execute the program.
 	case 0: {
-	#else
+#else
 		// iOS: execute both branches each time
 		default: {
-			#endif 
+#endif 
 			// Redirect file descriptors...
 			if (!Redirects.empty()) {
 				// Redirect stdin
@@ -333,24 +333,24 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
 		if (Envp != nullptr)
 		execve(PathStr.c_str(), const_cast<char **>(Argv),
 			const_cast<char **>(Envp));
-			else
+		else
 			execv(PathStr.c_str(), const_cast<char **>(Argv));
-			// If the execve() failed, we should exit. Follow Unix protocol and
-			// return 127 if the executable was not found, and 126 otherwise.
-			// Use _exit rather than exit so that atexit functions and static
-			// object destructors cloned from the parent process aren't
-			// redundantly run, and so that any data buffered in stdio buffers
-			// cloned from the parent aren't redundantly written out.
-			#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
-				_exit(errno == ENOENT ? 127 : 126);
-				#endif
-			}
+		// If the execve() failed, we should exit. Follow Unix protocol and
+		// return 127 if the executable was not found, and 126 otherwise.
+		// Use _exit rather than exit so that atexit functions and static
+		// object destructors cloned from the parent process aren't
+		// redundantly run, and so that any data buffered in stdio buffers
+		// cloned from the parent aren't redundantly written out.
+#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
+		_exit(errno == ENOENT ? 127 : 126);
+#endif
+				 }
 
-			#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
-				// Parent process: Break out of the switch to do our processing.
-				default:
-				break;
-				#endif
+#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
+				 // Parent process: Break out of the switch to do our processing.
+		default:
+				 break;
+#endif
 			}
 
   PI.Pid = child;
@@ -410,7 +410,7 @@ ProcessInfo llvm::sys::Wait(const ProcessInfo &PI,
                             std::string *ErrMsg,
                             std::optional<ProcessStatistics> *ProcStat,
                             bool Polling) {
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
   int status;
   ProcessInfo WaitResult;
   // iOS: just wait for the process to terminate

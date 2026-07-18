@@ -23,7 +23,7 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include "ios_error.h"
 #endif
 #endif
@@ -119,7 +119,11 @@ void lld::exitLld(int val) {
   // When running inside safeLldMain(), restore the control flow back to the
   // CrashRecoveryContext. Otherwise simply use _exit(), meanning no cleanup,
   // since we want to avoid further crashes on shutdown.
+#if !TARGET_OS_IPHONE
   llvm::sys::Process::Exit(val, /*NoCleanup=*/true);
+#else
+  llvm::sys::Process::Exit(val, /*NoCleanup=*/false);
+#endif
 }
 
 void lld::diagnosticHandler(const DiagnosticInfo &di) {

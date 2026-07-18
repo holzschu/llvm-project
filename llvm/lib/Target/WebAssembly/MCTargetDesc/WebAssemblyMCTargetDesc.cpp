@@ -50,8 +50,7 @@ cl::opt<bool> WebAssembly::WasmEnableEmSjLj(
 // Exception handling using wasm EH instructions
 cl::opt<bool>
     WebAssembly::WasmEnableEH("wasm-enable-eh",
-							  cl::desc("WebAssembly exception handling"),
-                              cl::init(true));
+                              cl::desc("WebAssembly exception handling"));
 // setjmp/longjmp handling using wasm EH instrutions
 cl::opt<bool> WebAssembly::WasmEnableSjLj(
     "wasm-enable-sjlj", cl::desc("WebAssembly setjmp/longjmp handling"));

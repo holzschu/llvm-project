@@ -87,9 +87,11 @@ fi
 # libc; impossible to configure
 # compiler-rt; tries to set macosx-version-min
 # openmp: requires compiler-rt and?
-# 2023/03/09: try with compiler-rt, not openmp. ;openmp
+# 2023/03/09: try with compiler-rt, not openmp. 
 # 2024/05: fails with openmp. Try without.
+# Fails to compile, must use: -DLLVM_ENABLE_EH=OFF
 # flang: issue with mlir-tblgen, also not cross-compiling.
+# TODO: lldb.framework calls liblldb.18.1.5.dylib (make a framework) which calls libclang-cpp.dylib (ditto)
 pushd $IOS_BUILDDIR
 cmake -G Ninja \
 -DLLVM_LINK_LLVM_DYLIB=ON \
@@ -97,18 +99,16 @@ cmake -G Ninja \
 -DLLVM_TARGETS_TO_BUILD="AArch64;X86;WebAssembly" \
 -DLLVM_ENABLE_PROJECTS='clang;lld;compiler-rt;lldb' \
 -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
--DCMAKE_BUILD_TYPE=Release \
+-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
--DLLVM_ENABLE_EH=ON \
+-DLLVM_ENABLE_EH=OFF \
 -DLLVM_ENABLE_RTTI=ON \
--DLLVM_ENABLE_LIBCXX=OFF \
 -DLLVM_ENABLE_LIBEDIT=OFF \
 -DLLVM_ENABLE_ZSTD=OFF \
 -DLLDB_INCLUDE_TESTS=OFF \
--DLIBCXX_ENABLE_EXCEPTIONS=ON \
--DLIBCXXABI_ENABLE_EXCEPTIONS=ON \
+-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
 -DCMAKE_CROSSCOMPILING=TRUE \
 -DLLDB_EXPORT_ALL_SYMBOLS=TRUE \
 -DLLDB_ENABLE_LZMA=FALSE \
@@ -133,7 +133,7 @@ cmake -G Ninja \
 -DCMAKE_CXX_FLAGS="-arch arm64 -target arm64-apple-darwin19.6.0 -O2 -D_LIBCPP_STRING_H_HAS_CONST_OVERLOADS -I${OSX_BUILDDIR}/include/  -I${LLVM_SRCDIR} -miphoneos-version-min=14 " \
 -DCMAKE_MODULE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 " \
 -DCMAKE_SHARED_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 " \
--DCMAKE_EXE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 " \
+-DCMAKE_EXE_LINKER_FLAGS="-nostdlib -F${LLVM_SRCDIR}/ios_system.xcframework/ios-arm64 -O2 -framework ios_system -lobjc -lc -lc++ -miphoneos-version-min=14 -fwasm-exceptions " \
 ../llvm
 ninja
 # We could add X86 to target architectures, but that increases the app size too much
@@ -195,7 +195,7 @@ cmake -G Ninja \
 -DLLVM_ENABLE_THREADS=OFF \
 -DLLVM_ENABLE_TERMINFO=OFF \
 -DLLVM_ENABLE_BACKTRACES=OFF \
--DLLVM_ENABLE_EH=ON \
+-DLLVM_ENABLE_EH=OFF \
 -DLLVM_ENABLE_RTTI=ON \
 -DLLDB_ENABLE_LZMA=FALSE \
 -DLLDB_ENABLE_PYTHON=FALSE \
@@ -203,11 +203,10 @@ cmake -G Ninja \
 -DLLDB_INCLUDE_TESTS=OFF \
 -DLLDB_EXPORT_ALL_SYMBOLS=TRUE \
 -DLLDB_USE_SYSTEM_DEBUGSERVER=TRUE \
--DLLVM_ENABLE_LIBCXX=OFF \
+-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=OFF \
 -DLLVM_ENABLE_LIBEDIT=OFF \
--DLIBCXX_ENABLE_EXCEPTIONS=ON \
--DLIBCXXABI_ENABLE_EXCEPTIONS=ON \
 -DCMAKE_CROSSCOMPILING=TRUE \
+-DLLDB_USE_SYSTEM_DEBUGSERVER=TRUE \
 -DLLDB_TABLEGEN_EXE=${OSX_BUILDDIR}/bin/lldb-tblgen \
 -DLLVM_TABLEGEN=${OSX_BUILDDIR}/bin/llvm-tblgen \
 -DCLANG_TABLEGEN=${OSX_BUILDDIR}/bin/clang-tblgen \
@@ -255,7 +254,7 @@ ar -r lib/libopt.a tools/opt/CMakeFiles/opt.dir/NewPMDriver.cpp.o tools/opt/CMak
 rm -rf frameworks.xcodeproj
 cp -r ../frameworks/frameworks.xcodeproj .
 # And then build the frameworks from these static libraries:
-# Somehow, -alltargets does not build all targets. 
+# Somehow, -alltargets does not build all targets
 xcodebuild -project frameworks.xcodeproj -target libLLVM -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target ar -sdk iphonesimulator -arch x86_64 -configuration Release -quiet
 xcodebuild -project frameworks.xcodeproj -target clang -sdk iphonesimulator -arch x86_64 -configuration Release -quiet

@@ -17,7 +17,7 @@
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#if TARGET_OS_IPHONE
 #include <llvm-c/Support.h>
 #include "ios_error.h"
 #undef write
@@ -90,8 +90,9 @@ void ManagedStaticBase::destroy() const {
 /// without any other threads executing LLVM APIs.
 /// llvm_shutdown() should be the last use of LLVM APIs.
 void llvm::llvm_shutdown() {
-  while (StaticList)
-    StaticList->destroy();
+  // iOS: Disabled this memory cleanup, as it causes access to deleted memory.
+  // while (StaticList)
+  //  StaticList->destroy();
 #if TARGET_OS_IPHONE
   // Reset signal handler(s) (except SIGUSR2, reserved by Python):
   (void)signal(SIGUSR1, SIG_DFL);

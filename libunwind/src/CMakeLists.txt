@@ -1,7 +1,7 @@
 # Get sources
 
 set(LIBUNWIND_CXX_SOURCES
-    libunwind.cpp
+	libunwind.cpp
     Unwind-EHABI.cpp
     Unwind-seh.cpp
     )
@@ -13,7 +13,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
 endif()
 
 set(LIBUNWIND_C_SOURCES
-    UnwindLevel1.c
+	UnwindLevel1.c
     UnwindLevel1-gcc-ext.c
     Unwind-sjlj.c
     Unwind-wasm.c
@@ -58,18 +58,6 @@ if (MSVC_IDE)
   # Force them all into the headers dir on MSVC, otherwise they end up at
   # project scope because they don't have extensions.
   source_group("Header Files" FILES ${LIBUNWIND_HEADERS})
-endif()
-
-if(CMAKE_SYSTEM_PROCESSOR STREQUAL wasm32 OR
-    ${LIBUNWIND_CXX_SOURCES}	   CMAKE_SYSTEM_PROCESSOR STREQUAL wasm64)
-    ${LIBUNWIND_C_SOURCES}	  set(LIBUNWIND_SOURCES
-    ${LIBUNWIND_ASM_SOURCES})	      Unwind-wasm.c
-      )
-else()
-  set(LIBUNWIND_SOURCES
-      ${LIBUNWIND_CXX_SOURCES}
-      ${LIBUNWIND_C_SOURCES}
-      ${LIBUNWIND_ASM_SOURCES})
 endif()
 
 set(LIBUNWIND_SOURCES

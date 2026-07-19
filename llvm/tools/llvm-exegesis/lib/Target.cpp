@@ -23,7 +23,7 @@ cl::OptionCategory Options("llvm-exegesis options");
 cl::OptionCategory BenchmarkOptions("llvm-exegesis benchmark options");
 cl::OptionCategory AnalysisOptions("llvm-exegesis analysis options");
 
-ExegesisTarget::~ExegesisTarget() {} // anchor.
+ExegesisTarget::~ExegesisTarget() = default; // anchor.
 
 static ExegesisTarget *FirstTarget = nullptr;
 
@@ -35,23 +35,37 @@ const ExegesisTarget *ExegesisTarget::lookup(Triple TT) {
   return nullptr;
 }
 
+const char *
+ExegesisTarget::getIgnoredOpcodeReasonOrNull(const LLVMState &State,
+                                             unsigned Opcode) const {
+  const MCInstrDesc &InstrDesc = State.getIC().getInstr(Opcode).Description;
+  if (InstrDesc.isPseudo() || InstrDesc.usesCustomInsertionHook())
+    return "Unsupported opcode: isPseudo/usesCustomInserter";
+  if (InstrDesc.isBranch() || InstrDesc.isIndirectBranch())
+    return "Unsupported opcode: isBranch/isIndirectBranch";
+  if (InstrDesc.isCall() || InstrDesc.isReturn())
+    return "Unsupported opcode: isCall/isReturn";
+  if (InstrDesc.getSchedClass() == 0)
+    return "Unsupported opcode: No Sched Class";
+  return nullptr;
+}
+
 Expected<std::unique_ptr<pfm::CounterGroup>>
 ExegesisTarget::createCounter(StringRef CounterName, const LLVMState &,
                               ArrayRef<const char *> ValidationCounters,
                               const pid_t ProcessID) const {
   pfm::PerfEvent Event(CounterName);
   if (!Event.valid())
-    return llvm::make_error<Failure>(
-        llvm::Twine("Unable to create counter with name '")
-            .concat(CounterName)
-            .concat("'"));
+    return make_error<Failure>(Twine("Unable to create counter with name '")
+                                   .concat(CounterName)
+                                   .concat("'"));
 
   std::vector<pfm::PerfEvent> ValidationEvents;
   for (const char *ValCounterName : ValidationCounters) {
     ValidationEvents.emplace_back(ValCounterName);
     if (!ValidationEvents.back().valid())
-      return llvm::make_error<Failure>(
-          llvm::Twine("Unable to create validation counter with name '")
+      return make_error<Failure>(
+          Twine("Unable to create validation counter with name '")
               .concat(ValCounterName)
               .concat("'"));
   }
@@ -176,15 +190,15 @@ const PfmCountersInfo PfmCountersInfo::Dummy = {
     0u};
 
 const PfmCountersInfo &ExegesisTarget::getPfmCounters(StringRef CpuName) const {
-  assert(llvm::is_sorted(
-             CpuPfmCounters,
-             [](const CpuAndPfmCounters &LHS, const CpuAndPfmCounters &RHS) {
-               return strcmp(LHS.CpuName, RHS.CpuName) < 0;
-             }) &&
-         "CpuPfmCounters table is not sorted");
+  assert(
+      is_sorted(CpuPfmCounters,
+                [](const CpuAndPfmCounters &LHS, const CpuAndPfmCounters &RHS) {
+                  return strcmp(LHS.CpuName, RHS.CpuName) < 0;
+                }) &&
+      "CpuPfmCounters table is not sorted");
 
   // Find entry
-  auto Found = llvm::lower_bound(CpuPfmCounters, CpuName);
+  auto Found = lower_bound(CpuPfmCounters, CpuName);
   if (Found == CpuPfmCounters.end() || StringRef(Found->CpuName) != CpuName) {
     // Use the default.
     if (!CpuPfmCounters.empty() && CpuPfmCounters.begin()->CpuName[0] == '\0') {
@@ -201,7 +215,7 @@ const PfmCountersInfo &ExegesisTarget::getDummyPfmCounters() const {
   return PfmCountersInfo::Dummy;
 }
 
-ExegesisTarget::SavedState::~SavedState() {} // anchor.
+ExegesisTarget::SavedState::~SavedState() = default; // anchor.
 
 namespace {
 
@@ -213,7 +227,7 @@ public:
   ExegesisDefaultTarget() : ExegesisTarget({}, opcodeIsNotAvailable) {}
 
 private:
-  std::vector<MCInst> setRegTo(const MCSubtargetInfo &STI, unsigned Reg,
+  std::vector<MCInst> setRegTo(const MCSubtargetInfo &STI, MCRegister Reg,
                                const APInt &Value) const override {
     llvm_unreachable("Not yet implemented");
   }

@@ -10,6 +10,8 @@ function(find_standalone_test_dependencies)
     message(WARNING "The check targets will not be available!")
     set(ENABLE_CHECK_TARGETS FALSE PARENT_SCOPE)
     return()
+  else()
+    set(Python3_EXECUTABLE ${Python3_EXECUTABLE} PARENT_SCOPE)
   endif()
 
   # Find executables.
@@ -55,8 +57,8 @@ if (${OPENMP_STANDALONE_BUILD})
   if (MSVC OR XCODE)
     set(DEFAULT_LIT_ARGS "${DEFAULT_LIT_ARGS} --no-progress-bar")
   endif()
-  if (${CMAKE_SYSTEM_NAME} MATCHES "AIX")
-    set(DEFAULT_LIT_ARGS "${DEFAULT_LIT_ARGS} --time-tests --timeout=1800")
+  if ("${CMAKE_SYSTEM_NAME}" MATCHES "AIX")
+    set(DEFAULT_LIT_ARGS "${DEFAULT_LIT_ARGS} --time-tests --timeout=3000")
   endif()
   set(OPENMP_LIT_ARGS "${DEFAULT_LIT_ARGS}" CACHE STRING "Options for lit.")
   separate_arguments(OPENMP_LIT_ARGS)
@@ -66,9 +68,9 @@ else()
     message(WARNING "The check targets will not be available!")
     set(ENABLE_CHECK_TARGETS FALSE)
   else()
-    set(OPENMP_FILECHECK_EXECUTABLE ${LLVM_RUNTIME_OUTPUT_INTDIR}/FileCheck)
+    set(OPENMP_FILECHECK_EXECUTABLE ${LLVM_TOOLS_BINARY_DIR}/FileCheck)
   endif()
-  set(OPENMP_NOT_EXECUTABLE ${LLVM_RUNTIME_OUTPUT_INTDIR}/not)
+  set(OPENMP_NOT_EXECUTABLE ${LLVM_TOOLS_BINARY_DIR}/not)
 endif()
 
 # Macro to extract information about compiler from file. (no own scope)
@@ -161,6 +163,9 @@ else()
   set(OPENMP_TEST_COMPILER_HAS_OMIT_FRAME_POINTER_FLAGS 1)
 endif()
 
+set(OPENMP_TEST_ENABLE_TSAN "${OPENMP_TEST_COMPILER_HAS_TSAN_FLAGS}" CACHE BOOL
+    "Whether to enable tests using tsan")
+
 # Function to set compiler features for use in lit.
 function(update_test_compiler_features)
   set(FEATURES "[")
@@ -216,23 +221,31 @@ function(add_openmp_testsuite target comment)
       USES_TERMINAL
     )
   else()
+    set(EXTRA_CHECK_DEPENDS "")
+    if (TARGET "clang")
+      list(APPEND EXTRA_CHECK_DEPENDS clang)
+    endif()
     if (ARG_EXCLUDE_FROM_CHECK_ALL)
       add_lit_testsuite(${target}
         ${comment}
         ${ARG_UNPARSED_ARGUMENTS}
         EXCLUDE_FROM_CHECK_ALL
-        DEPENDS clang FileCheck not ${ARG_DEPENDS}
+        DEPENDS ${EXTRA_CHECK_DEPENDS} FileCheck not ${ARG_DEPENDS}
         ARGS ${ARG_ARGS}
       )
     else()
       add_lit_testsuite(${target}
         ${comment}
         ${ARG_UNPARSED_ARGUMENTS}
-        DEPENDS clang FileCheck not ${ARG_DEPENDS}
+        DEPENDS ${EXTRA_CHECK_DEPENDS} FileCheck not ${ARG_DEPENDS}
         ARGS ${ARG_ARGS}
       )
     endif()
   endif()
+
+  if (TARGET flang-rt)
+    add_dependencies(${target} flang-rt)
+  endif ()
 endfunction()
 
 function(construct_check_openmp_target)

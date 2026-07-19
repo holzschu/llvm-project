@@ -1,15 +1,20 @@
-# Flang |version| (In-Progress) Release Notes
+<!-- If you want to modify sections/contents permanently, you should modify both
+ReleaseNotes.md and ReleaseNotesTemplate.txt. -->
 
-> **warning**
->
-> These are in-progress notes for the upcoming LLVM |version| release.
-> Release notes for previous releases can be found on [the Download
-> Page](https://releases.llvm.org/download.html).
+# Flang {{version}} {{in_progress}}Release Notes
+
+````{only} PreRelease
+```{warning}
+ These are in-progress notes for the upcoming LLVM {{version}} release.
+ Release notes for previous releases can be found on [the Download
+ Page](https://releases.llvm.org/download.html).
+```
+````
 
 ## Introduction
 
 This document contains the release notes for the Flang Fortran frontend,
-part of the LLVM Compiler Infrastructure, release |version|. Here we
+part of the LLVM Compiler Infrastructure, release {{version}}. Here we
 describe the status of Flang in some detail, including major
 improvements from the previous release and new feature work. For the
 general LLVM release notes, see [the LLVM
@@ -24,11 +29,30 @@ page](https://llvm.org/releases/).
 
 ## Major New Features
 
+* Support for LOWER= argument for C_F_POINTER.
+* Experimental support for multi-image program launch, collective subroutines,
+  synchronization, teams, and image enumeration.
+
+### `do concurrent` mapping to OpenMP
+
+Flang now has better support for `do concurrent` parallelization on the CPU and
+GPU. On the CPU, we validated the feature using
+[FIATS'](https://github.com/BerkeleyLab/fiats) inference and training codes. On
+the GPU, we have basic support that is still in progress; we have offload tests
+for 1D and 2D saxpy. We also validated using codes that do not use extensive
+user-defined types and/or allocatables.
+
+To use the feature, use `-fdo-concurrent-to-openmp=[none|host|device]`. OpenMP
+must be enabled as well, for example: `-fopenmp [--offload-arch=<target_arch>]`.
+
 ## Bug Fixes
 
 ## Non-comprehensive list of changes in this release
 
 ## New Compiler Flags
+
+* -fexperimental-loop-fusion is now recognized by flang.
+* -fcoarray activates experimental multi-image support in flang.
 
 ## Windows Support
 
@@ -37,7 +61,6 @@ page](https://llvm.org/releases/).
 ## Build System Changes
 
 ## New Issues Found
-
 
 ## Additional Information
 

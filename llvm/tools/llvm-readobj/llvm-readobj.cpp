@@ -68,12 +68,13 @@ enum ID {
 #undef OPTION
 };
 
-#define PREFIX(NAME, VALUE)                                                    \
-  static constexpr StringLiteral NAME##_init[] = VALUE;                        \
-  static constexpr ArrayRef<StringLiteral> NAME(NAME##_init,                   \
-                                                std::size(NAME##_init) - 1);
+#define OPTTABLE_STR_TABLE_CODE
 #include "Opts.inc"
-#undef PREFIX
+#undef OPTTABLE_STR_TABLE_CODE
+
+#define OPTTABLE_PREFIXES_TABLE_CODE
+#include "Opts.inc"
+#undef OPTTABLE_PREFIXES_TABLE_CODE
 
 static constexpr opt::OptTable::Info InfoTable[] = {
 #define OPTION(...) LLVM_CONSTRUCT_OPT_INFO(__VA_ARGS__),
@@ -83,7 +84,8 @@ static constexpr opt::OptTable::Info InfoTable[] = {
 
 class ReadobjOptTable : public opt::GenericOptTable {
 public:
-  ReadobjOptTable() : opt::GenericOptTable(InfoTable) {
+  ReadobjOptTable()
+      : opt::GenericOptTable(OptionStrTable, OptionPrefixesTable, InfoTable) {
     setGroupedShortOptions(true);
   }
 };
@@ -104,6 +106,7 @@ static bool Addrsig;
 static bool All;
 static bool ArchSpecificInfo;
 static bool BBAddrMap;
+static bool PrettyPGOAnalysisMap;
 bool ExpandRelocs;
 static bool CGProfile;
 static bool Decompress;
@@ -141,9 +144,10 @@ static bool HashHistogram;
 static bool Memtag;
 static bool NeededLibraries;
 static bool Notes;
+static bool Offloading;
 static bool ProgramHeaders;
-bool RawRelr;
 static bool SectionGroups;
+static std::vector<std::string> SFrame;
 static bool VersionInfo;
 
 // Mach-O specific options.
@@ -160,6 +164,7 @@ static bool CodeViewEnableGHash;
 static bool CodeViewMergedTypes;
 bool CodeViewSubsectionBytes;
 static bool COFFBaseRelocs;
+static bool COFFPseudoRelocs;
 static bool COFFDebugDirectory;
 static bool COFFDirectives;
 static bool COFFExports;
@@ -221,6 +226,11 @@ static void parseOptions(const opt::InputArgList &Args) {
   opts::All = Args.hasArg(OPT_all);
   opts::ArchSpecificInfo = Args.hasArg(OPT_arch_specific);
   opts::BBAddrMap = Args.hasArg(OPT_bb_addr_map);
+  opts::PrettyPGOAnalysisMap = Args.hasArg(OPT_pretty_pgo_analysis_map);
+  if (opts::PrettyPGOAnalysisMap && !opts::BBAddrMap)
+    WithColor::warning(errs(), ToolName)
+        << "--bb-addr-map must be enabled for --pretty-pgo-analysis-map to "
+           "have an effect\n";
   opts::CGProfile = Args.hasArg(OPT_cg_profile);
   opts::Decompress = Args.hasArg(OPT_decompress);
   opts::Demangle = Args.hasFlag(OPT_demangle, OPT_no_demangle, false);
@@ -274,12 +284,12 @@ static void parseOptions(const opt::InputArgList &Args) {
   opts::Memtag = Args.hasArg(OPT_memtag);
   opts::NeededLibraries = Args.hasArg(OPT_needed_libs);
   opts::Notes = Args.hasArg(OPT_notes);
+  opts::Offloading = Args.hasArg(OPT_offloading);
   opts::PrettyPrint = Args.hasArg(OPT_pretty_print);
   opts::ProgramHeaders = Args.hasArg(OPT_program_headers);
-  opts::RawRelr = Args.hasArg(OPT_raw_relr);
   opts::SectionGroups = Args.hasArg(OPT_section_groups);
+  opts::SFrame = Args.getAllArgValues(OPT_sframe_EQ);
   if (Arg *A = Args.getLastArg(OPT_sort_symbols_EQ)) {
-    std::string SortKeysString = A->getValue();
     for (StringRef KeyStr : llvm::split(A->getValue(), ",")) {
       SortSymbolKeyTy KeyType = StringSwitch<SortSymbolKeyTy>(KeyStr)
                                     .Case("name", SortSymbolKeyTy::NAME)
@@ -307,6 +317,7 @@ static void parseOptions(const opt::InputArgList &Args) {
   opts::CodeViewMergedTypes = Args.hasArg(OPT_codeview_merged_types);
   opts::CodeViewSubsectionBytes = Args.hasArg(OPT_codeview_subsection_bytes);
   opts::COFFBaseRelocs = Args.hasArg(OPT_coff_basereloc);
+  opts::COFFPseudoRelocs = Args.hasArg(OPT_coff_pseudoreloc);
   opts::COFFDebugDirectory = Args.hasArg(OPT_coff_debug_directory);
   opts::COFFDirectives = Args.hasArg(OPT_coff_directives);
   opts::COFFExports = Args.hasArg(OPT_coff_exports);
@@ -459,6 +470,8 @@ static void dumpObject(ObjectFile &Obj, ScopedPrinter &Writer,
     Dumper->printGnuHashTable();
   if (opts::VersionInfo)
     Dumper->printVersionInfo();
+  if (opts::Offloading)
+    Dumper->printOffloading(Obj);
   if (opts::StringTable)
     Dumper->printStringTable();
   if (Obj.isELF()) {
@@ -475,13 +488,15 @@ static void dumpObject(ObjectFile &Obj, ScopedPrinter &Writer,
     if (opts::CGProfile)
       Dumper->printCGProfile();
     if (opts::BBAddrMap)
-      Dumper->printBBAddrMaps();
+      Dumper->printBBAddrMaps(opts::PrettyPGOAnalysisMap);
     if (opts::Addrsig)
       Dumper->printAddrsig();
     if (opts::Notes)
       Dumper->printNotes();
     if (opts::Memtag)
       Dumper->printMemtag();
+    if (!opts::SFrame.empty())
+      Dumper->printSectionsAsSFrame(opts::SFrame);
   }
   if (Obj.isCOFF()) {
     if (opts::COFFImports)
@@ -492,6 +507,8 @@ static void dumpObject(ObjectFile &Obj, ScopedPrinter &Writer,
       Dumper->printCOFFDirectives();
     if (opts::COFFBaseRelocs)
       Dumper->printCOFFBaseReloc();
+    if (opts::COFFPseudoRelocs)
+      Dumper->printCOFFPseudoReloc();
     if (opts::COFFDebugDirectory)
       Dumper->printCOFFDebugDirectory();
     if (opts::COFFTLSDirectory)
@@ -585,6 +602,22 @@ static void dumpMachOUniversalBinary(const MachOUniversalBinary *UBinary,
   }
 }
 
+/// Dumps \a COFF file;
+static void dumpCOFFObject(COFFObjectFile *Obj, ScopedPrinter &Writer) {
+  dumpObject(*Obj, Writer);
+
+  // Dump a hybrid object when available.
+  std::unique_ptr<MemoryBuffer> HybridView = Obj->getHybridObjectView();
+  if (!HybridView)
+    return;
+  Expected<std::unique_ptr<COFFObjectFile>> HybridObjOrErr =
+      COFFObjectFile::create(*HybridView);
+  if (!HybridObjOrErr)
+    reportError(HybridObjOrErr.takeError(), Obj->getFileName().str());
+  DictScope D(Writer, "HybridObject");
+  dumpObject(**HybridObjOrErr, Writer);
+}
+
 /// Dumps \a WinRes, Windows Resource (.res) file;
 static void dumpWindowsResourceFile(WindowsResource *WinRes,
                                     ScopedPrinter &Printer) {
@@ -622,6 +655,8 @@ static void dumpInput(StringRef File, ScopedPrinter &Writer) {
   else if (MachOUniversalBinary *UBinary =
                dyn_cast<MachOUniversalBinary>(Bin.get()))
     dumpMachOUniversalBinary(UBinary, Writer);
+  else if (COFFObjectFile *Obj = dyn_cast<COFFObjectFile>(Bin.get()))
+    dumpCOFFObject(Obj, Writer);
   else if (ObjectFile *Obj = dyn_cast<ObjectFile>(Bin.get()))
     dumpObject(*Obj, Writer);
   else if (COFFImportFile *Import = dyn_cast<COFFImportFile>(Bin.get()))
@@ -685,6 +720,7 @@ int llvm_readobj_main(int argc, char **argv, const llvm::ToolContext &) {
     opts::DynamicTable = true;
     opts::Notes = true;
     opts::VersionInfo = true;
+    opts::Offloading = true;
     opts::UnwindInfo = true;
     opts::SectionGroups = true;
     opts::HashHistogram = true;
@@ -705,14 +741,14 @@ int llvm_readobj_main(int argc, char **argv, const llvm::ToolContext &) {
   std::unique_ptr<ScopedPrinter> Writer = createWriter();
 
   for (const std::string &I : opts::InputFilenames)
-    dumpInput(I, *Writer.get());
+    dumpInput(I, *Writer);
 
   if (opts::CodeViewMergedTypes) {
     if (opts::CodeViewEnableGHash)
-      dumpCodeViewMergedTypes(*Writer.get(), CVTypes.GlobalIDTable.records(),
+      dumpCodeViewMergedTypes(*Writer, CVTypes.GlobalIDTable.records(),
                               CVTypes.GlobalTypeTable.records());
     else
-      dumpCodeViewMergedTypes(*Writer.get(), CVTypes.IDTable.records(),
+      dumpCodeViewMergedTypes(*Writer, CVTypes.IDTable.records(),
                               CVTypes.TypeTable.records());
   }
 

@@ -26,20 +26,11 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/StringSaver.h"
-#include "llvm/Support/SystemZ/zOSSupport.h"
 #include "llvm/Support/raw_ostream.h"
-#if HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#if HAVE_SYS_RESOURCE_H
-#include <sys/resource.h>
-#endif
-#if HAVE_SIGNAL_H
-#include <signal.h>
-#endif
-#if HAVE_FCNTL_H
 #include <fcntl.h>
-#endif
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -153,7 +144,6 @@ static bool RedirectIO_PS(const std::string *Path, int FD, std::string *ErrMsg,
 static void TimeOutHandler(int Sig) {}
 
 static void SetMemoryLimits(unsigned size) {
-#if HAVE_SYS_RESOURCE_H && HAVE_GETRLIMIT && HAVE_SETRLIMIT
   struct rlimit r;
   __typeof__(r.rlim_cur) limit = (__typeof__(r.rlim_cur))(size)*1048576;
 
@@ -167,7 +157,6 @@ static void SetMemoryLimits(unsigned size) {
   r.rlim_cur = limit;
   setrlimit(RLIMIT_RSS, &r);
 #endif
-#endif
 }
 
 static std::vector<const char *>
@@ -180,21 +169,11 @@ toNullTerminatedCStringArray(ArrayRef<StringRef> Strings, StringSaver &Saver) {
 }
 
 static bool Execute(ProcessInfo &PI, StringRef Program,
-                    ArrayRef<StringRef> Args, std::optional<ArrayRef<StringRef>> Env,
+                    ArrayRef<StringRef> Args,
+                    std::optional<ArrayRef<StringRef>> Env,
                     ArrayRef<std::optional<StringRef>> Redirects,
                     unsigned MemoryLimit, std::string *ErrMsg,
-                    BitVector *AffinityMask) {
-  if (!llvm::sys::fs::exists(Program)
-#if (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
-       && !ios_executable(Program.str().c_str())  // one of the commands in ios_system
-#endif
-    ) {
-    if (ErrMsg)
-      *ErrMsg = std::string("Executable \"") + Program.str() +
-                std::string("\" doesn't exist!");
-    return false;
-  }
-
+                    BitVector *AffinityMask, bool DetachProcess) {
   assert(!AffinityMask && "Starting a process with an affinity mask is "
                           "currently not supported on Unix!");
 
@@ -213,7 +192,8 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
   // If this OS has posix_spawn and there is no memory limit being implied, use
   // posix_spawn.  It is more efficient than fork/exec.
 #ifdef HAVE_POSIX_SPAWN
-  if (MemoryLimit == 0) {
+  // Cannot use posix_spawn if you would like to detach the process
+  if (MemoryLimit == 0 && !DetachProcess) {
     posix_spawn_file_actions_t FileActionsStore;
     posix_spawn_file_actions_t *FileActions = nullptr;
 
@@ -281,7 +261,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
 
     return true;
   }
-#endif
+#endif // HAVE_POSIX_SPAWN
 
   // Create a child process.
   int child = fork();
@@ -291,7 +271,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
     MakeErrMsg(ErrMsg, "Couldn't fork");
     return false;
 
-#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
+#if !TARGET_OS_IPHONE
     // Child process: Execute the program.
 	case 0: {
 #else
@@ -323,10 +303,18 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
 			}
 		}
 
-		// Set memory limits
-		if (MemoryLimit!=0) {
-			SetMemoryLimits(MemoryLimit);
-		}
+    if (DetachProcess) {
+      // Detach from controlling terminal
+      if (::setsid() == -1) {
+        MakeErrMsg(ErrMsg, "Could not detach process, ::setsid failed");
+        return false;
+      }
+    }
+
+    // Set memory limits
+    if (MemoryLimit != 0) {
+      SetMemoryLimits(MemoryLimit);
+    }
 
 		// Execute!
 		std::string PathStr = std::string(Program);
@@ -341,12 +329,12 @@ static bool Execute(ProcessInfo &PI, StringRef Program,
 		// object destructors cloned from the parent process aren't
 		// redundantly run, and so that any data buffered in stdio buffers
 		// cloned from the parent aren't redundantly written out.
-#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
+#if !TARGET_OS_IPHONE
 		_exit(errno == ENOENT ? 127 : 126);
 #endif
 				 }
 
-#if (!TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR)
+#if !TARGET_OS_IPHONE
 				 // Parent process: Break out of the switch to do our processing.
 		default:
 				 break;
@@ -502,7 +490,7 @@ ProcessInfo llvm::sys::Wait(const ProcessInfo &PI,
     *ProcStat = ProcessStatistics{UserT + KernelT, UserT, PeakMemory};
   }
 #endif
-#endif // (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+#endif // TARGET_OS_IPHONE 
 
   // Return the proper exit status. Detect error conditions
   // so we can return -1 for them and set ErrMsg informatively.

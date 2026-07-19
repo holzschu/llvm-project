@@ -30,9 +30,9 @@ using namespace llvm::sys;
 
 // All methods for HandleSet should be used holding SymbolsMutex.
 class DynamicLibrary::HandleSet {
-  typedef std::vector<void *> HandleList;
+  using HandleList = std::vector<void *>;
   HandleList Handles;
-  void *Process = nullptr;
+  void *Process = &Invalid;
 
 public:
   static void *DLOpen(const char *Filename, std::string *Err);
@@ -65,7 +65,7 @@ public:
       Handles.push_back(Handle);
     } else {
 #ifndef _WIN32
-      if (Process) {
+      if (Process != &Invalid) {
         if (CanClose)
           DLClose(Process);
         if (Process == Handle)
@@ -104,11 +104,11 @@ public:
     assert(!((Order & SO_LoadedFirst) && (Order & SO_LoadedLast)) &&
            "Invalid Ordering");
 
-    if (!Process || (Order & SO_LoadedFirst)) {
+    if (Process == &Invalid || (Order & SO_LoadedFirst)) {
       if (void *Ptr = LibLookup(Symbol, Order))
         return Ptr;
     }
-    if (Process) {
+    if (Process != &Invalid) {
       // Use OS facilities to search the current binary and all loaded libs.
       if (void *Ptr = DLSym(Process, Symbol))
         return Ptr;

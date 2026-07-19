@@ -7,13 +7,13 @@ target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:
 
 define amdgpu_kernel void @sum_of_array(i32 %x, i32 %y, ptr addrspace(1) nocapture %output) {
 ; IR-LABEL: define amdgpu_kernel void @sum_of_array(
-; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) nocapture [[OUTPUT:%.*]]) {
+; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) captures(none) [[OUTPUT:%.*]]) {
 ; IR-NEXT:    [[TMP:%.*]] = sext i32 [[Y]] to i64
 ; IR-NEXT:    [[TMP1:%.*]] = sext i32 [[X]] to i64
 ; IR-NEXT:    [[TMP2:%.*]] = getelementptr [4096 x [32 x float]], ptr addrspace(4) @array, i64 0, i64 [[TMP1]], i64 [[TMP]]
-; IR-NEXT:    [[TMP82:%.*]] = getelementptr inbounds i8, ptr addrspace(4) [[TMP2]], i64 4
-; IR-NEXT:    [[TMP144:%.*]] = getelementptr inbounds i8, ptr addrspace(4) [[TMP2]], i64 128
-; IR-NEXT:    [[TMP187:%.*]] = getelementptr inbounds i8, ptr addrspace(4) [[TMP2]], i64 132
+; IR-NEXT:    [[TMP82:%.*]] = getelementptr i8, ptr addrspace(4) [[TMP2]], i64 4
+; IR-NEXT:    [[TMP144:%.*]] = getelementptr i8, ptr addrspace(4) [[TMP2]], i64 128
+; IR-NEXT:    [[TMP187:%.*]] = getelementptr i8, ptr addrspace(4) [[TMP2]], i64 132
 ; IR-NEXT:    store float 0.000000e+00, ptr addrspace(1) [[OUTPUT]], align 4
 ; IR-NEXT:    ret void
 ;
@@ -45,13 +45,13 @@ define amdgpu_kernel void @sum_of_array(i32 %x, i32 %y, ptr addrspace(1) nocaptu
 
 define amdgpu_kernel void @sum_of_array_over_max_mubuf_offset(i32 %x, i32 %y, ptr addrspace(1) nocapture %output) {
 ; IR-LABEL: define amdgpu_kernel void @sum_of_array_over_max_mubuf_offset(
-; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) nocapture [[OUTPUT:%.*]]) {
+; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) captures(none) [[OUTPUT:%.*]]) {
 ; IR-NEXT:    [[TMP:%.*]] = sext i32 [[Y]] to i64
 ; IR-NEXT:    [[TMP1:%.*]] = sext i32 [[X]] to i64
 ; IR-NEXT:    [[TMP2:%.*]] = getelementptr [4096 x [4 x float]], ptr addrspace(4) @array2, i64 0, i64 [[TMP1]], i64 [[TMP]]
 ; IR-NEXT:    [[TMP6:%.*]] = add i32 [[Y]], 255
 ; IR-NEXT:    [[TMP7:%.*]] = sext i32 [[TMP6]] to i64
-; IR-NEXT:    [[TMP82:%.*]] = getelementptr inbounds i8, ptr addrspace(4) [[TMP2]], i64 1020
+; IR-NEXT:    [[TMP82:%.*]] = getelementptr i8, ptr addrspace(4) [[TMP2]], i64 1020
 ; IR-NEXT:    [[TMP12:%.*]] = add i32 [[X]], 256
 ; IR-NEXT:    [[TMP13:%.*]] = sext i32 [[TMP12]] to i64
 ; IR-NEXT:    [[TMP14:%.*]] = getelementptr inbounds [4096 x [4 x float]], ptr addrspace(4) @array2, i64 0, i64 [[TMP13]], i64 [[TMP]]
@@ -87,17 +87,17 @@ define amdgpu_kernel void @sum_of_array_over_max_mubuf_offset(i32 %x, i32 %y, pt
 ; DS instructions have a larger immediate offset, so make sure these are OK.
 define amdgpu_kernel void @sum_of_lds_array_over_max_mubuf_offset(i32 %x, i32 %y, ptr addrspace(1) nocapture %output) {
 ; IR-LABEL: define amdgpu_kernel void @sum_of_lds_array_over_max_mubuf_offset(
-; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) nocapture [[OUTPUT:%.*]]) {
+; IR-SAME: i32 [[X:%.*]], i32 [[Y:%.*]], ptr addrspace(1) captures(none) [[OUTPUT:%.*]]) {
 ; IR-NEXT:    [[TMP2:%.*]] = getelementptr [4096 x [4 x float]], ptr addrspace(3) @lds_array, i32 0, i32 [[X]], i32 [[Y]]
 ; IR-NEXT:    [[TMP4:%.*]] = load float, ptr addrspace(3) [[TMP2]], align 4
 ; IR-NEXT:    [[TMP5:%.*]] = fadd float [[TMP4]], 0.000000e+00
-; IR-NEXT:    [[TMP82:%.*]] = getelementptr inbounds i8, ptr addrspace(3) [[TMP2]], i32 1020
+; IR-NEXT:    [[TMP82:%.*]] = getelementptr i8, ptr addrspace(3) [[TMP2]], i32 1020
 ; IR-NEXT:    [[TMP10:%.*]] = load float, ptr addrspace(3) [[TMP82]], align 4
 ; IR-NEXT:    [[TMP11:%.*]] = fadd float [[TMP5]], [[TMP10]]
-; IR-NEXT:    [[TMP144:%.*]] = getelementptr inbounds i8, ptr addrspace(3) [[TMP2]], i32 64512
+; IR-NEXT:    [[TMP144:%.*]] = getelementptr i8, ptr addrspace(3) [[TMP2]], i32 64512
 ; IR-NEXT:    [[TMP16:%.*]] = load float, ptr addrspace(3) [[TMP144]], align 4
 ; IR-NEXT:    [[TMP17:%.*]] = fadd float [[TMP11]], [[TMP16]]
-; IR-NEXT:    [[TMP187:%.*]] = getelementptr inbounds i8, ptr addrspace(3) [[TMP2]], i32 65532
+; IR-NEXT:    [[TMP187:%.*]] = getelementptr i8, ptr addrspace(3) [[TMP2]], i32 65532
 ; IR-NEXT:    [[TMP20:%.*]] = load float, ptr addrspace(3) [[TMP187]], align 4
 ; IR-NEXT:    [[TMP21:%.*]] = fadd float [[TMP17]], [[TMP20]]
 ; IR-NEXT:    store float [[TMP21]], ptr addrspace(1) [[OUTPUT]], align 4
@@ -157,7 +157,7 @@ main_body:
   %25 = getelementptr [0 x <8 x i32>], ptr addrspace(4) %1, i32 0, i32 %24, !amdgpu.uniform !0
   %26 = load <8 x i32>, ptr addrspace(4) %25, align 32, !invariant.load !0
   %27 = shl i32 %23, 2
-  %28 = or i32 %27, 3
+  %28 = or disjoint i32 %27, 3
   %29 = getelementptr [0 x <4 x i32>], ptr addrspace(4) %1, i32 0, i32 %28, !amdgpu.uniform !0
   %30 = load <4 x i32>, ptr addrspace(4) %29, align 16, !invariant.load !0
   %31 = call nsz <4 x float> @llvm.amdgcn.image.sample.v4f32.v2f32.v8i32(<2 x float> zeroinitializer, <8 x i32> %26, <4 x i32> %30, i32 15, i1 false, i1 false, i1 false, i1 false, i1 false) #8

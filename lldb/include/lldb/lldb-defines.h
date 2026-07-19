@@ -89,13 +89,16 @@
 #define LLDB_INVALID_PROCESS_ID 0
 #define LLDB_INVALID_THREAD_ID 0
 #define LLDB_INVALID_FRAME_ID UINT32_MAX
+#define LLDB_UNWINDER_FRAME_LIST_ID 0
 #define LLDB_INVALID_SIGNAL_NUMBER INT32_MAX
+#define LLDB_INVALID_SYMBOL_ID UINT32_MAX
 #define LLDB_INVALID_OFFSET UINT64_MAX // Must match max of lldb::offset_t
 #define LLDB_INVALID_LINE_NUMBER UINT32_MAX
 #define LLDB_INVALID_COLUMN_NUMBER 0
 #define LLDB_INVALID_QUEUE_ID 0
 #define LLDB_INVALID_CPU_ID UINT32_MAX
 #define LLDB_INVALID_WATCHPOINT_RESOURCE_ID UINT32_MAX
+#define LLDB_INVALID_GLOBALLY_UNIQUE_TARGET_ID 0
 
 /// CPU Type definitions
 #define LLDB_ARCH_DEFAULT "systemArch"
@@ -126,6 +129,11 @@
 #if defined(_WIN32) && !defined(MAX_PATH)
 #define MAX_PATH 260
 #endif
+
+/// Address Mask
+/// Bits not used for addressing are set to 1 in the mask;
+/// all mask bits set is an invalid value.
+#define LLDB_INVALID_ADDRESS_MASK UINT64_MAX
 
 // ignore GCC function attributes
 #if defined(_MSC_VER) && !defined(__clang__)

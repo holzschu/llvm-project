@@ -10,15 +10,11 @@
 #include "Arch/ARM64Common.h"
 #include "InputFiles.h"
 #include "Symbols.h"
-#include "SyntheticSections.h"
 #include "Target.h"
 
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/BinaryFormat/MachO.h"
-#include "llvm/Support/Endian.h"
-#include "llvm/Support/MathExtras.h"
 
 using namespace llvm::MachO;
 using namespace llvm::support::endian;
@@ -34,8 +30,7 @@ struct ARM64_32 : ARM64Common {
   void writeStubHelperEntry(uint8_t *buf, const Symbol &,
                             uint64_t entryAddr) const override;
   void writeObjCMsgSendStub(uint8_t *buf, Symbol *sym, uint64_t stubsAddr,
-                            uint64_t &stubOffset, uint64_t selrefsVA,
-                            uint64_t selectorIndex,
+                            uint64_t &stubOffset, uint64_t selrefVA,
                             Symbol *objcMsgSend) const override;
 };
 
@@ -101,7 +96,7 @@ void ARM64_32::writeStubHelperEntry(uint8_t *buf8, const Symbol &sym,
 
 void ARM64_32::writeObjCMsgSendStub(uint8_t *buf, Symbol *sym,
                                     uint64_t stubsAddr, uint64_t &stubOffset,
-                                    uint64_t selrefsVA, uint64_t selectorIndex,
+                                    uint64_t selrefVA,
                                     Symbol *objcMsgSend) const {
   fatal("TODO: implement this");
 }

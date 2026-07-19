@@ -26,7 +26,6 @@
 
 int llvm_object_list_sections(void) {
   LLVMMemoryBufferRef MB;
-  LLVMBinaryRef O;
   LLVMSectionIteratorRef sect;
 
   char *outBufferErr = NULL;
@@ -37,7 +36,8 @@ int llvm_object_list_sections(void) {
   }
 
   char *outBinaryErr = NULL;
-  O = LLVMCreateBinary(MB, LLVMGetGlobalContext(), &outBinaryErr);
+  LLVMContextRef C = LLVMContextCreate();
+  LLVMBinaryRef O = LLVMCreateBinary(MB, C, &outBinaryErr);
   if (!O || outBinaryErr) {
     fprintf(stderr, "Error reading object: %s\n", outBinaryErr);
     free(outBinaryErr);
@@ -57,13 +57,13 @@ int llvm_object_list_sections(void) {
   LLVMDisposeBinary(O);
 
   LLVMDisposeMemoryBuffer(MB);
+  LLVMContextDispose(C);
 
   return 0;
 }
 
 int llvm_object_list_symbols(void) {
   LLVMMemoryBufferRef MB;
-  LLVMBinaryRef O;
   LLVMSectionIteratorRef sect;
   LLVMSymbolIteratorRef sym;
 
@@ -75,7 +75,8 @@ int llvm_object_list_symbols(void) {
   }
 
   char *outBinaryErr = NULL;
-  O = LLVMCreateBinary(MB, LLVMGetGlobalContext(), &outBinaryErr);
+  LLVMContextRef C = LLVMContextCreate();
+  LLVMBinaryRef O = LLVMCreateBinary(MB, C, &outBinaryErr);
   if (!O || outBinaryErr) {
     fprintf(stderr, "Error reading object: %s\n", outBinaryErr);
     free(outBinaryErr);
@@ -99,6 +100,7 @@ int llvm_object_list_symbols(void) {
   LLVMDisposeBinary(O);
 
   LLVMDisposeMemoryBuffer(MB);
+  LLVMContextDispose(C);
 
   return 0;
 }

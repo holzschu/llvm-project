@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PerfHelper.h"
+#include "Error.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/Error.h"
@@ -117,6 +118,8 @@ void ConfiguredEvent::initRealEvent(const pid_t ProcessID, const int GroupFD) {
   const int CPU = -1;
   const uint32_t Flags = 0;
   perf_event_attr AttrCopy = *Event.attribute();
+  AttrCopy.read_format =
+      PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
   FileDescriptor = perf_event_open(&AttrCopy, ProcessID, CPU, GroupFD, Flags);
   if (FileDescriptor == -1) {
     errs() << "Unable to open event. ERRNO: " << strerror(errno)
@@ -132,15 +135,20 @@ void ConfiguredEvent::initRealEvent(const pid_t ProcessID, const int GroupFD) {
 
 Expected<SmallVector<int64_t>>
 ConfiguredEvent::readOrError(StringRef /*unused*/) const {
-  int64_t Count = 0;
-  ssize_t ReadSize = ::read(FileDescriptor, &Count, sizeof(Count));
+  int64_t EventInfo[3] = {0, 0, 0};
+  ssize_t ReadSize = ::read(FileDescriptor, &EventInfo, sizeof(EventInfo));
 
-  if (ReadSize != sizeof(Count))
-    return llvm::make_error<llvm::StringError>("Failed to read event counter",
-                                               llvm::errc::io_error);
+  if (ReadSize != sizeof(EventInfo))
+    return make_error<StringError>("Failed to read event counter",
+                                   errc::io_error);
+
+  int64_t EventTimeEnabled = EventInfo[1];
+  int64_t EventTimeRunning = EventInfo[2];
+  if (EventTimeEnabled != EventTimeRunning)
+    return make_error<PerfCounterNotFullyEnabled>();
 
   SmallVector<int64_t, 1> Result;
-  Result.push_back(Count);
+  Result.push_back(EventInfo[0]);
   return Result;
 }
 
@@ -187,7 +195,7 @@ void CounterGroup::stop() {
     ioctl(getFileDescriptor(), PERF_EVENT_IOC_DISABLE, PERF_IOC_FLAG_GROUP);
 }
 
-llvm::Expected<llvm::SmallVector<int64_t, 4>>
+Expected<SmallVector<int64_t, 4>>
 CounterGroup::readOrError(StringRef FunctionBytes) const {
   if (!IsDummyEvent)
     return EventCounter.readOrError(FunctionBytes);
@@ -195,9 +203,9 @@ CounterGroup::readOrError(StringRef FunctionBytes) const {
     return SmallVector<int64_t, 1>(1, 42);
 }
 
-llvm::Expected<llvm::SmallVector<int64_t>>
+Expected<SmallVector<int64_t>>
 CounterGroup::readValidationCountersOrError() const {
-  llvm::SmallVector<int64_t, 4> Result;
+  SmallVector<int64_t, 4> Result;
   for (const auto &ValCounter : ValidationEventCounters) {
     Expected<SmallVector<int64_t>> ValueOrError =
         ValCounter.readOrError(StringRef());
@@ -223,18 +231,17 @@ void CounterGroup::start() {}
 
 void CounterGroup::stop() {}
 
-llvm::Expected<llvm::SmallVector<int64_t, 4>>
+Expected<SmallVector<int64_t, 4>>
 CounterGroup::readOrError(StringRef /*unused*/) const {
   if (IsDummyEvent) {
-    llvm::SmallVector<int64_t, 4> Result;
+    SmallVector<int64_t, 4> Result;
     Result.push_back(42);
     return Result;
   }
-  return llvm::make_error<llvm::StringError>("Not implemented",
-                                             llvm::errc::io_error);
+  return make_error<StringError>("Not implemented", errc::io_error);
 }
 
-llvm::Expected<llvm::SmallVector<int64_t>>
+Expected<SmallVector<int64_t>>
 CounterGroup::readValidationCountersOrError() const {
   return SmallVector<int64_t>(0);
 }

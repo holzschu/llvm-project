@@ -50,7 +50,7 @@ void TestSelectionRangesInFile::dump(raw_ostream &OS) const {
 bool TestSelectionRangesInFile::foreachRange(
     const SourceManager &SM,
     llvm::function_ref<void(SourceRange)> Callback) const {
-  auto FE = SM.getFileManager().getFile(Filename);
+  auto FE = SM.getFileManager().getOptionalFileRef(Filename);
   FileID FID = FE ? SM.translateFile(*FE) : FileID();
   if (!FE || FID.isInvalid()) {
     llvm::errs() << "error: -selection=test:" << Filename
@@ -380,10 +380,7 @@ findTestSelectionRanges(StringRef Filename) {
       EndOffset = Offset;
     }
     TestSelectionRange Range = {Offset, EndOffset};
-    auto It = GroupedRanges.insert(std::make_pair(
-        Matches[1].str(), SmallVector<TestSelectionRange, 8>{Range}));
-    if (!It.second)
-      It.first->second.push_back(Range);
+    GroupedRanges[Matches[1].str()].push_back(Range);
   }
   if (GroupedRanges.empty()) {
     llvm::errs() << "error: -selection=test:" << Filename

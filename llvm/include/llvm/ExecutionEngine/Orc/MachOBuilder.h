@@ -36,7 +36,7 @@ size_t writeMachOStruct(MutableArrayRef<char> Buf, size_t Offset, MachOStruct S,
 
 /// Base type for MachOBuilder load command wrappers.
 struct MachOBuilderLoadCommandBase {
-  virtual ~MachOBuilderLoadCommandBase() {}
+  virtual ~MachOBuilderLoadCommandBase() = default;
   virtual size_t size() const = 0;
   virtual size_t write(MutableArrayRef<char> Buf, size_t Offset,
                        bool SwapStruct) = 0;
@@ -78,53 +78,48 @@ public:
 
   template <typename... ArgTs>
   MachOBuilderLoadCommand(ArgTs &&...Args)
-      : MachOBuilderLoadCommand(std::forward<ArgTs>(Args)...) {}
+      : MachOBuilderLoadCommandImplBase<LCType>(std::forward<ArgTs>(Args)...) {}
+};
+
+template <MachO::LoadCommandType LCType>
+struct MachOBuilderDylibLoadCommand
+    : public MachOBuilderLoadCommandImplBase<LCType> {
+
+  MachOBuilderDylibLoadCommand(std::string Name, uint32_t Timestamp,
+                               uint32_t CurrentVersion,
+                               uint32_t CompatibilityVersion)
+      : MachOBuilderLoadCommandImplBase<LCType>(
+            MachO::dylib{24, Timestamp, CurrentVersion, CompatibilityVersion}),
+        Name(std::move(Name)) {
+    this->cmdsize += (this->Name.size() + 1 + 3) & ~0x3;
+  }
+
+  size_t write(MutableArrayRef<char> Buf, size_t Offset,
+               bool SwapStruct) override {
+    Offset = writeMachOStruct(Buf, Offset, this->rawStruct(), SwapStruct);
+    strcpy(Buf.data() + Offset, Name.data());
+    return Offset + ((Name.size() + 1 + 3) & ~0x3);
+  }
+
+  std::string Name;
 };
 
 template <>
 struct MachOBuilderLoadCommand<MachO::LC_ID_DYLIB>
-    : public MachOBuilderLoadCommandImplBase<MachO::LC_ID_DYLIB> {
-
-  MachOBuilderLoadCommand(std::string Name, uint32_t Timestamp,
-                          uint32_t CurrentVersion,
-                          uint32_t CompatibilityVersion)
-      : MachOBuilderLoadCommandImplBase(
-            MachO::dylib{24, Timestamp, CurrentVersion, CompatibilityVersion}),
-        Name(std::move(Name)) {
-    cmdsize += (this->Name.size() + 1 + 3) & ~0x3;
-  }
-
-  size_t write(MutableArrayRef<char> Buf, size_t Offset,
-               bool SwapStruct) override {
-    Offset = writeMachOStruct(Buf, Offset, rawStruct(), SwapStruct);
-    strcpy(Buf.data() + Offset, Name.data());
-    return Offset + ((Name.size() + 1 + 3) & ~0x3);
-  }
-
-  std::string Name;
+    : public MachOBuilderDylibLoadCommand<MachO::LC_ID_DYLIB> {
+  using MachOBuilderDylibLoadCommand::MachOBuilderDylibLoadCommand;
 };
 
 template <>
 struct MachOBuilderLoadCommand<MachO::LC_LOAD_DYLIB>
-    : public MachOBuilderLoadCommandImplBase<MachO::LC_LOAD_DYLIB> {
+    : public MachOBuilderDylibLoadCommand<MachO::LC_LOAD_DYLIB> {
+  using MachOBuilderDylibLoadCommand::MachOBuilderDylibLoadCommand;
+};
 
-  MachOBuilderLoadCommand(std::string Name, uint32_t Timestamp,
-                          uint32_t CurrentVersion,
-                          uint32_t CompatibilityVersion)
-      : MachOBuilderLoadCommandImplBase(
-            MachO::dylib{24, Timestamp, CurrentVersion, CompatibilityVersion}),
-        Name(std::move(Name)) {
-    cmdsize += (this->Name.size() + 1 + 3) & ~0x3;
-  }
-
-  size_t write(MutableArrayRef<char> Buf, size_t Offset,
-               bool SwapStruct) override {
-    Offset = writeMachOStruct(Buf, Offset, rawStruct(), SwapStruct);
-    strcpy(Buf.data() + Offset, Name.data());
-    return Offset + ((Name.size() + 1 + 3) & ~0x3);
-  }
-
-  std::string Name;
+template <>
+struct MachOBuilderLoadCommand<MachO::LC_LOAD_WEAK_DYLIB>
+    : public MachOBuilderDylibLoadCommand<MachO::LC_LOAD_WEAK_DYLIB> {
+  using MachOBuilderDylibLoadCommand::MachOBuilderDylibLoadCommand;
 };
 
 template <>
@@ -364,7 +359,7 @@ public:
       Seg.vmaddr = SegVMAddr;
       Seg.fileoff = Offset;
       for (auto &Sec : Seg.Sections) {
-        Offset = alignTo(Offset, size_t{1} << Sec->align);
+        Offset = alignTo(Offset, 1ULL << Sec->align);
         if (Sec->Content.Size)
           Sec->offset = Offset;
         Sec->size = Sec->Content.Size;
@@ -460,8 +455,8 @@ private:
       return;
 
     StrTab.resize(Strings.size());
-    for (auto &KV : Strings)
-      StrTab[KV.second] = {KV.first, 0};
+    for (auto &[Str, Idx] : Strings)
+      StrTab[Idx] = {Str, 0};
     size_t Offset = 0;
     for (auto &Elem : StrTab) {
       Elem.Offset = Offset;

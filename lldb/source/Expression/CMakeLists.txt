@@ -3,6 +3,7 @@ add_lldb_library(lldbExpression
   DWARFExpression.cpp
   DWARFExpressionList.cpp
   Expression.cpp
+  ExpressionParser.cpp
   ExpressionTypeSystemHelper.cpp
   ExpressionVariable.cpp
   FunctionCaller.cpp
@@ -16,9 +17,16 @@ add_lldb_library(lldbExpression
   UserExpression.cpp
   UtilityFunction.cpp
 
+  ADDITIONAL_HEADER_DIRS
+    ${LLDB_INCLUDE_DIR}/lldb/Expression
   DEPENDS
   intrinsics_gen
 
+  LINK_COMPONENTS
+    Core
+    DebugInfoDWARF
+    ExecutionEngine
+    Support
   LINK_LIBS
     lldbCore
     lldbHost
@@ -26,10 +34,5 @@ add_lldb_library(lldbExpression
     lldbSymbol
     lldbTarget
     lldbUtility
-    lldbPluginProcessGDBRemote
-
-  LINK_COMPONENTS
-    Core
-    ExecutionEngine
-    Support
+    lldbValueObject
   )

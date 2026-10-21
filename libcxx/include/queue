@@ -290,9 +290,6 @@ template <class T, class Container, class Compare>
 _LIBCPP_PUSH_MACROS
 #  include <__undef_macros>
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Tp, class _Container>

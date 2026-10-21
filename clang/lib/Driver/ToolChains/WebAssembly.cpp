@@ -248,13 +248,14 @@ WebAssembly::WebAssembly(const Driver &D, const llvm::Triple &Triple,
 
   assert(Triple.isArch32Bit() != Triple.isArch64Bit());
 
-#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+  getProgramPaths().push_back(getDriver().Dir);
+#if TARGET_OS_IPHONE 
   // on iOS, compilers are installed elsewhere, but we pretend they are in 
   // $SYSROOT/usr/bin: 
   auto SysRoot = getDriver().SysRoot;
   getProgramPaths().push_back(SysRoot + "/usr/bin/");
 #else          
-  getProgramPaths().push_back(getDriver().Dir);
+  auto SysRoot = getDriver().SysRoot;
 #endif
 
   if (getTriple().getOS() == llvm::Triple::UnknownOS) {
@@ -285,12 +286,6 @@ WebAssembly::WebAssembly(const Driver &D, const llvm::Triple &Triple,
 
 const char *WebAssembly::getDefaultLinker() const {
   if (TargetBuildsComponents(getTriple()))
-    return "wasm-component-ld";
-  return "wasm-ld";
-}
-
-const char *WebAssembly::getDefaultLinker() const {
-  if (getOS() == "wasip2")
     return "wasm-component-ld";
   return "wasm-ld";
 }

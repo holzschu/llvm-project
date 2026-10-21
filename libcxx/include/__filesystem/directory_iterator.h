@@ -145,6 +145,4 @@ inline constexpr bool std::ranges::enable_view<std::filesystem::directory_iterat
 
 _LIBCPP_POP_MACROS
 
-_LIBCPP_POP_MACROS
-
 #endif // _LIBCPP___FILESYSTEM_DIRECTORY_ITERATOR_H

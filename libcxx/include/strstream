@@ -150,9 +150,6 @@ private:
 _LIBCPP_PUSH_MACROS
 #      include <__undef_macros>
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 class _LIBCPP_DEPRECATED _LIBCPP_EXPORTED_FROM_ABI strstreambuf : public streambuf {

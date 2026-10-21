@@ -107,10 +107,15 @@ static cl::opt<bool> ClSanitizeOnOptimizerEarlyEP(
     "sanitizer-early-opt-ep", cl::Optional,
     cl::desc("Insert sanitizers on OptimizerEarlyEP."));
 
+// on iOS, this conflicts with the cl::opt<PGOOptions::ColdFuncOpt> defined in llvm/NewPMDriver.cpp
 // Experiment to mark cold functions as optsize/minsize/optnone.
 // TODO: remove once this is exposed as a proper driver flag.
 static cl::opt<PGOOptions::ColdFuncOpt> ClPGOColdFuncAttr(
+#if !TARGET_OS_IPHONE
     "pgo-cold-func-opt", cl::init(PGOOptions::ColdFuncOpt::Default), cl::Hidden,
+#else
+    "pgo-cold-func-opt-clang", cl::init(PGOOptions::ColdFuncOpt::Default), cl::Hidden,
+#endif
     cl::desc(
         "Function attribute to apply to cold functions as determined by PGO"),
     cl::values(clEnumValN(PGOOptions::ColdFuncOpt::Default, "default",
@@ -847,7 +852,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
     // -fprofile-generate.
     PGOOpt = PGOOptions(getProfileGenName(CodeGenOpts), "", "",
                         CodeGenOpts.MemoryProfileUsePath, PGOOptions::IRInstr,
-                        PGOOptions::NoCSAction, ClPGOColdFuncAttr,
+                        PGOOptions::NoCSAction, 
+                        ClPGOColdFuncAttr,
                         CodeGenOpts.DebugInfoForProfiling,
                         /*PseudoProbeForProfiling=*/false,
                         CodeGenOpts.AtomicProfileUpdate);

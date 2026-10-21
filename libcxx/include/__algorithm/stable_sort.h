@@ -320,6 +320,4 @@ stable_sort(_RandomAccessIterator __first, _RandomAccessIterator __last) {
 _LIBCPP_END_NAMESPACE_STD
 _LIBCPP_POP_MACROS
 
-_LIBCPP_POP_MACROS
-
 #endif // _LIBCPP___ALGORITHM_STABLE_SORT_H

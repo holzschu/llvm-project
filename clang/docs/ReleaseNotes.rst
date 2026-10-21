@@ -146,12 +146,6 @@ AST Potentially Breaking Changes
   The begin source location of abbreviated function templates is the begin source location of the templated function.
   The begin source location of generic lambdas is the begin source location of the lambda introducer ``[...]``.
 
-- Fixed Microsoft calling convention for returning certain classes with a
-  templated constructor. If a class has a templated constructor, it should
-  be returned indirectly even if it meets all the other requirements for
-  returning a class in a register. This affects some uses of std::pair.
-  (#GH86384).
-
 AST Dumping Potentially Breaking Changes
 ----------------------------------------
 - How nested name specifiers are dumped and printed changes, keeping track of clang AST changes.
@@ -199,22 +193,6 @@ Clang Python Bindings Potentially Breaking Changes
   the library file
 - ``TranslationUnit.reparse`` will now throw an exception when an error occurs.
   Previously, errors were silently ignored.
-
-Clang Frontend Potentially Breaking Changes
--------------------------------------------
-- Target OS macros extension
-  A new Clang extension (see :ref:`here <target_os_detail>`) is enabled for
-  Darwin (Apple platform) targets. Clang now defines ``TARGET_OS_*`` macros for
-  these targets, which could break existing code bases with improper checks for
-  the ``TARGET_OS_`` macros. For example, existing checks might fail to include
-  the ``TargetConditionals.h`` header from Apple SDKs and therefore leaving the
-  macros undefined and guarded code unexercised.
-
-  Affected code should be checked to see if it's still intended for the specific
-  target and fixed accordingly.
-
-  The extension can be turned off by the option ``-fno-define-target-os-macros``
-  as a workaround.
 
 What's New in Clang |release|?
 ==============================
@@ -377,10 +355,6 @@ Non-comprehensive list of changes in this release
   mirror those normally passed to an allocation function.
 
 - Clang now rejects the invalid use of ``constexpr`` with ``auto`` and an explicit type in C. (#GH163090)
-
-* Clang now defines macro ``__LLVM_INSTR_PROFILE_GENERATE`` when compiling with
-  PGO instrumentation profile generation, and ``__LLVM_INSTR_PROFILE_USE`` when
-  compiling with PGO profile use.
 
 New Compiler Flags
 ------------------
@@ -696,25 +670,6 @@ Bug Fixes to C++ Support
 - Fixed an issue where recursive instantiation could lead to escape of SFINAE errors. (#GH179118)
 - Fixed an assertion failure in floating conversion narrowing caused by C++ constant expression checks in C23 mode. (#GH173847)
 
-
-- Fixed a bug where variables referenced by requires-clauses inside
-  nested generic lambdas were not properly injected into the constraint scope.
-  (`#73418 <https://github.com/llvm/llvm-project/issues/73418>`_)
-
-- Fix incorrect code generation caused by the object argument of ``static operator()`` and ``static operator[]`` calls not being evaluated.
-  Fixes (`#67976 <https://github.com/llvm/llvm-project/issues/67976>`_)
-
-- Fix crash when using an immediate-escalated function at global scope.
-  (`#82258 <https://github.com/llvm/llvm-project/issues/82258>`_)
-- Correctly immediate-escalate lambda conversion functions.
-  (`#82258 <https://github.com/llvm/llvm-project/issues/82258>`_)
-- Fix a crash when an unresolved overload set is encountered on the RHS of a ``.*`` operator.
-  (`#53815 <https://github.com/llvm/llvm-project/issues/53815>`_)
-
-- Fixed a regression in CTAD that a friend declaration that befriends itself may cause
-  incorrect constraint substitution.
-  (`#86769 <https://github.com/llvm/llvm-project/issues/86769>`_)
-
 Bug Fixes to AST Handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 - Fix incorrect name qualifiers applied to alias CTAD. (#GH136624)
@@ -779,17 +734,6 @@ Arm and AArch64 Support
   - Users can override function version priority.
   - Unreachable function versions are diagnosed and ignored.
 
-- Alpha support has been added for SVE2.1 intrinsics.
-
-- Support has been added for `-fstack-clash-protection` and `-mstack-probe-size`
-  command line options.
-
-- Function Multi Versioning has been extended to support Load-Acquire RCpc
-  instructions v3 (rcpc3) as well as Memory Copy and Memory Set Acceleration
-  instructions (mops) when targeting AArch64. The feature identifiers (in
-  parenthesis) can be used with either of the ``target_version`` and
-  ``target_clones`` attributes.
-
 Android Support
 ^^^^^^^^^^^^^^^
 
@@ -799,8 +743,6 @@ Windows Support
 - clang-cl now supports /vlen, /vlen=256 and /vlen=512.
 
 - Clang now supports MSVC vector deleting destructors (GH19772).
-
-- Clang now passes relevant LTO options to the linker (LLD) in MinGW mode.
 
 LoongArch Support
 ^^^^^^^^^^^^^^^^^
@@ -829,9 +771,6 @@ RISC-V Support
 
 - DWARF fission is now compatible with linker relaxations, allowing `-gsplit-dwarf` and `-mrelax`
   to be used together when building for the RISC-V platform.
-
-- ``__attribute__((rvv_vector_bits(N)))`` is now supported for RVV vbool*_t types.
-- ``-mtls-dialect=desc`` is now supported to enable TLS descriptors (TLSDESC).
 
 CUDA/HIP Language Changes
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -867,16 +806,6 @@ PowerPC Support
 - Prototyped Dense Math Facility builtins.
 - Prototyped initial support for AMO load builtins.
 - Add support for ``-fpatchable-function-entry`` on PPC64LE.
-
-PowerPC Support
-^^^^^^^^^^^^^^^
-
-- Added ``nmmintrin.h`` to intrinsics headers.
-- Added ``__builtin_ppc_fence`` as barrier of code motion, and
-  ``__builtin_ppc_mffsl`` for corresponding instruction.
-- Supported ``__attribute__((target("tune=cpu")))``.
-- Emit ``float-abi`` module flag on 64-bit ELFv2 PowerPC targets if
-  ``long double`` type is used in current module.
 
 AIX Support
 ^^^^^^^^^^^
@@ -1000,10 +929,6 @@ Crash and bug fixes
 - Fixed a crash introduced in clang-20 in the ``unix.Malloc`` checker when
   analyzing functions that had both of the ``ownership_returns`` and
   ``ownership_takes`` attributes. (#GH183344)
-
-- Fixed a crash in ``security.cert.env.InvalidPtr`` checker when accidentally
-  matched user-defined ``strerror`` and similar library functions.
-  (`#88181 <https://github.com/llvm/llvm-project/issues/88181>`_)
 
 Improvements
 ^^^^^^^^^^^^

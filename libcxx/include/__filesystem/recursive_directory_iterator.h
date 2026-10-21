@@ -155,6 +155,4 @@ inline constexpr bool std::ranges::enable_view<std::filesystem::recursive_direct
 
 _LIBCPP_POP_MACROS
 
-_LIBCPP_POP_MACROS
-
 #endif // _LIBCPP___FILESYSTEM_RECURSIVE_DIRECTORY_ITERATOR_H

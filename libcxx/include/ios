@@ -246,9 +246,6 @@ storage-class-specifier const error_category& iostream_category() noexcept;
 _LIBCPP_PUSH_MACROS
 #    include <__undef_macros>
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 typedef ptrdiff_t streamsize;

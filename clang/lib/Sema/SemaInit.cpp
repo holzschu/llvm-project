@@ -4565,7 +4565,7 @@ static OverloadingResult ResolveConstructorOverload(
 /// \param IsListInit     Is this list-initialization?
 /// \param IsInitListCopy Is this non-list-initialization resulting from a
 ///                       list-initialization from {x} where x is the same
-///                       type as the entity?
+///                       aggregate type as the entity?
 static void TryConstructorInitialization(Sema &S,
                                          const InitializedEntity &Entity,
                                          const InitializationKind &Kind,
@@ -4594,6 +4594,14 @@ static void TryConstructorInitialization(Sema &S,
         Entity.getKind() != InitializedEntity::EK_Delegating &&
         Entity.getKind() !=
             InitializedEntity::EK_LambdaToBlockConversionBlockElement);
+
+  bool CopyElisionPossible = false;
+  auto ElideConstructor = [&] {
+    // Convert qualifications if necessary.
+    Sequence.AddQualificationConversionStep(DestType, VK_PRValue);
+    if (ILE)
+      Sequence.RewrapReferenceInitList(DestType, ILE);
+  };
 
   // C++17 [dcl.init]p17:
   //     - If the initializer expression is a prvalue and the cv-unqualified
@@ -4674,6 +4682,12 @@ static void TryConstructorInitialization(Sema &S,
           S, Kind.getLocation(), Args, CandidateSet, DestType, Ctors, Best,
           CopyInitialization, AllowExplicit,
           /*OnlyListConstructors=*/true, IsListInit, RequireActualConstructor);
+
+    if (CopyElisionPossible && Result == OR_No_Viable_Function) {
+      // No initializer list candidate
+      ElideConstructor();
+      return;
+    }
   }
 
   // C++11 [over.match.list]p1:
@@ -5025,9 +5039,9 @@ static void TryListInitialization(Sema &S,
     return;
   }
 
-  // C++11 [dcl.init.list]p3, per DR1467:
-  // - If T is a class type and the initializer list has a single element of
-  //   type cv U, where U is T or a class derived from T, the object is
+  // C++11 [dcl.init.list]p3, per DR1467 and DR2137:
+  // - If T is an aggregate class and the initializer list has a single element
+  //   of type cv U, where U is T or a class derived from T, the object is
   //   initialized from that element (by copy-initialization for
   //   copy-list-initialization, or by direct-initialization for
   //   direct-list-initialization).
@@ -5038,7 +5052,7 @@ static void TryListInitialization(Sema &S,
   // - Otherwise, if T is an aggregate, [...] (continue below).
   if (S.getLangOpts().CPlusPlus11 && InitList->getNumInits() == 1 &&
       !IsDesignatedInit) {
-    if (DestType->isRecordType()) {
+    if (DestType->isRecordType() && DestType->isAggregateType()) {
       QualType InitType = InitList->getInit(0)->getType();
       if (S.Context.hasSameUnqualifiedType(InitType, DestType) ||
           S.IsDerivedFrom(InitList->getBeginLoc(), InitType, DestType)) {

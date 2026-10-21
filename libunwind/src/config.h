@@ -17,7 +17,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 #include <__libunwind_config.h>
 
@@ -76,7 +75,7 @@
   #define _LIBUNWIND_EXPORT
   #define _LIBUNWIND_HIDDEN
 #else
-#if !defined(__ELF__) && !defined(__MACH__) && !defined(_AIX) && !defined(__wasm__)
+  #if !defined(__ELF__) && !defined(__MACH__) && !defined(_AIX)
     #define _LIBUNWIND_EXPORT __declspec(dllexport)
     #define _LIBUNWIND_HIDDEN
   #else
@@ -114,8 +113,6 @@
                                              SYMBOL_NAME(name)))               \
   extern "C" _LIBUNWIND_EXPORT __typeof(name) aliasname;
 #endif
-#elif defined(__wasm__)
-// Nothing to do
 #else
 #error Unsupported target
 #endif

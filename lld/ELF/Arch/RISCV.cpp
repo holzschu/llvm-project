@@ -935,21 +935,6 @@ static bool relax(Ctx &ctx, int pass, InputSection &sec) {
       if (toLeShortForm)
         remove = 4;
       break;
-    case R_RISCV_TLSDESC_HI20:
-      // For TLSDESC=>LE, we can use the short form if hi20 is zero.
-      tlsdescRelax = relaxable(relocs, i);
-      toLeShortForm = tlsdescRelax && r.expr == R_RELAX_TLS_GD_TO_LE &&
-                      !hi20(r.sym->getVA(r.addend));
-      [[fallthrough]];
-    case R_RISCV_TLSDESC_LOAD_LO12:
-      // For TLSDESC=>LE/IE, AUIPC and L[DW] are removed if relaxable.
-      if (tlsdescRelax && r.expr != R_TLSDESC_PC)
-        remove = 4;
-      break;
-    case R_RISCV_TLSDESC_ADD_LO12:
-      if (toLeShortForm)
-        remove = 4;
-      break;
     }
 
     // For all anchors whose offsets are <= r.offset, they are preceded by

@@ -567,9 +567,6 @@ erase_if(multiset<Key, Compare, Allocator>& c, Predicate pred);  // C++20
 _LIBCPP_PUSH_MACROS
 #  include <__undef_macros>
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Key, class _Compare = less<_Key>, class _Allocator = allocator<_Key> >

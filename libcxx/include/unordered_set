@@ -585,9 +585,6 @@ template <class Value, class Hash, class Pred, class Alloc>
 _LIBCPP_PUSH_MACROS
 #  include <__undef_macros>
 
-_LIBCPP_PUSH_MACROS
-#include <__undef_macros>
-
 _LIBCPP_BEGIN_NAMESPACE_STD
 
 template <class _Value, class _Hash, class _Pred, class _Alloc>

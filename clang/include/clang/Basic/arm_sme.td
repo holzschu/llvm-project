@@ -44,7 +44,6 @@ defm SVLD1_ZA32 : ZALoad<"za32", "i", "aarch64_sme_ld1w", [ImmCheck<0, ImmCheck0
 defm SVLD1_ZA64 : ZALoad<"za64", "l", "aarch64_sme_ld1d", [ImmCheck<0, ImmCheck0_7>]>;
 defm SVLD1_ZA128 : ZALoad<"za128", "q", "aarch64_sme_ld1q", [ImmCheck<0, ImmCheck0_15>]>;
 
-let TargetGuard = "sme" in {
 def SVLDR_VNUM_ZA : MInst<"svldr_vnum_za", "vmQl", "",
                           [IsOverloadNone, IsStreamingCompatible, IsInOutZA],
                           MemEltTyDefault, "aarch64_sme_ldr">;
@@ -52,7 +51,6 @@ def SVLDR_VNUM_ZA : MInst<"svldr_vnum_za", "vmQl", "",
 def SVLDR_ZA : MInst<"svldr_za", "vmQ", "",
                           [IsOverloadNone, IsStreamingCompatible, IsInOutZA],
                           MemEltTyDefault, "aarch64_sme_ldr", []>;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Stores
@@ -81,7 +79,6 @@ defm SVST1_ZA32 : ZAStore<"za32", "i", "aarch64_sme_st1w", [ImmCheck<0, ImmCheck
 defm SVST1_ZA64 : ZAStore<"za64", "l", "aarch64_sme_st1d", [ImmCheck<0, ImmCheck0_7>]>;
 defm SVST1_ZA128 : ZAStore<"za128", "q", "aarch64_sme_st1q", [ImmCheck<0, ImmCheck0_15>]>;
 
-let TargetGuard = "sme" in {
 def SVSTR_VNUM_ZA : MInst<"svstr_vnum_za", "vm%l", "",
                           [IsOverloadNone, IsStreamingCompatible, IsInZA],
                           MemEltTyDefault, "aarch64_sme_str">;
@@ -89,7 +86,6 @@ def SVSTR_VNUM_ZA : MInst<"svstr_vnum_za", "vm%l", "",
 def SVSTR_ZA : MInst<"svstr_za", "vm%", "",
                       [IsOverloadNone, IsStreamingCompatible, IsInZA],
                       MemEltTyDefault, "aarch64_sme_str", []>;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Read horizontal/vertical ZA slices

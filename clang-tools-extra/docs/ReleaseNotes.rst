@@ -109,14 +109,6 @@ Diagnostics
 - Fixed a bug that caused the quick-fix for the ``readability-identifier-naming``
   diagnostic not to work in some editors.
 
-- System include extractor (``--query-driver``) improvements
-    * The directory containing builtin headers is now excluded from extracted system includes
-    * Various flags which can affect the system includes (``--target``, ``--stdlib``, ``-specs``) are now forwarded to the driver
-    * Fixed a bug where clangd would sometimes try to call a driver that didn't have obj-c support with ``-x objective-c++-header``
-    * The driver path is now dot-normalized before being compared to the ``--query-driver`` pattern
-    * ``--query-driver`` is now supported by ``clangd-indexer``
-- Fixed a regression in clangd 17 where response files would not be expanded
-
 Hover
 ^^^^^
 
@@ -127,8 +119,6 @@ Hover
   class templates defined in a header
 - Fixed a bug that prevented documentation from being shown for
   abbreviated function templates
-
-- Improved support for calls through function pointer types
 
 Cross-references
 ^^^^^^^^^^^^^^^^
@@ -830,12 +820,7 @@ Miscellaneous
 Improvements to include-fixer
 -----------------------------
 
-- Support for ``--only-headers`` flag to limit analysis to headers matching a regex
-- Recognizes references through ``concept``s
-- Builtin headers are not analyzed
-- Handling of references through ``friend`` declarations
-- Fixes around handling of IWYU pragmas on stdlib headers
-- Improved handling around references to/from template specializations
+The improvements are...
 
 Improvements to clang-include-fixer
 -----------------------------------

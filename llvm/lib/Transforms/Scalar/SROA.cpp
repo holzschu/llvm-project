@@ -2363,41 +2363,6 @@ static VectorType *createAndCheckVectorTypesForPromotion(
       HaveCommonVecPtrTy, CommonVecPtrTy, VScale);
 }
 
-static VectorType *createAndCheckVectorTypesForPromotion(
-    SetVector<Type *> &OtherTys, ArrayRef<VectorType *> CandidateTysCopy,
-    function_ref<void(Type *)> CheckCandidateType, Partition &P,
-    const DataLayout &DL, SmallVectorImpl<VectorType *> &CandidateTys,
-    bool &HaveCommonEltTy, Type *&CommonEltTy, bool &HaveVecPtrTy,
-    bool &HaveCommonVecPtrTy, VectorType *&CommonVecPtrTy) {
-  [[maybe_unused]] VectorType *OriginalElt =
-      CandidateTysCopy.size() ? CandidateTysCopy[0] : nullptr;
-  // Consider additional vector types where the element type size is a
-  // multiple of load/store element size.
-  for (Type *Ty : OtherTys) {
-    if (!VectorType::isValidElementType(Ty))
-      continue;
-    unsigned TypeSize = DL.getTypeSizeInBits(Ty).getFixedValue();
-    // Make a copy of CandidateTys and iterate through it, because we
-    // might append to CandidateTys in the loop.
-    for (VectorType *const VTy : CandidateTysCopy) {
-      // The elements in the copy should remain invariant throughout the loop
-      assert(CandidateTysCopy[0] == OriginalElt && "Different Element");
-      unsigned VectorSize = DL.getTypeSizeInBits(VTy).getFixedValue();
-      unsigned ElementSize =
-          DL.getTypeSizeInBits(VTy->getElementType()).getFixedValue();
-      if (TypeSize != VectorSize && TypeSize != ElementSize &&
-          VectorSize % TypeSize == 0) {
-        VectorType *NewVTy = VectorType::get(Ty, VectorSize / TypeSize, false);
-        CheckCandidateType(NewVTy);
-      }
-    }
-  }
-
-  return checkVectorTypesForPromotion(P, DL, CandidateTys, HaveCommonEltTy,
-                                      CommonEltTy, HaveVecPtrTy,
-                                      HaveCommonVecPtrTy, CommonVecPtrTy);
-}
-
 /// Test whether the given alloca partitioning and range of slices can be
 /// promoted to a vector.
 ///

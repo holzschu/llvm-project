@@ -81,9 +81,6 @@ class MyResponder(MockGDBServerResponder):
         self._memory = memory
         MockGDBServerResponder.__init__(self)
 
-    def SetCurrentPC(self, address):
-        self.current_pc = LOAD_ADDRESS + address
-
     def respond(self, packet):
         if packet[0:13] == "qRegisterInfo":
             return self.qRegisterInfo(packet[13:])
@@ -106,7 +103,7 @@ class MyResponder(MockGDBServerResponder):
         return "m1,"
 
     def qRegisterInfo(self, index):
-        if index == "0":
+        if index == 0:
             return "name:pc;alt-name:pc;bitsize:64;offset:0;encoding:uint;format:hex;set:General Purpose Registers;gcc:16;dwarf:16;generic:pc;"
         return "E45"
 
@@ -120,7 +117,6 @@ class MyResponder(MockGDBServerResponder):
         return "T02thread:1;"
 
     def readRegister(self, register):
-        assert register == 0
         return format_register_value(self.current_pc)
 
     def qXferRead(self, obj, annex, offset, length):
@@ -141,8 +137,6 @@ class MyResponder(MockGDBServerResponder):
             return "E02"
         result = ""
         with open(self._obj_path, mode="rb") as file:
-            if addr < load_address:
-                return "E02"
             file_content = bytearray(file.read())
             if addr >= LOAD_ADDRESS + len(file_content):
                 return "E03"
@@ -187,25 +181,6 @@ class MyResponder(MockGDBServerResponder):
 
 
 class TestWasm(GDBRemoteTestBase):
-    def connect_to_wasm_engine(self, target):
-        """
-        Create a process by connecting to the mock GDB server running in a mock WebAssembly engine.
-        Includes assertions that the process was successfully created.
-        """
-        listener = self.dbg.GetListener()
-        error = lldb.SBError()
-        process = target.ConnectRemote(
-            listener, self.server.get_connect_url(), "wasm", error
-        )
-        self.assertTrue(error.Success(), error.description)
-        self.assertTrue(process, PROCESS_IS_VALID)
-        return process
-
-    def store_bytes(self, offset, bytes_obj):
-        chunk = self.memory_view[offset : offset + len(bytes_obj)]
-        for i in range(len(bytes_obj)):
-            chunk[i] = bytes_obj[i]
-
     @skipIfAsan
     @skipIfXmlSupportMissing
     def test_load_module_with_embedded_symbols_from_remote(self):

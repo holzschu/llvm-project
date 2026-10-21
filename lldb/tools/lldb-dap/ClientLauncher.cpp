@@ -11,6 +11,14 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/FormatVariadic.h"
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include "ios_error.h"
+#endif
+#endif
+
+
 using namespace lldb_dap;
 
 std::optional<ClientLauncher::Client>
@@ -64,7 +72,11 @@ llvm::Error VSCodeLauncher::Launch(const std::vector<llvm::StringRef> &args) {
   const std::string command =
       llvm::formatv("code --open-url {0}", launch_url).str();
 
+#if TARGET_OS_IPHONE
+  ios_system(command.c_str());
+#else
   std::system(command.c_str());
+#endif
   return llvm::Error::success();
 }
 

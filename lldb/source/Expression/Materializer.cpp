@@ -1095,9 +1095,7 @@ public:
         llvm::expectedToOptional(ret->GetByteSize()).value_or(0);
     uint8_t *pvar_data = ret->GetValueBytes();
 
-	map.ReadMemory(pvar_data,
-                   process_sp->FixMemoryAddress(address, frame_sp.get()),
-                   pvar_byte_size, read_error);
+    map.ReadMemory(pvar_data, address, pvar_byte_size, read_error);
 
     if (!read_error.Success()) {
       err = Status::FromErrorString(

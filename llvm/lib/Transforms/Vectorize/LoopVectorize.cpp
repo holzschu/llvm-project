@@ -1809,8 +1809,6 @@ class GeneratedRTChecks {
   /// The kind of cost that we are calculating
   TTI::TargetCostKind CostKind;
 
-  Loop *OuterLoop = nullptr;
-
 public:
   GeneratedRTChecks(PredicatedScalarEvolution &PSE, DominatorTree *DT,
                     LoopInfo *LI, TargetTransformInfo *TTI,

@@ -50,6 +50,7 @@
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #if TARGET_OS_IPHONE
+#include "llvm/Support/ManagedStatic.h" // for llvm_shutdown()
 #include "ios_error.h"
 #undef write
 #undef exit

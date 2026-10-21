@@ -1427,13 +1427,6 @@ public:
       const SCEV *S, Instruction *I,
       SmallVectorImpl<Instruction *> &DropPoisonGeneratingInsts);
 
-  /// Check whether it is poison-safe to represent the expression S using the
-  /// instruction I. If such a replacement is performed, the poison flags of
-  /// instructions in DropPoisonGeneratingInsts must be dropped.
-  bool canReuseInstruction(
-      const SCEV *S, Instruction *I,
-      SmallVectorImpl<Instruction *> &DropPoisonGeneratingInsts);
-
   class FoldID {
     const SCEV *Op = nullptr;
     const Type *Ty = nullptr;

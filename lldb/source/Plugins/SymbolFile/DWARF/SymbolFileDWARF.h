@@ -330,9 +330,7 @@ public:
     return LLDB_INVALID_OFFSET;
   }
 
-  virtual bool ParseVendorDWARFOpcode(uint8_t op, RegisterContext *reg_ctx,
-                                      const DataExtractor &opcodes,
-                                      const lldb::RegisterKind reg_kind,
+  virtual bool ParseVendorDWARFOpcode(uint8_t op, const DataExtractor &opcodes,
                                       lldb::offset_t &offset,
                                       RegisterContext *reg_ctx,
                                       lldb::RegisterKind reg_kind,
@@ -575,25 +573,6 @@ protected:
   /// an index that identifies the .DWO or .o file.
   std::optional<uint64_t> m_file_index;
 };
-
-namespace wasm {
-class SymbolFileWasm : public SymbolFileDWARF {
-public:
-  SymbolFileWasm(lldb::ObjectFileSP objfile_sp, SectionList *dwo_section_list);
-
-  ~SymbolFileWasm() override;
-
-  lldb::offset_t GetVendorDWARFOpcodeSize(const DataExtractor &data,
-                                          const lldb::offset_t data_offset,
-                                          const uint8_t op) const override;
-
-  bool ParseVendorDWARFOpcode(uint8_t op, RegisterContext *reg_ctx,
-                              const DataExtractor &opcodes,
-                              const lldb::RegisterKind reg_kind,
-                              lldb::offset_t &offset, std::vector<Value> &stack,
-                              Status *error_ptr) const override;
-};
-} // namespace wasm
 
 } // namespace dwarf
 } // namespace lldb_private::plugin

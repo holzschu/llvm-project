@@ -37,7 +37,6 @@
 
 #include "Plugins/ExpressionParser/Clang/ClangModulesDeclVendor.h"
 #include "Plugins/Language/CPlusPlus/CPlusPlusLanguage.h"
-#include "Plugins/ObjectFile/wasm/ObjectFileWasm.h"
 
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"

@@ -491,11 +491,6 @@ LLVM_ABI bool maskIsAllOneOrUndef(Value *Mask);
 /// least one lane can be assumed active.
 LLVM_ABI bool maskContainsAllOneOrUndef(Value *Mask);
 
-/// Given a mask vector of i1, Return true if any of the elements of this
-/// predicate mask are known to be true or undef.  That is, return true if at
-/// least one lane can be assumed active.
-bool maskContainsAllOneOrUndef(Value *Mask);
-
 /// Given a mask vector of the form <Y x i1>, return an APInt (of bitwidth Y)
 /// for each lane which may be active.
 LLVM_ABI APInt possiblyDemandedEltsInMask(Value *Mask);

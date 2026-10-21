@@ -3174,10 +3174,6 @@ def int_amdgcn_global_prefetch : ClangBuiltin<"__builtin_amdgcn_global_prefetch"
     "", [SDNPMemOperand]
   >;
 
-// i32 @llvm.amdgcn.wave.id()
-def int_amdgcn_wave_id :
-  DefaultAttrsIntrinsic<[llvm_i32_ty], [], [IntrNoMem, IntrSpeculatable]>;
-
 //===----------------------------------------------------------------------===//
 // Deep learning intrinsics.
 //===----------------------------------------------------------------------===//

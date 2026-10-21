@@ -53,6 +53,7 @@
 #include <TargetConditionals.h>
 #if TARGET_OS_IPHONE
 #include "ios_error.h"
+#include "llvm/Support/ManagedStatic.h" // for llvm_shutdown()
 #undef write
 #endif
 #endif

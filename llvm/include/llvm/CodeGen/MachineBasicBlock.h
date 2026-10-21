@@ -547,8 +547,6 @@ public:
 
   const std::vector<RegisterMaskPair> &getLiveIns() const { return LiveIns; }
 
-  std::vector<RegisterMaskPair> getLiveIns() const { return LiveIns; }
-
   class liveout_iterator {
   public:
     using iterator_category = std::input_iterator_tag;

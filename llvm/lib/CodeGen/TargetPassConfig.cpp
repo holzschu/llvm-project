@@ -769,7 +769,7 @@ AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
   if (!FinalPtr.isValid())
     return nullptr;
 
-  Pass *P = nullptr;
+  Pass *P;
   if (FinalPtr.isInstance())
     P = FinalPtr.getInstance();
   else {
@@ -777,10 +777,6 @@ AnalysisID TargetPassConfig::addPass(AnalysisID PassID) {
     if (!P)
       llvm_unreachable("Pass ID not registered");
   }
-
-  if (!P)
-    return nullptr;
-
   AnalysisID FinalID = P->getPassID();
   addPass(P); // Ends the lifetime of P.
 

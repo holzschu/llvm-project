@@ -20672,25 +20672,6 @@ Value *BoUpSLP::vectorizeTree(TreeEntry *E) {
         } else if (It != MinBWs.end()) {
           OpVec = Builder.CreateIntCast(OpVec, VecTy, GetOperandSignedness(I));
         }
-        auto GetOperandSignedness = [&](unsigned Idx) {
-          const TreeEntry *OpE = getOperandEntry(E, Idx);
-          bool IsSigned = false;
-          auto It = MinBWs.find(OpE);
-          if (It != MinBWs.end())
-            IsSigned = It->second.second;
-          else
-            IsSigned = any_of(OpE->Scalars, [&](Value *R) {
-              return !isKnownNonNegative(R, SimplifyQuery(*DL));
-            });
-          return IsSigned;
-        };
-        ScalarArg = CEI->getArgOperand(I);
-        if (cast<VectorType>(OpVec->getType())->getElementType() !=
-            ScalarArg->getType()) {
-          auto *CastTy = FixedVectorType::get(ScalarArg->getType(),
-                                              VecTy->getNumElements());
-          OpVec = Builder.CreateIntCast(OpVec, CastTy, GetOperandSignedness(I));
-        }
         LLVM_DEBUG(dbgs() << "SLP: OpVec[" << I << "]: " << *OpVec << "\n");
         OpVecs.push_back(OpVec);
         if (UseIntrinsic && isVectorIntrinsicWithOverloadTypeAtArg(ID, I, TTI))

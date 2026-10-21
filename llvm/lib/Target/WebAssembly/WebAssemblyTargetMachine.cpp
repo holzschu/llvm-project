@@ -271,8 +271,7 @@ public:
   bool runOnModule(Module &M) override {
     FeatureBitset Features = coalesceFeatures(M);
 
-    std::string FeatureStr =
-        getFeatureString(Features, WasmTM->getTargetFeatureString());
+    std::string FeatureStr = getFeatureString(Features);
     WasmTM->setTargetFeatureString(FeatureStr);
     for (auto &F : M)
       replaceFeatures(F, FeatureStr);

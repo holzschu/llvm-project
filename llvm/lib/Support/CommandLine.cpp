@@ -238,8 +238,8 @@ public:
   }
 
   void addOption(Option *O, SubCommand *SC) {
-    bool HadErrors = false;
-    if (O->hasArgStr()) {
+	  bool HadErrors = false;
+	  if (O->hasArgStr()) {
       // If it's a DefaultOption, check to make sure it isn't already there.
       if (O->isDefaultOption() && SC->OptionsMap.contains(O->ArgStr))
         return;

@@ -531,10 +531,6 @@ public:
   /// and return type lists).
   LLVM_ABI wasm::WasmSignature *createWasmSignature();
 
-  /// Allocates and returns a new `WasmSignature` instance (with empty parameter
-  /// and return type lists).
-  wasm::WasmSignature *createWasmSignature();
-
   /// @}
 
   /// \name Section Management

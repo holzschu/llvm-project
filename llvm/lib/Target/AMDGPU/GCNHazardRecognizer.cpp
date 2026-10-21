@@ -2013,18 +2013,6 @@ bool GCNHazardRecognizer::fixWMMAHazards(MachineInstr *MI) {
       return false;
     }
 
-    // GFX12+ allows overlap of matrix C with PrevDstReg (hardware will stall)
-    // but Index can't overlap with PrevDstReg.
-    if (AMDGPU::isGFX12Plus(ST)) {
-      if (SIInstrInfo::isSWMMAC(*MI)) {
-        const Register CurIndex =
-            TII->getNamedOperand(*MI, AMDGPU::OpName::src2)->getReg();
-        if (TRI->regsOverlap(PrevDstReg, CurIndex))
-          return true;
-      }
-      return false;
-    }
-
     return false;
   };
 

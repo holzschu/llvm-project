@@ -1,4 +1,4 @@
-add_lldb_library(lldbExpression 
+add_lldb_library(lldbExpression NO_PLUGIN_DEPENDENCIES
   DiagnosticManager.cpp
   DWARFExpression.cpp
   DWARFExpressionList.cpp

@@ -432,13 +432,14 @@ if(APPLE)
 
   if(COMPILER_RT_ENABLE_IOS)
     list(APPEND DARWIN_EMBEDDED_PLATFORMS ios)
-    set(DARWIN_ios_MIN_VER 9.0)
-    set(DARWIN_ios_MIN_VER_FLAG -miphoneos-version-min)
-    set(DARWIN_ios_SANITIZER_MIN_VER_FLAG
-      ${DARWIN_ios_MIN_VER_FLAG}=${DARWIN_ios_MIN_VER})
-    set(DARWIN_iossim_MIN_VER_FLAG -mios-simulator-version-min)
-    set(DARWIN_iossim_SANITIZER_MIN_VER_FLAG
-      ${DARWIN_iossim_MIN_VER_FLAG}=${DARWIN_ios_MIN_VER})
+	# iOS/a-Shell: These lines break the compilation process
+	# set(DARWIN_ios_MIN_VER 9.0)
+    # set(DARWIN_ios_MIN_VER_FLAG -miphoneos-version-min)
+    # set(DARWIN_ios_SANITIZER_MIN_VER_FLAG
+    #   ${DARWIN_ios_MIN_VER_FLAG}=${DARWIN_ios_MIN_VER})
+    # set(DARWIN_iossim_MIN_VER_FLAG -mios-simulator-version-min)
+    # set(DARWIN_iossim_SANITIZER_MIN_VER_FLAG
+    #   ${DARWIN_iossim_MIN_VER_FLAG}=${DARWIN_ios_MIN_VER})
   endif()
   if(COMPILER_RT_ENABLE_WATCHOS)
     list(APPEND DARWIN_EMBEDDED_PLATFORMS watchos)

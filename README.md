@@ -77,3 +77,11 @@ chat](https://discord.gg/xS7Z362),
 
 The LLVM project has adopted a [code of conduct](https://llvm.org/docs/CodeOfConduct.html) for
 participants to all modes of communication within the project.
+
+## Releasing xcframeworks
+
+CI builds the 11 xcframeworks from `bootstrap.sh` on pull requests (except Markdown-only changes) and manual runs. Device arm64 and Simulator x86_64 builds run in separate jobs, each with a six-hour limit; the packaging job joins their artifacts and uploads ZIPs, `checksums.txt` and `release.md`.
+
+Push a version tag (for example, `22.1.8` or `v22.1.8`) to run "Publishing release". It creates the release from the generated notes or adds assets to an existing release while keeping its notes. Uploads fail if an asset already exists. Only this upstream release job has write permission. Update consuming `binaryTarget` URLs and checksums from the new release.
+
+The maintainer's `lldb` target still depends on unbundled `liblldb.22.1.8.dylib`, `libLLVM.dylib` and `libclang-cpp.dylib`. The workflow records this packaging gap in the release notes; the LLDB ZIP is not self-contained.

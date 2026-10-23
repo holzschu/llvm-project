@@ -1,0 +1,185 @@
+name: CI
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: Hosted runner (Intel fallback for arm64 capacity shortages)
+        type: choice
+        default: macos-26
+        options:
+          - macos-26
+          - macos-26-intel
+  push:
+    tags:
+      - 'v*'
+      - '[0-9]*'
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  compile:
+    name: Compile ${{ matrix.sdk }}
+    runs-on: ${{ inputs.runner || 'macos-26-intel' }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [iphoneos, iphonesimulator]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          df -h .
+      - name: Build frameworks
+        env:
+          SDK: ${{ matrix.sdk }}
+          NINJA_JOBS: ${{ inputs.runner == 'macos-26' && '2' || '3' }}
+          LLVM_LINK_JOBS: 1
+        run: |
+          (
+            while true; do
+              {
+                date -u '+%Y-%m-%dT%H:%M:%SZ'
+                sysctl hw.memsize vm.swapusage
+                vm_stat
+                memory_pressure
+                df -h .
+                ps -axo pid=,rss=,comm= | sort -k2,2nr | awk 'NR <= 12'
+              } 2>&1 | tee -a "$GITHUB_WORKSPACE/$SDK-resources.txt" || true
+              sleep 60
+            done
+          ) &
+          monitor_pid=$!
+          trap 'kill "$monitor_pid" 2>/dev/null || true' EXIT
+          bash bootstrap.sh "--sdk=$SDK"
+          du -sh build_osx "build-$SDK"
+          df -h .
+          (
+            cd "build-$SDK/build/Release-$SDK" || exit 1
+            tar -czf "$GITHUB_WORKSPACE/$SDK.tar.gz" ./*.framework
+          )
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: resource-usage-${{ matrix.sdk }}
+          if-no-files-found: warn
+          path: ${{ matrix.sdk }}-resources.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: llvm-${{ matrix.sdk }}
+          if-no-files-found: error
+          path: ${{ matrix.sdk }}.tar.gz
+
+  build:
+    name: Building xcframeworks
+    needs: compile
+    runs-on: ${{ inputs.runner || 'macos-26-intel' }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: llvm-*
+          merge-multiple: true
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          df -h .
+      - name: Join framework slices
+        run: |
+          for sdk in iphoneos iphonesimulator; do
+            mkdir -p "staging/$sdk"
+            tar -xzf "$sdk.tar.gz" -C "staging/$sdk"
+          done
+          for framework in staging/iphoneos/*.framework; do
+            name=$(basename "$framework" .framework)
+            xcodebuild -create-xcframework -framework "$framework" \
+              -framework "staging/iphonesimulator/$name.framework" -output "$name.xcframework"
+            zip -rq "$name.xcframework.zip" "$name.xcframework"
+          done
+      - name: Slices and checksums
+        run: |
+          ls *.xcframework.zip >/dev/null
+          for zip in *.xcframework.zip; do
+            sum=$(swift package compute-checksum "$zip")
+            echo "$sum  $(basename "$zip")"
+          done | tee checksums.txt
+          cp checksums.txt release.md
+          echo 'lldb.xcframework also requires unbundled liblldb.22.1.8.dylib, libLLVM.dylib and libclang-cpp.dylib; it is not self-contained.' >> release.md
+          {
+            echo '| xcframework | slice | archs |'
+            echo '| --- | --- | --- |'
+            for xcf in *.xcframework; do
+              [ -d "$xcf/ios-arm64" ] || exit 1
+              ls -d "$xcf"/ios-*-simulator >/dev/null
+              plutil -convert json -o - "$xcf/Info.plist" | jq -r \
+                '.AvailableLibraries[] | [.LibraryIdentifier, .LibraryPath, (.SupportedArchitectures | sort | join(" "))] | @tsv' \
+                | while IFS=$'\t' read -r slice lib expected; do
+                    bin="$xcf/$slice/$lib/$(basename "${lib%.framework}")"
+                    archs=$(lipo -archs "$bin")
+                    actual=$(echo "$archs" | tr ' ' '\n' | sort | paste -sd ' ' -)
+                    [ "$actual" = "$expected" ] || exit 1
+                    echo "| $(basename "$xcf") | $slice | $archs |"
+                    otool -L "$bin" >&2
+                    if otool -L "$bin" | grep $'^\t' | grep -E '/opt/homebrew|/usr/local|/Users/runner'; then exit 1; fi
+                    while read -r dependency; do
+                      case "$dependency" in
+                        @rpath/*.dylib)
+                          if [ "$(basename "$xcf")" = lldb.xcframework ] && [ "$dependency" = @rpath/liblldb.22.1.8.dylib ]; then
+                            echo "Known unbundled LLDB dependency: $dependency" >&2
+                          else
+                            echo "Unbundled dylib: $dependency" >&2
+                            exit 1
+                          fi
+                          ;;
+                      esac
+                    done < <(otool -L "$bin" | awk '/^\t/ {print $1}')
+                  done
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          du -sh staging
+          df -h .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: xcframeworks
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            *.xcframework.zip
+            checksums.txt
+            release.md
+
+  release:
+    name: Publishing release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') && github.repository == 'holzschu/llvm-project'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: xcframeworks
+          path: dist
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              dist/*.xcframework.zip dist/checksums.txt
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --title "Release $GITHUB_REF_NAME" --notes-file dist/release.md \
+              dist/*.xcframework.zip dist/checksums.txt
+          fi

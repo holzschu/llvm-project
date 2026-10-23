@@ -350,7 +350,7 @@
 		22608587244C3B4E00B88587 /* llvm-ar.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-ar.cpp.o"; path = "./tools/llvm-ar/CMakeFiles/llvm-ar.dir/llvm-ar.cpp.o"; sourceTree = "<group>"; };
 		2260858B244C3C7700B88587 /* ar.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = ar.h; path = ../frameworks/ar/ar.h; sourceTree = SOURCE_ROOT; };
 		226D9CBF2C00A3F20076155E /* lldb.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = lldb.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		226D9CC02C00A3F50076155E /* lldb-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "lldb-Info.plist"; path = "../frameworks/lldb-Info.plist"; sourceTree = "<absolute>"; };
+		226D9CC02C00A3F50076155E /* lldb-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "lldb-Info.plist"; path = "../frameworks/lld-Info.plist"; sourceTree = SOURCE_ROOT; };
 		226D9CC82C04AAED0076155E /* clang-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "clang-driver.cpp.o"; path = "tools/clang/tools/driver/CMakeFiles/clang.dir/clang-driver.cpp.o"; sourceTree = "<group>"; };
 		226D9CCA2C04AB6D0076155E /* llvm-ar-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-ar-driver.cpp.o"; path = "tools/llvm-ar/CMakeFiles/llvm-ar.dir/llvm-ar-driver.cpp.o"; sourceTree = "<group>"; };
 		226D9CCC2C04ABF80076155E /* llvm-nm-driver.cpp.o */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.objfile"; name = "llvm-nm-driver.cpp.o"; path = "tools/llvm-nm/CMakeFiles/llvm-nm.dir/llvm-nm-driver.cpp.o"; sourceTree = "<group>"; };
@@ -2038,7 +2038,7 @@
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = "../frameworks/lldb-Info.plist";
+				INFOPLIST_FILE = "../frameworks/lld-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -2073,7 +2073,7 @@
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = "../frameworks/lldb-Info.plist";
+				INFOPLIST_FILE = "../frameworks/lld-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
 				LD_RUNPATH_SEARCH_PATHS = (
